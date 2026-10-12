@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// DealXStocks Firestore security rules.
+//
+// Governance model: all reads and writes are mediated by the backend
+// (backend/server/production-server.js) using the Firebase Admin SDK, which
+// bypasses these rules. The web client only initializes firebase/app and
+// firebase/analytics and never talks to Firestore directly.
+//
+// Defense-in-depth: deny all direct client access. If a future feature needs
+// client-side Firestore access, it must be scoped explicitly per collection.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,70 @@
+﻿{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "supportConversations": {
+      ".read": true,
+      "$convId": {
+        ".read": true,
+        ".write": true,
+        ".indexOn": ["updatedAt", "lastMessageAt", "createdAt"],
+        "id": { ".validate": "newData.isString()" },
+        "userId": { ".validate": "newData.isString()" },
+        "userName": { ".validate": "newData.isString() && newData.val().length <= 100" },
+        "userEmail": { ".validate": "newData.isString() && newData.val().length <= 150" },
+        "lastMessage": { ".validate": "newData.isString() && newData.val().length <= 1000" },
+        "status": { ".validate": "newData.isString()" },
+        "updatedAt": { ".validate": "newData.isString()" }
+      }
+    },
+
+    "supportMessages": {
+      "$convId": {
+        ".read": true,
+        ".write": true,
+        ".indexOn": ["createdAt", "status"],
+        "$messageId": {
+          ".read": true,
+          ".write": true,
+          ".validate": "newData.hasChildren(['id', 'conversationId', 'senderId', 'senderRole', 'createdAt'])",
+          "id": { ".validate": "newData.isString()" },
+          "conversationId": { ".validate": "newData.isString()" },
+          "senderId": { ".validate": "newData.isString()" },
+          "senderRole": { ".validate": "newData.isString() && (newData.val() == 'user' || newData.val() == 'admin' || newData.val() == 'super_admin')" },
+          "senderName": { ".validate": "newData.isString() && newData.val().length <= 100" },
+          "text": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 5000)" },
+          "imageUrl": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 2000)" },
+          "status": { ".validate": "!newData.exists() || newData.isString()" },
+          "createdAt": { ".validate": "newData.isString()" },
+          "$other": { ".validate": true }
+        }
+      }
+    },
+
+    "supportTyping": {
+      "$convId": {
+        ".read": true,
+        ".write": true,
+        "$senderId": {
+          ".read": true,
+          ".write": true,
+          ".validate": "!newData.exists() || newData.hasChildren(['senderId', 'isTyping'])",
+          "senderId": { ".validate": "newData.isString()" },
+          "senderName": { ".validate": "!newData.exists() || newData.isString()" },
+          "isTyping": { ".validate": "newData.isBoolean()" },
+          "timestamp": { ".validate": "!newData.exists() || newData.isNumber()" }
+        }
+      }
+    },
+
+    "supportPresence": {
+      "$userId": {
+        ".read": true,
+        ".write": true,
+        "online": { ".validate": "newData.isBoolean()" },
+        "lastSeen": { ".validate": "newData.isNumber()" }
+      }
+    }
+  }
+}

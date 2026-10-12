@@ -1,0 +1,31 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "node app.js",
+    "start": "node app.js",
+    "build": "node --check server/production-server.js && node --check server/user-intelligence.js",
+    "build:package": "node scripts/build-package.mjs",
+    "seed:admin": "node scripts/seed-admin-account.mjs",
+    "seed:firebase": "node scripts/seed-firebase.mjs",
+    "import:adgroups": "node scripts/import-adgroups.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.7",
+    "firebase-admin": "^13.10.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "uuid": "^11.1.1",
+    "websocket-driver": "^0.7.5"
+  }
+}
