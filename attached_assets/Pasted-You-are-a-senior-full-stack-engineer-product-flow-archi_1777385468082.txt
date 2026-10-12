@@ -1,0 +1,212 @@
+You are a senior full-stack engineer, product-flow architect, and debugging specialist.
+
+Your task is to fix and fully implement a dynamic, admin-driven task system for a reward/commission-based application.
+
+GOAL
+The system must correctly show the task popup / product popup / ad popup only at the proper step, based on the task package assigned from the admin panel. The app must not skip the popup screen, must not show the wrong screen, and must not mix task packages between users or codes.
+
+HIGH-LEVEL FLOW
+1. User opens the app and goes to Menu.
+2. User clicks Amazon.
+3. User clicks Start Task.
+4. The app sends a request to the admin panel.
+5. Admin manually approves or assigns a task package/code to that user.
+6. After approval, the user must be routed back into the correct task flow.
+7. The correct task popup/list must appear.
+8. The task list must be loaded only from the admin-assigned package.
+9. Tasks must appear in the exact order defined in the admin panel.
+10. The user must complete tasks one by one.
+11. Balance, commission, completed count, and pending count must update correctly in real time.
+
+CORE BUG TO FIX
+The popup/product/task screen is currently missing or being skipped.
+Instead of showing the assigned task popup after clicking Start Task, the app is jumping to another screen.
+This is a state/navigation/session bug, not only a UI bug.
+Fix the flow so the popup always appears at the correct stage after admin approval.
+
+PACKAGE-BASED TASK LOGIC
+- Each user is assigned a specific package/code from the admin panel.
+- Example codes: 201, 301, 302, 303, 401, 402, 403, 404.
+- Each code has its own task set.
+- Example: code 201 may contain 25 tasks/ads/products.
+- Code 301 must load only the 301 task set.
+- Code 302 must load only the 302 task set.
+- Code 303 must load only the 303 task set.
+- Code 401 / 402 / 403 / 404 must load only their own assigned tasks.
+- No package mixing is allowed.
+- No hardcoded global task list in the frontend.
+- The sequence must be fetched dynamically from the backend/admin panel.
+
+TASK POPUP BEHAVIOR
+- The popup must show the assigned task/product/ad item one by one.
+- The popup must show the first task immediately after approval.
+- The next task should appear only after the current one is completed.
+- The popup must remain tied to the assigned code/package.
+- If the user refreshes or closes the app and returns, the session should resume from the correct current task.
+- The popup must never be replaced by an unrelated screen.
+
+USER SCREEN REQUIREMENTS
+After assignment and before task execution, the user screen must show:
+- account balance
+- total earnings
+- commission earned
+- completed tasks count
+- pending tasks count
+- current task progress
+- next task / current popup item
+- required or free task status
+- deposit requirement state if applicable
+
+FREE VS REQUIRED TASKS
+- Some tasks are free.
+- Some tasks are required.
+- Required tasks must be explicitly marked in the admin panel.
+- Required tasks may need deposit/recharge before completion.
+- Free tasks must not ask for deposit.
+- The UI must clearly show whether the current task is free or required.
+- The app must not incorrectly allow required tasks to complete without satisfying the required condition.
+- The app must not incorrectly block free tasks.
+
+BALANCE AND COMMISSION LOGIC
+- Balance must update after each completed task according to package rules.
+- Commission must be calculated per task according to the assigned package.
+- Earnings must be shown correctly for the current package.
+- Completed tasks and remaining tasks must update immediately after each action.
+- If balance is not enough for a required task, the app must show the deposit requirement state instead of moving forward incorrectly.
+- Do not break the task sequence when balance changes.
+
+ADMIN PANEL REQUIREMENTS
+The admin panel must support:
+- creating task packages
+- editing task packages
+- assigning a package/code to a user
+- defining task order
+- defining task title
+- defining ad/product/task item
+- defining commission amount
+- defining free/required status
+- defining deposit requirement if needed
+- activating/deactivating a task or package
+- reordering tasks
+- adding or removing tasks from a package
+
+The user app must always read the latest configuration from the admin panel.
+
+SESSION / STATE REQUIREMENTS
+Implement a robust task session model with:
+- assigned package code
+- current task index
+- current task ID
+- completion status
+- approval status
+- user balance
+- earnings
+- required/free state
+- deposit state
+- timestamps for session start and updates
+
+The system must:
+- persist the current task session
+- resume correctly after refresh
+- prevent skipping steps
+- prevent duplicate completion
+- prevent loading tasks from the wrong code
+- prevent showing the wrong popup when a user navigates back and forth
+
+FRONTEND REQUIREMENTS
+- Remove any hardcoded popup/task list logic.
+- Replace it with backend-driven rendering.
+- The correct UI must render based on task session state.
+- Use proper conditional rendering for:
+  - waiting for admin approval
+  - task assigned
+  - popup active
+  - task completed
+  - required deposit needed
+  - package finished
+  - balance insufficient
+- The popup component must mount at the correct stage and stay synchronized with backend session state.
+
+BACKEND REQUIREMENTS
+Create or fix APIs such as:
+- request task start
+- approve/assign task package
+- fetch assigned task session
+- fetch current package tasks
+- complete task
+- update balance
+- update commission
+- mark task required/free
+- mark package complete
+
+Each API must validate:
+- user identity
+- package assignment
+- current task ownership
+- current task order
+- completion eligibility
+- deposit requirement state
+- duplicate completion prevention
+
+DATA MODEL REQUIREMENTS
+Use a clear model for:
+- User
+- AdminTaskPackage
+- AdminTask
+- UserTaskSession
+- TaskCompletionLog
+- BalanceTransaction
+- CommissionRecord
+- DepositRecord if needed
+
+IMPORTANT RULES
+- Do not use a single global task list for all users.
+- Do not show code 201 tasks to code 301 users.
+- Do not skip directly to dashboard after Start Task.
+- Do not show the account summary screen before the task popup if the flow requires popup first.
+- Do not render the wrong screen because of stale state.
+- Do not allow manual frontend state to override backend approval/session state.
+- Do not duplicate completed tasks.
+- Do not lose the task order defined by admin.
+
+EDGE CASES TO HANDLE
+- user refreshes page
+- admin changes task order mid-session
+- admin disables a task
+- user loses balance during required task
+- user tries to start task again while session is active
+- user completes a task twice
+- user opens app from another device
+- user is assigned a different code after already starting one
+- session is partially completed and needs resuming
+
+ACCEPTANCE CRITERIA
+The fix is complete only if:
+1. Clicking Start Task no longer skips the popup.
+2. The popup appears only after the correct admin approval stage.
+3. The popup/task list is loaded only from the assigned package/code.
+4. Package 201, 301, 302, 303, 401, 402, 403, 404 each show only their own tasks.
+5. Task order is preserved exactly as saved in admin panel.
+6. Free and required tasks work correctly.
+7. Balance and commission update correctly.
+8. Session resumes correctly after refresh.
+9. Wrong package tasks never appear.
+10. The implementation is clean, production-ready, and bug-resistant.
+
+DELIVERABLE
+Provide the fixed implementation with:
+- corrected state management
+- corrected navigation flow
+- backend-driven task session logic
+- admin-driven package/task assignment
+- popup rendering at the correct step
+- balance/commission/task progress synchronization
+- support for code-specific task packages
+
+TECHNICAL STYLE
+Write clean, maintainable, production-grade code.
+Prefer explicit state transitions.
+Use clear naming.
+Add guards and validation.
+Add comments only where necessary.
+Avoid hacks and hardcoded shortcuts.

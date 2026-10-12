@@ -1,0 +1,515 @@
+1) State Architecture Upgrade: Redux or Zustand
+For your app, Zustand is the better fit if you want:
+
+less boilerplate,
+
+faster patching in an existing codebase,
+
+easier React integration,
+
+cleaner task/profile/admin sync.
+
+Redux is fine for very large teams, but for your current app structure, Zustand is more practical.
+
+Option A — Recommended: Zustand Architecture
+A1. Create store folder
+New files:
+
+/src/store/useAppStore.ts
+
+/src/store/types.ts
+
+/src/store/selectors.ts
+
+A2. src/store/types.ts
+export type User = {
+  id: string;
+  name: string;
+  balance: number;
+  referrals: any[];
+  walletBalance: number;
+};
+
+export type TaskStatus = "pending" | "assigned" | "in_progress" | "completed";
+
+export type Task = {
+  id: string;
+  title: string;
+  description?: string;
+  reward: number;
+  order_status: TaskStatus;
+  assignedTo?: string | null;
+};
+
+export type SupportTicket = {
+  id: string;
+  title: string;
+  status: "open" | "closed" | "pending";
+};
+
+export type AppState = {
+  currentUser: User | null;
+  currentTask: Task | null;
+  supportTickets: SupportTicket[];
+  loading: boolean;
+  error: string | null;
+};
+A3. src/store/useAppStore.ts
+import { create } from "zustand";
+import type { AppState, Task, User, SupportTicket } from "./types";
+
+type Actions = {
+  setCurrentUser: (user: User | null) => void;
+  setCurrentTask: (task: Task | null) => void;
+  setSupportTickets: (tickets: SupportTicket[]) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  updateTaskStatus: (taskId: string, status: Task["order_status"]) => void;
+  resetAppState: () => void;
+};
+
+const initialState: AppState = {
+  currentUser: null,
+  currentTask: null,
+  supportTickets: [],
+  loading: false,
+  error: null,
+};
+
+export const useAppStore = create<AppState & Actions>((set, get) => ({
+  ...initialState,
+
+  setCurrentUser: (user) => set({ currentUser: user }),
+  setCurrentTask: (task) => set({ currentTask: task }),
+  setSupportTickets: (tickets) => set({ supportTickets: tickets }),
+  setLoading: (loading) => set({ loading }),
+  setError: (error) => set({ error }),
+
+  updateTaskStatus: (taskId, status) => {
+    const task = get().currentTask;
+    if (!task || task.id !== taskId) return;
+    set({ currentTask: { ...task, order_status: status } });
+  },
+
+  resetAppState: () => set(initialState),
+}));
+A4. src/store/selectors.ts
+import type { AppState } from "./types";
+
+export const selectCurrentUser = (state: AppState) => state.currentUser;
+export const selectCurrentTask = (state: AppState) => state.currentTask;
+export const selectSupportTickets = (state: AppState) => state.supportTickets;
+A5. Replace local component state where needed
+In these files:
+/src/pages/Mine.tsx
+
+/src/pages/admin/AdminSupport.tsx
+
+/src/pages/admin/ExtraTasks.tsx
+
+/src/pages/tasks/AmazonTask.tsx
+
+/src/pages/Menu.tsx
+
+Replace patterns like:
+const [user, setUser] = useState(...)
+const [task, setTask] = useState(...)
+With:
+const currentUser = useAppStore((s) => s.currentUser);
+const currentTask = useAppStore((s) => s.currentTask);
+const setCurrentTask = useAppStore((s) => s.setCurrentTask);
+A6. Load data once at app bootstrap
+File: /src/App.tsx or /src/main.tsx
+Add an app bootstrap loader component:
+
+import { useEffect } from "react";
+import { useAppStore } from "./store/useAppStore";
+import api from "./lib/api";
+
+export function AppBootstrap() {
+  const setCurrentUser = useAppStore((s) => s.setCurrentUser);
+  const setLoading = useAppStore((s) => s.setLoading);
+  const setError = useAppStore((s) => s.setError);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const bootstrap = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get("/api/auth/me");
+        if (mounted) setCurrentUser(res.data.user);
+      } catch (err: any) {
+        if (mounted) setError(err?.message || "Bootstrap failed");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    bootstrap();
+    return () => {
+      mounted = false;
+    };
+  }, [setCurrentUser, setLoading, setError]);
+
+  return null;
+}
+Mount <AppBootstrap /> once near the app root.
+
+A7. Replace direct API state in dashboard/task pages
+Use the store for:
+
+user profile
+
+current assigned task
+
+support tickets
+
+admin-synced settings
+
+loading/error state
+
+This prevents:
+
+duplicate local state,
+
+inconsistent dashboard panels,
+
+task popup duplication.
+
+2) Redux Alternative Architecture
+If you prefer Redux, use Redux Toolkit only.
+
+Files:
+/src/store/index.ts
+
+/src/store/slices/authSlice.ts
+
+/src/store/slices/taskSlice.ts
+
+/src/store/slices/supportSlice.ts
+
+/src/store/slices/settingsSlice.ts
+
+/src/store/hooks.ts
+
+src/store/index.ts
+import { configureStore } from "@reduxjs/toolkit";
+import authReducer from "./slices/authSlice";
+import taskReducer from "./slices/taskSlice";
+import supportReducer from "./slices/supportSlice";
+import settingsReducer from "./slices/settingsSlice";
+
+export const store = configureStore({
+  reducer: {
+    auth: authReducer,
+    task: taskReducer,
+    support: supportReducer,
+    settings: settingsReducer,
+  },
+});
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+src/store/hooks.ts
+import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
+import type { RootState, AppDispatch } from "./index";
+
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
+Use Redux only if:
+you need strict devtools tracing,
+
+multiple engineers will maintain the app,
+
+your state logic is already big and complex.
+
+Otherwise, Zustand is the cleaner choice.
+
+3) WebSocket Real-Time Sync Upgrade
+This is for:
+
+admin assigning task
+
+user panel updating instantly
+
+support ticket changes
+
+deposit QR updates
+
+task status changes
+
+no manual refresh dependency
+
+Use Socket.IO if you want the simplest React + Node implementation.
+
+3.1 Backend socket setup
+New file: /server/socket.js
+import { Server } from "socket.io";
+
+let io;
+
+export function initSocket(server) {
+  io = new Server(server, {
+    cors: {
+      origin: process.env.CLIENT_URL || "*",
+      methods: ["GET", "POST", "PUT", "DELETE"],
+    },
+  });
+
+  io.on("connection", (socket) => {
+    console.log("Socket connected:", socket.id);
+
+    socket.on("join-user-room", (userId) => {
+      if (userId) socket.join(`user:${userId}`);
+    });
+
+    socket.on("join-admin-room", () => {
+      socket.join("admin");
+    });
+
+    socket.on("disconnect", () => {
+      console.log("Socket disconnected:", socket.id);
+    });
+  });
+
+  return io;
+}
+
+export function getIO() {
+  return io;
+}
+3.2 Attach socket server in app bootstrap
+File: /server/index.js or /server/server.js
+import http from "http";
+import express from "express";
+import { initSocket } from "./socket.js";
+
+const app = express();
+const server = http.createServer(app);
+
+initSocket(server);
+
+server.listen(process.env.PORT || 5000, () => {
+  console.log("Server running");
+});
+3.3 Emit events after admin/user actions
+Example: task assignment
+File: /server/routes/extraTasks.js
+
+import { getIO } from "../socket.js";
+
+router.post("/assign", async (req, res) => {
+  const { taskId, userId } = req.body;
+
+  const task = await ExtraTask.findByIdAndUpdate(
+    taskId,
+    { assignedTo: userId },
+    { new: true }
+  );
+
+  const io = getIO();
+  io.to(`user:${userId}`).emit("extra-task-assigned", task);
+  io.to("admin").emit("extra-task-updated", task);
+
+  res.json(task);
+});
+Example: support ticket update
+File: /server/routes/support.js
+
+import { getIO } from "../socket.js";
+
+router.post("/tickets/:id/status", async (req, res) => {
+  const ticket = await SupportTicket.findByIdAndUpdate(
+    req.params.id,
+    { status: req.body.status },
+    { new: true }
+  );
+
+  const io = getIO();
+  io.to(`user:${ticket.userId}`).emit("support-ticket-updated", ticket);
+  io.to("admin").emit("support-ticket-updated", ticket);
+
+  res.json(ticket);
+});
+Example: deposit QR updated
+File: /server/routes/settings.js
+
+import { getIO } from "../socket.js";
+
+router.post("/deposit-qr", async (req, res) => {
+  const updated = await Settings.findOneAndUpdate(
+    {},
+    { depositQR: req.body.depositQR },
+    { new: true, upsert: true }
+  );
+
+  const io = getIO();
+  io.emit("settings-updated", updated);
+
+  res.json(updated);
+});
+3.4 Frontend socket client
+New file: /src/lib/socket.ts
+import { io } from "socket.io-client";
+
+export const socket = io(import.meta.env.VITE_API_URL, {
+  autoConnect: false,
+  transports: ["websocket"],
+});
+3.5 Connect once after login
+File: /src/components/SocketProvider.tsx
+import { useEffect } from "react";
+import { socket } from "../lib/socket";
+import { useAppStore } from "../store/useAppStore";
+
+export default function SocketProvider() {
+  const currentUser = useAppStore((s) => s.currentUser);
+  const setCurrentTask = useAppStore((s) => s.setCurrentTask);
+  const setSupportTickets = useAppStore((s) => s.setSupportTickets);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    socket.connect();
+    socket.emit("join-user-room", currentUser.id);
+
+    const onTaskAssigned = (task: any) => {
+      setCurrentTask(task);
+    };
+
+    const onSupportUpdated = (ticket: any) => {
+      setSupportTickets((prev: any[]) =>
+        prev.map((t) => (t.id === ticket.id ? ticket : t))
+      );
+    };
+
+    socket.on("extra-task-assigned", onTaskAssigned);
+    socket.on("support-ticket-updated", onSupportUpdated);
+    socket.on("settings-updated", () => {
+      // trigger settings refetch if needed
+    });
+
+    return () => {
+      socket.off("extra-task-assigned", onTaskAssigned);
+      socket.off("support-ticket-updated", onSupportUpdated);
+      socket.off("settings-updated");
+      socket.disconnect();
+    };
+  }, [currentUser?.id, setCurrentTask, setSupportTickets]);
+
+  return null;
+}
+Mount this once under your authenticated app layout.
+
+3.6 Admin socket updates
+For admin pages, join admin room:
+
+socket.emit("join-admin-room");
+Use this in:
+
+/src/pages/admin/AdminSupport.tsx
+
+/src/pages/admin/ExtraTasks.tsx
+
+/src/pages/admin/AdminDashboard.tsx
+
+4) API ENDPOINT PATCH MAP
+These are the endpoints you should keep clean and event-driven.
+
+Auth
+GET /api/auth/me
+
+Tasks
+GET /api/tasks/my-task
+
+POST /api/tasks/start
+
+POST /api/tasks/:id/complete
+
+POST /api/tasks/:id/assign
+
+Extra Tasks
+GET /api/extra-tasks
+
+POST /api/extra-tasks
+
+POST /api/extra-tasks/assign
+
+DELETE /api/extra-tasks/:id
+
+Support
+GET /api/support/tickets
+
+POST /api/support/tickets
+
+POST /api/support/tickets/:id/status
+
+Settings
+GET /api/settings
+
+POST /api/settings/deposit-qr
+
+5) DB QUERY RULES
+MongoDB query patterns
+Fetch current user task
+await Task.findOne({ assignedTo: userId });
+Fetch assigned extra tasks
+await ExtraTask.find({ assignedTo: userId, status: "active" });
+Update order status
+await Task.findByIdAndUpdate(taskId, { order_status: "in_progress" }, { new: true });
+Update deposit QR
+await Settings.findOneAndUpdate({}, { depositQR: url }, { new: true, upsert: true });
+Fetch real profile stats
+await User.findById(userId).select("name balance referrals walletBalance");
+6) FILES TO PATCH FIRST
+If you want the safest implementation order, patch in this sequence:
+
+/server/models/Task.js
+
+/server/models/ExtraTask.js
+
+/server/socket.js
+
+/server/routes/extraTasks.js
+
+/server/routes/tasks.js
+
+/server/routes/support.js
+
+/server/routes/settings.js
+
+/src/store/useAppStore.ts
+
+/src/lib/socket.ts
+
+/src/components/SocketProvider.tsx
+
+/src/pages/admin/AdminMenu.tsx
+
+/src/pages/admin/ExtraTasks.tsx
+
+/src/pages/Menu/Amazon.tsx
+
+/src/pages/tasks/AmazonTask.tsx
+
+/src/pages/Mine.tsx
+
+/src/pages/admin/AdminSupport.tsx
+
+7) WHAT THIS FIXES
+This architecture gives you:
+
+no more duplicated task UI,
+
+real-time admin-to-user updates,
+
+no refresh dependency,
+
+stable global state,
+
+cleaner profile/task/support handling,
+
+better admin control over extra tasks,
+
+safer back-navigation and task flow.

@@ -1,0 +1,293 @@
+**STRICT ENGINEERING SPEC (NO SKIPS, NO ASSUMPTIONS)**
+Apply changes **only on the existing codebase**. Do **not** rebuild. Do **not** introduce placeholders, dummy UI, or duplicate components. All behavior must be **database-driven** and **production-stable**.
+
+---
+
+# A) ADMIN PANEL — EXTRA TASKS MODULE
+
+## A1. UI Injection
+
+* File: Admin Menu (where “Create Ad” exists)
+* Add a new button: **“Extra Tasks”** (adjacent to Create Ad)
+* Route: `/admin/extra-tasks`
+
+## A2. Data Model (MANDATORY)
+
+Create/extend collection/table:
+
+```
+extra_tasks {
+  id: string (PK)
+  title: string
+  description: string
+  reward: number
+  status: "active" | "inactive"
+  assignedTo: userId | null
+  createdAt: timestamp
+  updatedAt: timestamp
+}
+```
+
+## A3. Admin Capabilities
+
+* CRUD كامل:
+
+  * Create task
+  * Edit task
+  * Delete task
+  * Assign task to specific user
+* On assignment:
+
+  * `assignedTo = userId`
+* NO hardcoded tasks in frontend.
+
+## A4. Seed (TEMP ONLY)
+
+* Insert exactly **10 dummy tasks** in DB (not frontend constants)
+* These must behave exactly like real tasks (same schema, same flow)
+
+---
+
+# B) USER PANEL — TASK FLOW (CRITICAL FIX)
+
+## B1. Menu → Amazon Flow
+
+* Clicking **Start Task**:
+
+  * MUST route to `/tasks/amazon`
+  * MUST NOT show popup on dashboard
+  * MUST NOT render task outside task screen
+
+## B2. Rendering Rules
+
+* Show task ONLY if:
+
+```
+task.assignedTo === currentUser.id
+```
+
+## B3. Balance Gate
+
+* Before task start:
+
+```
+if (walletBalance < requiredAmount) {
+  BLOCK execution
+  show: "Deposit required"
+}
+```
+
+* This check MUST come from backend/API (NOT frontend hardcode)
+
+## B4. Remove Completely
+
+* Dashboard task popup (TOP AREA)
+* Duplicate task cards
+* Placeholder/undefined text blocks
+
+---
+
+# C) TASK PROCESSING STATE (BUG FIX)
+
+## Current Issue:
+
+Infinite loading / spinning
+
+## FIX:
+
+Implement deterministic state machine:
+
+```
+order_status:
+  - pending
+  - assigned
+  - in_progress
+  - completed
+```
+
+## Behavior:
+
+* On click:
+
+  * If `pending` → show loader (max 1s)
+  * If `assigned` → go to task immediately
+* NEVER infinite loop
+* Add timeout fallback
+
+---
+
+# D) MINE / PROFILE (STRICT REBUILD WITHIN EXISTING FILE)
+
+## D1. Data Binding
+
+* ALL fields must come from DB:
+
+  * referrals
+  * balance
+  * stats
+* If no data:
+
+```
+show 0
+```
+
+* NO dummy values (e.g. “14 referrals”)
+
+## D2. Layout Rules
+
+* Full-height layout
+* Clean spacing (8px grid)
+* Sections:
+
+  1. Profile Header
+  2. Quick Actions
+  3. Team Section
+  4. Settings Entry
+
+## D3. Structural Changes
+
+* Move **My Team** → lower section list
+* Move **Invite Friends** → inside Team section
+* REMOVE:
+
+  * Security & Privacy (from quick links)
+
+## D4. Preserve
+
+* Settings button
+* All settings functionality
+* Existing saved user data
+
+---
+
+# E) NAVIGATION SYSTEM (CRITICAL BUG)
+
+## Problem:
+
+Back button misroutes
+
+## FIX (MANDATORY):
+
+Use history-based navigation:
+
+```
+navigate(-1)
+```
+
+## Requirements:
+
+* Every screen MUST have top back button
+* Back returns to EXACT previous screen
+* Preserve scroll state
+* No redirect to Home unless it was previous screen
+
+---
+
+# F) DASHBOARD IMPROVEMENT
+
+## Keep ONLY:
+
+* Balance
+* Tasks Done
+* Total Earned
+* Commission
+* Progress
+
+## Remove:
+
+* Any duplicate blocks
+* Any preview cards
+* Any fake stats
+
+## Enhance:
+
+* Deposit / Withdraw buttons:
+
+  * Larger
+  * Clear hierarchy
+  * Proper spacing
+
+---
+
+# G) ACTIVITY + RECORDS MERGE
+
+* Move **Activity page access** into **Records section**
+* Do NOT duplicate routes
+* Keep single source of truth
+
+---
+
+# H) GLOBAL RULE — REAL DATA ONLY
+
+Across ALL modules:
+
+* Notifications
+* Support
+* Tasks
+* Profile
+* Admin
+
+## MUST:
+
+* Use real DB data only
+* Remove:
+
+  * mock arrays
+  * seed constants (except admin temp seed)
+  * fallback fake UI
+
+---
+
+# I) ANALYTICS COMPLETION (AMAZON SCREEN)
+
+* Audit analytics section
+* Add missing parameters to match UI expectation
+* No partial/empty metric cards
+* Maintain alignment + consistency
+
+---
+
+# J) STABILITY REQUIREMENTS
+
+* No runtime errors
+* No undefined variables
+* No hydration issues
+* No duplicate components
+* No broken routes
+
+---
+
+# K) NON-NEGOTIABLE RULES
+
+* DO NOT:
+
+  * rewrite whole project
+  * break auth
+  * reset database data
+  * introduce hardcoded logic
+* ONLY patch + fix
+* Code must be:
+
+  * modular
+  * clean
+  * production-ready
+
+---
+
+# FINAL ACCEPTANCE CRITERIA
+
+System is accepted ONLY if:
+
+✔ No UI duplication
+✔ No dummy data anywhere
+✔ No infinite loading
+✔ Back navigation works perfectly
+✔ Tasks only appear in task screen
+✔ Admin-assigned tasks reflect instantly
+✔ Profile shows real user data
+✔ Extra tasks fully functional via admin
+✔ Dashboard clean & professional
+
+---
+
+If any single point is skipped → implementation is considered FAILED.

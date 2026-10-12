@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!-- Viewport: Locked to device width, no user-zoom, prevents pinch-to-zoom layout shifts -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- Primary meta -->
+    <title>DealX Stocks — Earn While You Shop</title>
+    <meta name="description" content="DealX Stocks is a global deal discovery and earning platform. Browse curated products from Amazon, Alibaba, AliExpress and more — and earn commissions on every task." />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#8A4FFF" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://dealxstocks.com/" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:url"         content="https://dealxstocks.com/" />
+    <meta property="og:title"       content="DealX Stocks — Earn While You Shop" />
+    <meta property="og:description" content="Browse curated products from Amazon, Alibaba, AliExpress and more. Complete tasks, earn commissions, and grow your income with DealX Stocks." />
+    <meta property="og:image"       content="https://dealxstocks.com/opengraph.jpg" />
+    <meta property="og:image:width"  content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name"   content="DealX Stocks" />
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:url"         content="https://dealxstocks.com/" />
+    <meta name="twitter:title"       content="DealX Stocks — Earn While You Shop" />
+    <meta name="twitter:description" content="Browse curated products from Amazon, Alibaba, AliExpress and more. Complete tasks, earn commissions, and grow your income with DealX Stocks." />
+    <meta name="twitter:image"       content="https://dealxstocks.com/opengraph.jpg" />
+
+    <!-- Google Search Console verification — paste your code here when ready -->
+    <!-- <meta name="google-site-verification" content="PASTE_YOUR_CODE_HERE" /> -->
+
+    <!-- High-priority DNS prefetch & Preconnect for critical origins -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Non-render-blocking Google Fonts with print media swap & noscript fallback -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    </noscript>
+  </head>
+  <body>
+    <!-- Instant dark-mode class before React mounts — prevents flash of white -->
+    <script>
+      (function(){
+        try {
+          var t = localStorage.getItem('ds-theme');
+          if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch(e) {}
+      })();
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

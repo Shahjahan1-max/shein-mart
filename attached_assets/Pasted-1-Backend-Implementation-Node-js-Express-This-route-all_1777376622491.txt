@@ -1,0 +1,128 @@
+1. Backend Implementation (Node.js/Express)
+This route allows an admin to request a "Shadow Token" for any user. It bypasses password checks and ignores activity logging.
+
+JavaScript
+// routes/admin.js
+const express = require('express');
+const router = express.Router();
+const jwt = require('jsonwebtoken');
+const User = require('../models/User'); // Your User Model
+const { verifyAdmin } = require('../middleware/auth'); // Admin-only middleware
+
+router.post('/impersonate/:userId', verifyAdmin, async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        // 1. Fetch user without updating 'lastLogin' or 'isActive'
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        // 2. Generate a "Shadow Token"
+        // We add 'isImpersonated' flag to identify this session internally
+        const shadowToken = jwt.sign(
+            { 
+                id: user._id, 
+                role: user.role,
+                isImpersonated: true,
+                adminId: req.user.id // Track which admin is doing this
+            }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '2h' } 
+        );
+
+        // 3. Log this action internally (Hidden from the end-user)
+        console.log(`Admin ${req.user.id} started impersonating User ${userId}`);
+        // Optional: Save to an AdminAuditLog table here
+
+        res.json({
+            success: true,
+            token: shadowToken,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Server Error" });
+    }
+});
+
+module.exports = router;
+2. Frontend Implementation (React)
+This logic handles the token swap and provides the admin with a way to return to their own dashboard.
+
+JavaScript
+// components/AdminUserList.jsx
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+
+const AdminUserList = ({ users }) => {
+    const navigate = useNavigate();
+
+    const handleImpersonate = async (userId) => {
+        try {
+            // Store current admin token so we can switch back later
+            const adminToken = localStorage.getItem('token');
+            localStorage.setItem('admin_backup_token', adminToken);
+
+            const response = await axios.post(`/api/admin/impersonate/${userId}`);
+            const { token } = response.data;
+
+            // Overwrite the active token with the User's Shadow Token
+            localStorage.setItem('token', token);
+
+            // Redirect to the user's home/marketplace view
+            window.location.href = '/dashboard'; 
+        } catch (err) {
+            alert("Failed to access user account.");
+        }
+    };
+
+    return (
+        <table>
+            {users.map(user => (
+                <tr key={user.id}>
+                    <td>{user.name}</td>
+                    <td>
+                        <button onClick={() => handleImpersonate(user.id)}>
+                            Manage Account
+                        </button>
+                    </td>
+                </tr>
+            ))}
+        </table>
+    );
+};
+3. The "Exit Shadow Mode" UI
+Add this small component to your main layout (e.g., App.js or Navbar.js). It only appears if an admin is currently in "Ghost Mode."
+
+JavaScript
+// components/ImpersonationBar.jsx
+const ImpersonationBar = () => {
+    const token = localStorage.getItem('token');
+    const isImpersonated = JSON.parse(atob(token.split('.')[1])).isImpersonated;
+
+    const handleExit = () => {
+        const adminToken = localStorage.getItem('admin_backup_token');
+        localStorage.setItem('token', adminToken);
+        localStorage.removeItem('admin_backup_token');
+        window.location.href = '/admin/users';
+    };
+
+    if (!isImpersonated) return null;
+
+    return (
+        <div style={{ 
+            background: '#ff4d4d', 
+            color: 'white', 
+            textAlign: 'center', 
+            padding: '5px',
+            position: 'fixed',
+            top: 0, width: '100%', zIndex: 9999
+        }}>
+            You are in <strong>Maintenance Mode</strong> for this user. 
+            <button onClick={handleExit} style={{ marginLeft: '10px' }}>Exit & Return to Admin</button>
+        </div>
+    );
+};

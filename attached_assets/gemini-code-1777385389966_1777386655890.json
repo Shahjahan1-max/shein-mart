@@ -1,0 +1,37 @@
+{
+  "ads_data": {
+    "set_201": [
+      {
+        "ad_title": "ads1",
+        "content_url": "https://aczmall.netlify.app/201/1.webp",
+        "amount": 14,
+        "commission_percentage": 4,
+        "after_commission": 0.56
+      },
+      {
+        "ad_title": "ads2",
+        "content_url": "https://aczmall.netlify.app/201/2.webp",
+        "amount": 11,
+        "commission_percentage": 4,
+        "after_commission": 0.44
+      }
+    ],
+    "set_301": [
+      {
+        "ad_title": "ads1",
+        "content_url": "https://aczmall.netlify.app/301/1.webp",
+        "amount": 5,
+        "commission_percentage": 4,
+        "after_commission": 0.2
+      }
+    ],
+    "rank": [
+      {
+        "ad_id": 1,
+        "amount": 100,
+        "commission": 4,
+        "content_url": "https://aczmall.netlify.app/rank/1.webp"
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+[
+  { "name": "Amazon", "url": "https://www.amazon.com", "color": "#FF9900", "description": "World's largest online retailer" },
+  { "name": "Alibaba", "url": "https://www.alibaba.com", "color": "#FF6A00", "description": "Global B2B wholesale marketplace" },
+  { "name": "AliExpress", "url": "https://www.aliexpress.com", "color": "#E62B31", "description": "Affordable global shopping" },
+  { "name": "eBay", "url": "https://www.ebay.com", "color": "#E53238", "description": "Bid, buy, and sell worldwide" },
+  { "name": "Walmart", "url": "https://www.walmart.com", "color": "#0071CE", "description": "Everyday low prices" },
+  { "name": "Target", "url": "https://www.target.com", "color": "#CC0000", "description": "Expect more, pay less" },
+  { "name": "Etsy", "url": "https://www.etsy.com", "color": "#F1641E", "description": "Handmade & unique items" },
+  { "name": "Shein", "url": "https://www.shein.com", "color": "#000000", "description": "Trendy fashion at low prices" },
+  { "name": "Temu", "url": "https://www.temu.com", "color": "#FC4949", "description": "Shop like a billionaire" },
+  { "name": "Rakuten", "url": "https://www.rakuten.com", "color": "#BF0000", "description": "Earn cashback on purchases" },
+  { "name": "Wish", "url": "https://www.wish.com", "color": "#2FB7EC", "description": "Discover daily deals" },
+  { "name": "Wayfair", "url": "https://www.wayfair.com", "color": "#7B2D8B", "description": "Millions of home products" }
+]

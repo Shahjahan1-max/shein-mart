@@ -1,0 +1,97 @@
+**Strict Technical Fix / Enhancement Prompt for Replit:**
+
+Fix the current codebase without breaking existing flows.
+
+### 1) Critical Runtime Error Fix
+
+Resolve this error immediately:
+
+`SEED_TICKETS is not defined`
+File: `src/pages/admin/AdminSupport.tsx`
+
+Requirements:
+
+* Do not leave any undefined constant, import, or reference.
+* If `SEED_TICKETS` was intended as mock/demo data, either:
+
+  * import it correctly from the right file, or
+  * replace it with a safe fallback empty array: `const SEED_TICKETS = []`
+* Make sure `AdminSupport.tsx` never crashes on initial render.
+* Add defensive checks so support page works even if seed data is missing.
+
+### 2) Admin Support Page Must Work Properly
+
+Fix the admin panel Support button/page so it opens normally every time.
+
+* No blank screen
+* No runtime overlay error
+* No refresh dependency
+* No hidden state bug
+* Preserve support ticket functionality
+* Ensure state initialization is safe and stable
+
+### 3) User Support Dashboard Enhancement
+
+Improve the user-side Support page:
+
+* Make layout more professional and polished
+* Improve spacing, card alignment, typography, and button placement
+* Make the page feel like a real production dashboard
+* Keep support actions clear and easy to access
+* Redesign it so the important buttons and sections are logically placed and visually clean
+
+### 4) Mine Page Professional Upgrade
+
+Enhance the Mine page significantly:
+
+* Reorganize button hierarchy and section order
+* Make it look more professional and dashboard-like
+* Improve visual balance, spacing, and mobile responsiveness
+* Ensure key actions are easy to find
+* Redesign for better UX, not just styling
+
+### 5) Deposit Section: Barcode / QR Upload + Display
+
+Add a proper deposit barcode/QR feature.
+
+Admin panel:
+
+* Add an option to upload a barcode/QR image
+* Store it properly in backend/database
+* Make it editable and replaceable from admin panel
+
+User deposit section:
+
+* Display the uploaded barcode/QR image clearly
+* Position it properly inside the deposit screen
+* Ensure it refreshes automatically when admin changes it
+
+### 6) Remove Unwanted Deposit Guidelines Block
+
+In the deposit page, remove the right-side/bottom guidance text block that is currently shown with deposit instructions.
+
+* Keep the deposit action clean and focused
+* Do not show unnecessary guidance content there
+
+### 7) Refresh / Support State Bug Fix
+
+There is a bug where admin support page looks broken until refresh.
+Fix the root cause:
+
+* Make state loading correct on first render
+* Avoid dependency on manual refresh
+* Use proper data fetching and conditional rendering
+* Handle loading, empty, and error states cleanly
+
+### 8) Implementation Rules
+
+* Do not skip any existing feature
+* Do not hardcode temporary UI hacks
+* Do not introduce new errors while fixing this one
+* Keep code modular and maintainable
+* Use safe defaults, error boundaries, and proper state initialization
+* After fixes, support/admin/deposit pages should work smoothly without overlay errors
+
+### Goal
+
+Make the support system stable, make Mine and Support pages look professional, and add a clean admin-controlled barcode/QR deposit feature with correct sync between admin and user panels.

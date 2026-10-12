@@ -1,0 +1,161 @@
+Update the existing Deal Stocks app only. Do NOT rebuild anything.
+
+Implement a fully admin-controlled entry threshold system for Amazon tasks.
+
+---
+
+## OBJECTIVE
+
+Currently Amazon tasks are assumed to require a balance between $20–$499.
+
+This must be converted into a fully dynamic, admin-controlled rule:
+
+* Admin decides:
+
+  * Minimum required balance (e.g., $0, $20, $50)
+  * Whether minimum balance is enforced or disabled
+
+---
+
+## BACKEND IMPLEMENTATION
+
+1. Update / Create Platform Settings (Amazon)
+
+In `platform_settings` collection/table, ensure Amazon has:
+
+{
+platform: "amazon",
+minTaskStartBalance: number,        // e.g., 0, 20, 50
+isMinBalanceRequired: boolean       // true = enforce, false = no restriction
+}
+
+* Default values:
+  minTaskStartBalance = 20
+  isMinBalanceRequired = true
+
+* DO NOT hardcode any value in backend logic
+
+---
+
+2. Task Access Logic (API Layer)
+
+Modify the API used when user clicks “Start Task”:
+
+Pseudo logic:
+
+IF platform = Amazon:
+fetch platform_settings.amazon
+
+```
+IF isMinBalanceRequired == true:
+    IF user.balance < minTaskStartBalance:
+        RETURN:
+        {
+          allowed: false,
+          message: "Insufficient balance. You need at least $" + minTaskStartBalance
+        }
+
+ELSE:
+    allow access regardless of balance
+
+RETURN:
+{
+  allowed: true
+}
+```
+
+---
+
+3. Ensure Real-Time Behavior
+
+* If admin changes:
+
+  * minTaskStartBalance
+  * isMinBalanceRequired
+
+User panel must reflect immediately (no refresh required)
+
+Use existing real-time system (WebSocket / subscription / state sync)
+
+---
+
+## ADMIN PANEL IMPLEMENTATION
+
+Location:
+Admin Panel → Platform Settings → Amazon
+
+Add UI controls:
+
+1. Toggle Switch:
+   Label: "Require Minimum Balance"
+   (ON/OFF)
+
+2. Input Field:
+   Label: "Minimum Balance to Start Task ($)"
+   Type: Number
+
+Behavior:
+
+* If toggle OFF:
+
+  * Disable input field (UI only)
+  * Backend ignores min balance check
+
+* If toggle ON:
+
+  * Input becomes required
+  * Must be ≥ 0
+
+* Save changes instantly to database
+
+---
+
+## FRONTEND (USER PANEL)
+
+Where:
+Menu → Amazon → Start Task
+
+Behavior:
+
+1. On click “Start Task” OR card click:
+
+* Call API → check eligibility
+
+2. If NOT allowed:
+
+Show blocking message:
+
+"Minimum deposit required to start tasks. Required: $X"
+
+* Do NOT navigate forward
+* Do NOT show task screen
+
+3. If allowed:
+
+* Navigate to task screen normally
+
+---
+
+3. UI State Handling
+
+* If user balance < required:
+
+  * Keep UI clickable BUT block at action level
+  * Do NOT show fake “locked” badge
+
+* This keeps UI clean and controlled by backend
+
+---
+
+## IMPORTANT RULES
+
+* Do NOT hardcode $20 or any value anywhere
+* All values must come from database
+* Must work for future platforms (Alibaba, AliExpress)
+* Must not break existing task assignment system
+* Must not affect already assigned tasks
+* Only affects task START condition
+
+---
+
+This feature must be clean, dynamic, and fully controlled from admin panel.

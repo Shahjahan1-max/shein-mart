@@ -1,0 +1,273 @@
+**MASTER TECHNICAL PROMPT — SECURE ADMIN IMPERSONATION (NO PASSWORD ACCESS, FULL CONTROL, AUDITABLE)**
+
+Work ONLY on the existing codebase. Do NOT rebuild. Do NOT expose or store user passwords. Do NOT suppress security events.
+
+---
+
+# 1) OBJECTIVE
+
+Allow **Super Admin** to access a user account **without password** via a controlled, auditable **Impersonation** flow. Admin can perform all user actions, but the system remains **traceable, time-limited, and secure**.
+
+---
+
+# 2) NON-NEGOTIABLE SECURITY RULES
+
+* Passwords hashed with **bcrypt** only; never readable or returned.
+* All impersonation sessions are **time-limited** and **revocable**.
+* All actions during impersonation are **logged** with adminId + userId.
+* Security events are **not suppressed**. Use “support activity” messaging (not “new login alert”) if you differentiate.
+* UI must show a **visible banner** during impersonation with an **Exit** action.
+
+---
+
+# 3) DATABASE SCHEMA
+
+## 3.1 `admin_sessions`
+
+```ts id="p1a1"
+admin_sessions {
+  _id: ObjectId,
+  adminId: ObjectId,
+  userId: ObjectId,
+  tokenId: string,          // jti
+  createdAt: Date,
+  expiresAt: Date,          // e.g., +60 minutes
+  revoked: boolean,
+  ip: string,
+  userAgent: string
+}
+```
+
+## 3.2 `admin_logs`
+
+```ts id="p1a2"
+admin_logs {
+  _id: ObjectId,
+  adminId: ObjectId,
+  userId: ObjectId,
+  action: "IMPERSONATE_START" | "IMPERSONATE_END" | "IMPERSONATE_ACTION",
+  meta: object,             // route, payload summary, etc.
+  timestamp: Date
+}
+```
+
+---
+
+# 4) AUTH TOKEN DESIGN (JWT)
+
+## 4.1 Claims
+
+```js id="p2a1"
+{
+  userId: "<targetUserId>",
+  role: "user",
+  isImpersonated: true,
+  adminId: "<adminId>",
+  jti: "<uuid>",
+  exp: "<+60m>"
+}
+```
+
+* Sign with `JWT_SECRET`
+* Short TTL (30–60 min)
+* `jti` stored in `admin_sessions`
+
+---
+
+# 5) BACKEND — ENDPOINTS
+
+## 5.1 Start Impersonation (Super Admin Only)
+
+**POST** `/api/admin/impersonate`
+
+```js id="p3a1"
+// guards: auth + role === 'super_admin'
+const { userId } = req.body;
+
+// generate jti
+const jti = crypto.randomUUID();
+
+const token = jwt.sign(
+  { userId, role: "user", isImpersonated: true, adminId: req.user.id, jti },
+  process.env.JWT_SECRET,
+  { expiresIn: "60m" }
+);
+
+// persist session
+await AdminSession.create({
+  adminId: req.user.id,
+  userId,
+  tokenId: jti,
+  createdAt: new Date(),
+  expiresAt: new Date(Date.now() + 60*60*1000),
+  revoked: false,
+  ip: req.ip,
+  userAgent: req.headers["user-agent"]
+});
+
+// audit log
+await AdminLog.create({
+  adminId: req.user.id,
+  userId,
+  action: "IMPERSONATE_START",
+  timestamp: new Date()
+});
+
+return res.json({ token });
+```
+
+---
+
+## 5.2 Stop Impersonation
+
+**POST** `/api/admin/stop-impersonation`
+
+```js id="p3a2"
+// revoke current jti
+await AdminSession.updateOne(
+  { tokenId: req.token.jti },
+  { $set: { revoked: true } }
+);
+
+await AdminLog.create({
+  adminId: req.token.adminId,
+  userId: req.token.userId,
+  action: "IMPERSONATE_END",
+  timestamp: new Date()
+});
+
+return res.json({ ok: true });
+```
+
+---
+
+## 5.3 Auth Middleware (UPDATE)
+
+```js id="p3a3"
+const decoded = jwt.verify(token, SECRET);
+
+// common
+req.userId = decoded.userId;
+req.role = decoded.role;
+
+// impersonation branch
+if (decoded.isImpersonated) {
+  // check session validity
+  const session = await AdminSession.findOne({ tokenId: decoded.jti });
+  if (!session || session.revoked || session.expiresAt < new Date()) {
+    return res.status(401).json({ message: "Impersonation expired/revoked" });
+  }
+
+  req.isImpersonated = true;
+  req.adminId = decoded.adminId;
+}
+```
+
+---
+
+## 5.4 Optional: Guard Sensitive Actions
+
+If needed, restrict certain endpoints during impersonation:
+
+```js id="p3a4"
+if (req.isImpersonated && routeIsSensitive) {
+  return res.status(403).json({ message: "Not allowed during impersonation" });
+}
+```
+
+---
+
+# 6) FRONTEND (REACT)
+
+## 6.1 Admin User List → Button
+
+File: `/src/pages/admin/Users.tsx`
+
+```jsx id="p4a1"
+<button onClick={() => loginAsUser(user._id)}>
+  Login As User
+</button>
+```
+
+## 6.2 Action
+
+```js id="p4a2"
+const res = await api.post("/api/admin/impersonate", { userId });
+localStorage.setItem("token", res.data.token);
+window.location.href = "/dashboard";
+```
+
+---
+
+## 6.3 Global Banner (MANDATORY)
+
+File: `/src/components/ImpersonationBanner.tsx`
+
+```jsx id="p4a3"
+const isImpersonated = getTokenFlag("isImpersonated");
+
+{isImpersonated && (
+  <div className="impersonation-banner">
+    Admin mode: managing this account
+    <button onClick={exitImpersonation}>Exit</button>
+  </div>
+)}
+```
+
+## 6.4 Exit
+
+```js id="p4a4"
+await api.post("/api/admin/stop-impersonation");
+restoreAdminToken(); // from memory/secure store
+window.location.href = "/admin";
+```
+
+---
+
+# 7) LOGGING DURING IMPERSONATION
+
+Add a middleware to log actions:
+
+```js id="p5a1"
+if (req.isImpersonated) {
+  await AdminLog.create({
+    adminId: req.adminId,
+    userId: req.userId,
+    action: "IMPERSONATE_ACTION",
+    meta: { path: req.path, method: req.method },
+    timestamp: new Date()
+  });
+}
+```
+
+---
+
+# 8) USER AWARENESS (COMPLIANT APPROACH)
+
+* Do NOT fake “new login alerts.”
+* If you differentiate, send a **support activity** notice or show a **recent activity entry** (transparent and safer).
+
+---
+
+# 9) PERMISSIONS
+
+* Only `role = super_admin` can call `/api/admin/impersonate`
+* Enforce via middleware before handler
+
+---
+
+# 10) ACCEPTANCE CRITERIA
+
+✔ No password access anywhere
+✔ Admin can fully operate user account via impersonation
+✔ Banner visible with Exit control
+✔ Sessions expire and can be revoked
+✔ All actions are logged (start/end/action)
+✔ Middleware blocks invalid/revoked sessions
+✔ No hidden or silent bypass behavior
+
+---
+
+# FINAL RULE
+
+Any implementation that hides admin access, suppresses security signals, or exposes passwords is INVALID.

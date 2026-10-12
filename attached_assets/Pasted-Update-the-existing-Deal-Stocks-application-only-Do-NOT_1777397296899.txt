@@ -1,0 +1,173 @@
+Update the existing Deal Stocks application only. Do NOT rebuild anything.
+This task is strictly for BUG FIXING + PERFORMANCE OPTIMIZATION.
+
+Cover BOTH backend and frontend separately, and do not break any working feature.
+
+========================
+A) BACKEND-ONLY PATCH INSTRUCTIONS
+==================================
+
+Goal:
+Fix data integrity, real-time sync, task lifecycle, auth stability, and API performance.
+
+1. Data integrity
+
+* Keep DB as the single source of truth.
+* Do NOT reset, overwrite, or reinitialize any existing data.
+* Preserve:
+
+  * users
+  * balances
+  * transactions
+  * tasks
+  * notifications
+  * support messages
+  * admin settings
+  * branding
+  * language/theme/device settings
+
+2. API stability
+
+* Fix broken routes, null errors, duplicate responses, and inconsistent payloads.
+* Add safe validation and fallback handling for all endpoints.
+* Ensure all admin updates persist permanently in the database.
+* Do not return undefined/null fields to the frontend.
+
+3. Real-time sync
+
+* Admin changes must reflect instantly on user side.
+* Sync these events in real time:
+
+  * task assignment
+  * task completion
+  * balance update
+  * deposit approval
+  * notification delete
+  * support message delete
+  * settings change
+* Use the existing realtime mechanism already in the app.
+
+4. Task lifecycle
+
+* Assign task → user sees it immediately in the correct platform flow.
+* Complete task → move it to Records/history.
+* New assignment → unlock Start Task again.
+* Prevent duplicate assignments and stuck task states.
+
+5. Authentication
+
+* Fix login/signup edge cases without changing the auth system.
+* Keep sessions stable.
+* Do not cause random logout or invalid login states.
+* Return clear backend errors for failed auth cases.
+
+6. Performance
+
+* Optimize DB queries.
+* Add indexes where needed for:
+
+  * userId
+  * taskId
+  * transactionId
+  * timestamps
+* Avoid duplicate fetches and N+1 query patterns.
+* Use pagination for large data responses.
+
+7. Safety
+
+* Do NOT touch working logic unless it is broken.
+* Do NOT modify UI in backend tasks.
+* Do NOT change DB structure destructively.
+* Use migration-safe updates only.
+
+========================
+B) FRONTEND REACT FIXES
+=======================
+
+Goal:
+Make the UI smooth, stable, fast, and fully responsive.
+
+1. Rendering and re-renders
+
+* Reduce unnecessary re-renders using memoization where needed.
+* Use React.memo / useMemo / useCallback for heavy components.
+* Lazy-load heavy screens and large lists.
+* Do not rerender full pages for small state changes.
+
+2. Lists and heavy data
+
+* Virtualize or paginate long lists:
+
+  * products
+  * transactions
+  * activity
+  * notifications
+  * support messages
+* Use skeleton loaders for slow sections.
+* Avoid loading too much data at once.
+
+3. Task screens
+
+* Task popup/modal must scroll internally only.
+* Do not let the background page scroll when popup is open.
+* Keep task details visible and stable.
+* Remove duplicate task previews or undefined placeholder blocks.
+* Show assigned task only inside the platform flow, not as a dashboard popup.
+
+4. Theme and readability
+
+* Fix Light Mode and Dark Mode contrast everywhere.
+* In Light Mode:
+
+  * use dark readable text
+* In Dark Mode:
+
+  * use light readable text
+* Make cards, labels, icons, and buttons readable in both themes.
+
+5. Responsive layout
+
+* Keep mobile and desktop layouts clean.
+* Default view should match the device type.
+* Do not break cards, headers, or menus on smaller screens.
+* Keep bottom nav, fixed header, and back buttons stable.
+
+6. Language switching
+
+* Make all visible UI text react properly to language changes.
+* Update card text, labels, buttons, menu items, and headings.
+* Do not only translate page titles.
+* Keep the selected language persistent.
+
+7. Dashboard and analytics
+
+* Keep analytics cards at the correct location in the page.
+* Show live stats clearly and without layout jumps.
+* Do not show task details twice.
+* Remove any duplicate or stale blocks from the dashboard.
+
+8. Error handling
+
+* Never let the UI crash on missing/null data.
+* Add safe fallback rendering.
+* Replace blank screens with friendly messages.
+* Prevent broken states after admin updates or route changes.
+
+9. Performance
+
+* Optimize images with lazy loading and compression.
+* Prevent layout shifts and flicker.
+* Keep animations lightweight.
+* Minimize API calls and redundant state updates.
+
+========================
+FINAL RULE
+==========
+
+Only patch the existing system.
+Do NOT redesign it.
+Do NOT rebuild it.
+Do NOT remove working features.
+Do NOT overwrite saved data.
+
+Fix backend first for correctness and persistence, then patch frontend React for speed, stability, and smooth UX.

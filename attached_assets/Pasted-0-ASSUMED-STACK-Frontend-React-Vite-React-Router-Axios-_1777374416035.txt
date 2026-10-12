@@ -1,0 +1,239 @@
+0) ASSUMED STACK
+Frontend: React (Vite) + React Router + Axios/Fetch
+
+Backend: Node.js + Express
+
+DB: MongoDB (Mongoose) (adapt SQL if needed)
+
+1) DATABASE LAYER
+1.1 Create: /server/models/ExtraTask.js
+import mongoose from "mongoose";
+
+const ExtraTaskSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: String,
+  reward: { type: Number, default: 0 },
+  status: { type: String, enum: ["active", "inactive"], default: "active" },
+  assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+}, { timestamps: true });
+
+export default mongoose.model("ExtraTask", ExtraTaskSchema);
+1.2 Update: /server/models/Task.js (existing)
+Add:
+
+order_status: {
+  type: String,
+  enum: ["pending", "assigned", "in_progress", "completed"],
+  default: "pending"
+}
+1.3 Optional Seed (TEMP)
+Create: /server/seed/extraTasks.js
+
+import ExtraTask from "../models/ExtraTask.js";
+
+export async function seedExtraTasks() {
+  const count = await ExtraTask.countDocuments();
+  if (count === 0) {
+    const tasks = Array.from({ length: 10 }).map((_, i) => ({
+      title: `Demo Task ${i+1}`,
+      description: "Temporary task",
+      reward: Math.floor(Math.random()*10)+1
+    }));
+    await ExtraTask.insertMany(tasks);
+  }
+}
+Call in server init once.
+
+2) BACKEND API
+2.1 Create: /server/routes/extraTasks.js
+import express from "express";
+import ExtraTask from "../models/ExtraTask.js";
+
+const router = express.Router();
+
+// GET all
+router.get("/", async (req,res)=>{
+  const tasks = await ExtraTask.find();
+  res.json(tasks);
+});
+
+// CREATE
+router.post("/", async (req,res)=>{
+  const task = await ExtraTask.create(req.body);
+  res.json(task);
+});
+
+// ASSIGN
+router.post("/assign", async (req,res)=>{
+  const { taskId, userId } = req.body;
+  const task = await ExtraTask.findByIdAndUpdate(
+    taskId,
+    { assignedTo: userId },
+    { new: true }
+  );
+  res.json(task);
+});
+
+// DELETE
+router.delete("/:id", async (req,res)=>{
+  await ExtraTask.findByIdAndDelete(req.params.id);
+  res.json({ ok:true });
+});
+
+export default router;
+2.2 Register Route: /server/index.js
+import extraTasksRoute from "./routes/extraTasks.js";
+app.use("/api/extra-tasks", extraTasksRoute);
+2.3 Task Status Endpoint (FIX PROCESSING)
+Create/Update: /server/routes/tasks.js
+
+router.get("/my-task", async (req,res)=>{
+  const userId = req.user.id;
+  const task = await Task.findOne({ assignedTo: userId });
+  res.json(task);
+});
+
+router.post("/start", async (req,res)=>{
+  const { taskId } = req.body;
+  const task = await Task.findById(taskId);
+
+  if (task.order_status !== "assigned") {
+    return res.status(400).json({ message: "Not assigned" });
+  }
+
+  task.order_status = "in_progress";
+  await task.save();
+
+  res.json(task);
+});
+3) FRONTEND PATCHES
+3.1 Admin Menu Button
+File: /src/pages/admin/AdminMenu.tsx
+Add button:
+
+<Button onClick={()=>navigate("/admin/extra-tasks")}>
+  Extra Tasks
+</Button>
+3.2 Extra Tasks Page
+File: /src/pages/admin/ExtraTasks.tsx
+import { useEffect, useState } from "react";
+import axios from "axios";
+
+export default function ExtraTasks(){
+  const [tasks,setTasks] = useState([]);
+
+  useEffect(()=>{
+    axios.get("/api/extra-tasks").then(res=>setTasks(res.data));
+  },[]);
+
+  return (
+    <div>
+      {tasks.map(t=>(
+        <div key={t._id}>
+          {t.title} - {t.reward}
+        </div>
+      ))}
+    </div>
+  );
+}
+3.3 FIX Amazon Flow (CRITICAL)
+File: /src/pages/Menu/Amazon.tsx
+REMOVE:
+Any popup logic
+
+Any dashboard task injection
+
+ADD:
+const handleStart = async ()=>{
+  navigate("/tasks/amazon");
+};
+3.4 Task Screen
+File: /src/pages/tasks/AmazonTask.tsx
+const [task,setTask] = useState(null);
+
+useEffect(()=>{
+  fetch("/api/tasks/my-task")
+    .then(res=>res.json())
+    .then(setTask);
+},[]);
+
+if (!task) return <Loader />;
+
+if (task.order_status === "pending") {
+  return <p>Processing...</p>;
+}
+
+if (task.order_status === "assigned") {
+  return (
+    <button onClick={startTask}>
+      Start Work
+    </button>
+  );
+}
+3.5 FIX Infinite Loading
+Add timeout:
+
+useEffect(()=>{
+  const timeout = setTimeout(()=>{
+    setLoading(false);
+  },1000);
+  return ()=>clearTimeout(timeout);
+},[]);
+3.6 FIX Back Navigation
+Replace ALL:
+navigate("/home")
+WITH:
+navigate(-1)
+3.7 Mine/Profile Fix
+File: /src/pages/Mine.tsx
+REMOVE:
+const referrals = 14; // ❌ REMOVE
+REPLACE:
+const referrals = user?.referrals?.length || 0;
+3.8 Deposit QR Feature
+Backend Field:
+Add to settings collection:
+
+depositQR: String
+API:
+router.post("/upload-qr", upload.single("file"), async (req,res)=>{
+  const url = req.file.path;
+  await Settings.updateOne({}, { depositQR: url });
+  res.json({ url });
+});
+Frontend:
+<img src={settings.depositQR} />
+3.9 Remove Fake Data (GLOBAL)
+Search & DELETE:
+
+SEED_
+mock
+dummy
+fallbackData
+Replace with:
+
+|| 0
+4) BUG FIX (SEED_TICKETS ERROR)
+File: /src/pages/admin/AdminSupport.tsx
+FIX:
+const SEED_TICKETS = []; // fallback
+OR remove usage entirely.
+
+5) ACCEPTANCE TEST CHECKLIST
+No undefined errors
+
+No infinite loaders
+
+No dashboard popup tasks
+
+Tasks only in /tasks/amazon
+
+Profile shows real DB data
+
+Back button works correctly
+
+Extra tasks CRUD works
+
+QR visible in deposit
+
+No dummy values anywhere

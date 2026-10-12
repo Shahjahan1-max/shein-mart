@@ -1,0 +1,123 @@
+{
+  "201": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/201/1.webp", "amount": 14, "commission_pct": 4, "after_commission": 0.56 },
+    { "ad_id": "ads2", "url": "https://aczmall.netlify.app/201/2.webp", "amount": 11, "commission_pct": 4, "after_commission": 0.44 },
+    { "ad_id": "ads3", "url": "https://aczmall.netlify.app/201/3.webp", "amount": 15, "commission_pct": 4, "after_commission": 0.6 },
+    { "ad_id": "ads4", "url": "https://aczmall.netlify.app/201/4.webp", "amount": 12, "commission_pct": 4, "after_commission": 0.48 },
+    { "ad_id": "ads5", "url": "https://aczmall.netlify.app/201/5.webp", "amount": 9, "commission_pct": 4, "after_commission": 0.36 }
+  ],
+  "301": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/301/1.webp", "amount": 5, "commission_pct": 4, "after_commission": 0.2 },
+    { "ad_id": "ads2", "url": "https://aczmall.netlify.app/301/2.webp", "amount": 11, "commission_pct": 4, "after_commission": 0.44 },
+    { "ad_id": "ads3", "url": "https://aczmall.netlify.app/301/3.webp", "amount": 15, "commission_pct": 4, "after_commission": 0.6 }
+  ],
+  "302": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/302/1.webp", "amount": 8, "commission_pct": 4, "after_commission": 0.32 },
+    { "ad_id": "ads7", "url": "https://aczmall.netlify.app/302/7.webp", "amount": 15, "commission_pct": 4, "after_commission": 0.6 },
+    { "ad_id": "ads8", "url": "https://aczmall.netlify.app/302/8.webp", "amount": 57, "commission_pct": 20, "after_commission": 11.4 }
+  ],
+  "303": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/303/1.webp", "amount": 16, "commission_pct": 4, "after_commission": 0.64 },
+    { "ad_id": "ads7", "url": "https://aczmall.netlify.app/303/7.webp", "amount": 65, "commission_pct": 20, "after_commission": 13 }
+  ],
+  "304": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/304/1.webp", "amount": 21, "commission_pct": 4, "after_commission": 0.84 },
+    { "ad_id": "ads7", "url": "https://aczmall.netlify.app/304/7.webp", "amount": 278, "commission_pct": 20, "after_commission": 55.6 }
+  ],
+  "401": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/401/ads1.webp", "amount": 17, "commission_pct": 4, "after_commission": 0.68 },
+    { "ad_id": "ads5", "url": "https://aczmall.netlify.app/401/ads5.webp", "amount": 80, "commission_pct": 9, "after_commission": 7.2 }
+  ],
+  "402": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/402/ads1.webp", "amount": 8, "commission_pct": 4, "after_commission": 0.32 },
+    { "ad_id": "ads8", "url": "https://aczmall.netlify.app/402/ads8.webp", "amount": 67, "commission_pct": 20, "after_commission": 13.4 }
+  ],
+  "403": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/403/ads1.webp", "amount": 16, "commission_pct": 4, "after_commission": 0.64 },
+    { "ad_id": "ads7", "url": "https://aczmall.netlify.app/403/ads7.webp", "amount": 75, "commission_pct": 20, "after_commission": 15 }
+  ],
+  "404": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/404/1.webp", "amount": 21, "commission_pct": 4, "after_commission": 0.84 },
+    { "ad_id": "ads7", "url": "https://aczmall.netlify.app/404/7.webp", "amount": 288, "commission_pct": 20, "after_commission": 57.6 }
+  ],
+  "501": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/501/1.webp", "amount": 2, "commission_pct": 4 },
+    { "ad_id": "13", "url": "https://aczmall.netlify.app/501/13.webp", "amount": 62, "commission_pct": 20 }
+  ],
+  "502": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/502/ads1.webp", "amount": 8, "commission_pct": 4, "after_commission": 0.32 },
+    { "ad_id": "ads8", "url": "https://aczmall.netlify.app/502/ads8.webp", "amount": 77, "commission_pct": 20, "after_commission": 15.4 }
+  ],
+  "503": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/503/ads1.webp", "amount": 16, "commission_pct": 4, "after_commission": 0.64 },
+    { "ad_id": "ads7", "url": "https://aczmall.netlify.app/503/ads7.webp", "amount": 85, "commission_pct": 20, "after_commission": 17 }
+  ],
+  "504": [
+    { "ad_id": "ads1", "url": "https://aczmall.netlify.app/504/ads1.webp", "amount": 21, "commission_pct": 4, "after_commission": 0.84 },
+    { "ad_id": "ads7", "url": "https://aczmall.netlify.app/504/ads7.webp", "amount": 288, "commission_pct": 20, "after_commission": 57.6 }
+  ],
+  "601": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/601/1.webp", "amount": 3, "commission_pct": 4 },
+    { "ad_id": "13", "url": "https://aczmall.netlify.app/601/13.webp", "amount": 85, "commission_pct": 20 }
+  ],
+  "602": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/602/1.webp", "amount": 4, "commission_pct": 4 },
+    { "ad_id": "8", "url": "https://aczmall.netlify.app/602/8.webp", "amount": 105, "commission_pct": 20 }
+  ],
+  "603": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/603/1.webp", "amount": 5, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/603/7.webp", "amount": 142, "commission_pct": 20 }
+  ],
+  "604": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/604/1.webp", "amount": 6, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/604/7.webp", "amount": 185, "commission_pct": 20 }
+  ],
+  "701": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/701/1.webp", "amount": 7, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/701/7.webp", "amount": 245, "commission_pct": 20 }
+  ],
+  "702": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/702/1.webp", "amount": 8, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/702/7.webp", "amount": 285, "commission_pct": 20 }
+  ],
+  "703": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/703/1.webp", "amount": 9, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/703/7.webp", "amount": 325, "commission_pct": 20 }
+  ],
+  "704": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/704/1.webp", "amount": 10, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/704/7.webp", "amount": 365, "commission_pct": 20 }
+  ],
+  "801": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/801/1.webp", "amount": 12, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/801/7.webp", "amount": 410, "commission_pct": 20 }
+  ],
+  "802": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/802/1.webp", "amount": 15, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/802/7.webp", "amount": 465, "commission_pct": 20 }
+  ],
+  "803": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/803/1.webp", "amount": 18, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/803/7.webp", "amount": 520, "commission_pct": 20 }
+  ],
+  "804": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/704/1.webp", "amount": 10, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/704/7.webp", "amount": 365, "commission_pct": 20 }
+  ],
+  "901": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/901/1.webp", "amount": 20, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/901/7.webp", "amount": 630, "commission_pct": 20 }
+  ],
+  "902": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/902/1.webp", "amount": 25, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/902/7.webp", "amount": 750, "commission_pct": 20 }
+  ],
+  "903": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/903/1.webp", "amount": 30, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/903/7.webp", "amount": 880, "commission_pct": 20 }
+  ],
+  "rank": [
+    { "ad_id": "1", "url": "https://aczmall.netlify.app/rank/1.webp", "amount": 100, "commission_pct": 4 },
+    { "ad_id": "7", "url": "https://aczmall.netlify.app/rank/7.webp", "amount": 1500, "commission_pct": 20 }
+  ]
+}

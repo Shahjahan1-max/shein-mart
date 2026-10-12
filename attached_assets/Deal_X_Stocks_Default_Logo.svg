@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 420" role="img" aria-labelledby="title desc">
+  <title id="title">Deal X Stocks</title>
+  <desc id="desc">Deal X Stocks default brand logo</desc>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0ea5e9"/>
+      <stop offset="0.5" stop-color="#0369a1"/>
+      <stop offset="1" stop-color="#00294f"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7ed321"/>
+      <stop offset="0.55" stop-color="#22a83c"/>
+      <stop offset="1" stop-color="#0b6f32"/>
+    </linearGradient>
+    <linearGradient id="darkText" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#06213f"/>
+      <stop offset="0.55" stop-color="#001a36"/>
+      <stop offset="1" stop-color="#0b3559"/>
+    </linearGradient>
+    <filter id="softShadow" x="-15%" y="-25%" width="130%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="7" flood-color="#082f49" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="420" fill="transparent"/>
+
+  <g filter="url(#softShadow)">
+    <text x="70" y="236"
+      font-family="Arial Black, Impact, Arial, sans-serif"
+      font-size="112"
+      font-style="italic"
+      font-weight="900"
+      letter-spacing="-5"
+      fill="url(#darkText)">deal</text>
+
+    <path d="M414 96 L490 96 L553 180 L641 96 L716 96 L592 214 L698 342 L617 342 L545 248 L449 342 L368 342 L506 210 Z"
+      fill="url(#blue)"/>
+    <path d="M589 91 L711 31 L590 184 L707 92 L665 139 L601 202 L703 341 L622 341 L547 247 Z"
+      fill="url(#green)" opacity="0.96"/>
+    <path d="M414 96 L490 96 L553 180 L509 218 Z" fill="#0ea5e9" opacity="0.72"/>
+    <path d="M449 342 L506 210 L545 248 L486 342 Z" fill="#064f88" opacity="0.82"/>
+
+    <text x="636" y="236"
+      font-family="Arial Black, Impact, Arial, sans-serif"
+      font-size="112"
+      font-style="italic"
+      font-weight="900"
+      letter-spacing="-5"
+      fill="url(#darkText)">stocks</text>
+
+    <path d="M84 295 C238 280 371 292 482 237 C372 325 230 336 84 320 Z"
+      fill="url(#blue)" opacity="0.9"/>
+    <path d="M591 291 C718 286 833 291 950 309 C826 317 709 316 591 313 Z"
+      fill="url(#green)" opacity="0.9"/>
+  </g>
+</svg>

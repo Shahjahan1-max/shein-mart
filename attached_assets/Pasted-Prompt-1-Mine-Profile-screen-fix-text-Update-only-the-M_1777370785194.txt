@@ -1,0 +1,46 @@
+Prompt 1 — Mine / Profile screen fix
+
+```text
+Update only the Mine/Profile screen in the existing Deal Stocks app. Do not rebuild from scratch.
+
+Fix this screen exactly:
+- restore the Settings button in Mine/Profile; do NOT remove it
+- keep all Settings features inside it
+- keep the outer Mine screen buttons that were removed by mistake
+- remove Invite Friends from Quick Links and move it to the Team section instead
+- remove Security & Privacy from Quick Links
+- keep Mine clean and simple
+- add a visible back button on the Activity screen inside Profile
+- make all Mine/Profile sub-screens open from the top
+- keep the whole screen real-time and controlled by admin settings where applicable
+- do not change any already working data, only fix the broken UI and navigation
+```
+
+Prompt 2 — Amazon / grab task screen fix
+
+```text
+Update only the Amazon / task-grab flow in the existing Deal Stocks app. Do not rebuild from scratch.
+
+Fix this screen exactly:
+- the task assigned by admin must NOT appear as a separate dashboard popup
+- remove the task popup from the dashboard top area completely
+- the assigned task must appear only inside the Amazon flow after the user clicks Start Task
+- if the user clicks the Amazon task card, open the next screen and show only the assigned task there
+- if the user clicks the Amazon Start Task button or the card itself, move to the task screen and show the task details there
+- the dashboard should stay clean and only show real stats like balance, tasks done, total earned, commission, and progress
+- do not show the task details twice
+- remove any duplicate task preview or undefined/placeholder text
+- keep the lock state for Alibaba and AliExpress as visual only when restricted
+- if the user balance is enough, allow the flow normally
+- if balance is short, block the task with a clear deposit-required message
+- keep the task flow real-time and synced with admin assignments
+
+Also update the Home product strip:
+- show 15 products per platform
+- animate them one-by-one from left to right
+- show 5 products at a time
+- move to the next set every 5 seconds
+- keep a 1-second gap between movements
+- make the strip infinite and smooth
+- do not reload the page or break the layout
+```

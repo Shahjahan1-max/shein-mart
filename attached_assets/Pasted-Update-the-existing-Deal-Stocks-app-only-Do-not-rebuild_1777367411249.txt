@@ -1,0 +1,115 @@
+Update the existing Deal Stocks app only. Do not rebuild from scratch.
+
+I need a clean, technical implementation that fits the current codebase and the changes already made in Phase 1, Phase 2, and Phase 3.
+
+Use the existing stack in the repo and wire everything through the current frontend/backend/database structure. Do not introduce unnecessary refreshes, do not break auth, and do not overwrite saved admin settings.
+
+Technical requirements:
+
+1. Frontend architecture
+
+* Keep the app as a SPA-style flow where possible.
+* Do not trigger full page reloads for normal actions.
+* Use component/state updates and API mutations for all admin changes.
+* Use loading skeletons/spinners only where needed.
+* Keep UI responsive and lightweight.
+* Use memoization / lazy loading for heavy lists like ads, products, activity, transactions, and analytics.
+* Keep the fixed header, bottom nav, and back button behavior stable across all pages.
+
+2. Backend architecture
+
+* All admin changes must be saved in the database immediately and reflected in the user panel in real time.
+* Use one source of truth for:
+
+  * users
+  * roles
+  * wallets
+  * deposits/withdrawals
+  * ads/packages/menu items
+  * platform settings
+  * support contacts
+  * notifications
+  * activity feed
+  * language/theme settings
+  * task assignments
+  * extra task approvals
+  * platform branding
+* Do not hardcode values that should be admin-managed.
+* Keep every setting persistent after refresh, logout, or new login.
+
+3. Database structure
+   Create or map tables/collections logically for:
+
+* users: username, email, password hash, status, role, country if needed only in admin, referral/team code, assigned wallet, assigned package/menu/platform, balance
+* wallets: wallet name, address/link, active/inactive, assigned users
+* transactions: type, amount, status, source wallet, target wallet, timestamp, userId, admin note
+* ads: setCode, adCode, title, imageUrl, contentUrl, amount, commission, afterCommission, depositRequired, depositAmount, isActive, platform
+* tasks/assignments: userId, platform, adCode, status, progress, balance check, approval state
+* platform settings: platform name, commission range, description, logo, enabled, visibility
+* support contacts: type, title, link, icon, enabled, priority
+* notifications: recipient, title, body, type, read/unread, deleted, createdAt
+* activity feed: masked name, action type, amount, timestamp, region label, visibleOnHomeOnly
+* ui settings: theme, language, device view toggle, visibility toggles
+* admin audit log: who changed what and when
+
+4. Real-time behavior
+
+* Admin edits must update the user panel and landing page immediately.
+* Use WebSocket, SSE, subscriptions, or the existing real-time mechanism already in the app.
+* When admin changes branding, ads, support links, toggles, or assignments, the user side must reflect without manual refresh.
+* When a notification is deleted, it must disappear everywhere immediately.
+* When a deposit is approved, the wallet balance must update immediately.
+* When a task is assigned, the user must see it instantly.
+
+5. Authentication
+
+* Signup must support username, email, password, confirm password, and optional referral.
+* Login must work only if the user already exists in the database.
+* Keep signup and sign-in flows separate and valid.
+* Do not break existing auth state.
+* Do not use cookies for this unless the existing code already depends on them.
+* Preserve session state in the current app’s existing auth method.
+
+6. Language system
+
+* Keep the 5 existing languages.
+* Language switching must translate the full user-facing UI:
+  cards, labels, buttons, headings, menu items, support text, task cards, and dashboard text.
+* The translation must update the visible card text, not only the page title.
+* Store language preference persistently.
+* Do not hardcode language text in components if it should be translatable.
+
+7. Theme and device view
+
+* Make Dark Mode and Light Mode work in both user and admin panels.
+* Make Mobile View and Desktop View toggles work in both panels.
+* Keep the layout adaptive to screen size without breaking card design.
+* Preserve already-working theme/view settings in storage.
+
+8. Ads / tasks / menu logic
+
+* Keep the 25-ad set structure.
+* Backend must control which task set belongs to which platform.
+* User must never see internal package codes.
+* Admin can edit title, price, commission, after-commission, deposit restriction, and deposit amount per ad.
+* Support bulk add via JSON for full 25-ad sets.
+* Keep Amazon, Alibaba, AliExpress, and eBay branding mappings separate and configurable.
+* Use the existing product/ad image URLs and official platform links where applicable.
+
+9. Performance and stability
+
+* Avoid unnecessary re-renders.
+* Paginate or virtualize long lists where needed.
+* Cache read-only data carefully, but always invalidate on admin change.
+* Do not let any screen flicker or refresh when toggles or assignments are changed.
+* Handle errors gracefully and show user-friendly messages.
+* Fix any broken support, admin, login, signup, assignment, or rendering bug while implementing these changes.
+
+10. Important implementation rule
+
+* Modify existing components, API routes, database access, and state management instead of rebuilding features from zero.
+* Keep all already-saved admin changes intact.
+* Only patch missing logic, broken bindings, and incomplete real-time sync.
+* Make the system technically clean, stable, and production-oriented.
+
+If any part of the current implementation conflicts with these requirements, refactor that part carefully without breaking the rest of the app.

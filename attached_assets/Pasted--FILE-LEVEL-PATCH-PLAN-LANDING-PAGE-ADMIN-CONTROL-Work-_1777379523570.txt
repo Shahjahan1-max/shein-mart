@@ -1,0 +1,397 @@
+# 🔧 FILE-LEVEL PATCH PLAN — LANDING PAGE ADMIN CONTROL
+
+Work ONLY on existing codebase. Do NOT rebuild. Patch step-by-step.
+
+---
+
+# 🧱 1) BACKEND — DATABASE MODEL
+
+## 📁 Create file:
+
+`/server/models/LandingPageSettings.js`
+
+```js
+import mongoose from "mongoose";
+
+const ButtonSchema = new mongoose.Schema({
+  label: String,
+  link: String,
+  active: { type: Boolean, default: true }
+});
+
+const ProductSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  image: String,
+  link: String,
+  active: { type: Boolean, default: true }
+});
+
+const LandingPageSchema = new mongoose.Schema({
+  homeBar: {
+    title: String,
+    subtitle: String
+  },
+
+  homeBarButtons: [ButtonSchema],
+
+  footer: [{
+    label: String,
+    link: String,
+    active: Boolean
+  }],
+
+  platformProducts: [ProductSchema],
+
+  supportCard: {
+    title: String,
+    message: String,
+    buttonText: String,
+    buttonLink: String,
+    active: Boolean
+  },
+
+  topBackground: String,
+
+  visibilityFlags: {
+    showProducts: Boolean,
+    showSupport: Boolean,
+    showFooter: Boolean
+  }
+
+}, { timestamps: true });
+
+export default mongoose.model("LandingPageSettings", LandingPageSchema);
+```
+
+---
+
+# ⚙️ 2) BACKEND — ROUTES
+
+## 📁 Create:
+
+`/server/routes/landingPage.js`
+
+```js
+import express from "express";
+import LandingPage from "../models/LandingPageSettings.js";
+
+const router = express.Router();
+
+// GET
+router.get("/", async (req, res) => {
+  const data = await LandingPage.findOne();
+  res.json(data);
+});
+
+// UPDATE
+router.put("/", async (req, res) => {
+  const updated = await LandingPage.findOneAndUpdate(
+    {},
+    req.body,
+    { new: true, upsert: true }
+  );
+  res.json(updated);
+});
+
+export default router;
+```
+
+---
+
+## 📁 Register route:
+
+`/server/index.js`
+
+```js
+import landingPageRoute from "./routes/landingPage.js";
+app.use("/api/admin/landing-page", landingPageRoute);
+```
+
+---
+
+# 🖼️ 3) BACKGROUND UPLOAD
+
+## 📁 Create:
+
+`/server/routes/upload.js`
+
+```js
+import multer from "multer";
+
+const storage = multer.diskStorage({
+  destination: "uploads/",
+  filename: (_, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  }
+});
+
+export const upload = multer({ storage });
+```
+
+---
+
+## 📁 Update route:
+
+```js
+import { upload } from "./upload.js";
+
+router.post("/upload-bg", upload.single("file"), async (req,res)=>{
+  const url = `/uploads/${req.file.filename}`;
+
+  await LandingPage.findOneAndUpdate(
+    {},
+    { topBackground: url },
+    { upsert: true }
+  );
+
+  res.json({ url });
+});
+```
+
+---
+
+# 📦 4) JSON PRODUCT IMPORT/EXPORT
+
+## Add in same route file:
+
+### IMPORT
+
+```js
+router.post("/import-products", async (req,res)=>{
+  const products = req.body;
+
+  await LandingPage.findOneAndUpdate(
+    {},
+    { platformProducts: products },
+    { upsert: true }
+  );
+
+  res.json({ ok:true });
+});
+```
+
+---
+
+### EXPORT
+
+```js
+router.get("/export-products", async (req,res)=>{
+  const data = await LandingPage.findOne();
+  res.json(data.platformProducts || []);
+});
+```
+
+---
+
+# 🎨 5) FRONTEND — ADMIN PAGE
+
+## 📁 Create:
+
+`/src/pages/admin/LandingPage.tsx`
+
+```tsx
+import { useEffect, useState } from "react";
+import api from "@/lib/api";
+
+export default function LandingPageAdmin(){
+
+  const [data,setData] = useState<any>({});
+
+  useEffect(()=>{
+    api.get("/api/admin/landing-page")
+      .then(res=>setData(res.data || {}));
+  },[]);
+
+  const save = async ()=>{
+    await api.put("/api/admin/landing-page", data);
+    alert("Saved");
+  };
+
+  return (
+    <div>
+
+      <h2>Landing Page Control</h2>
+
+      <input
+        value={data?.homeBar?.title || ""}
+        onChange={e=>setData({
+          ...data,
+          homeBar: { ...data.homeBar, title: e.target.value }
+        })}
+      />
+
+      <button onClick={save}>Save</button>
+
+    </div>
+  );
+}
+```
+
+---
+
+# 🧭 6) ADMIN MENU BUTTON
+
+## 📁 File:
+
+`/src/pages/admin/AdminMenu.tsx`
+
+```tsx
+<Button onClick={()=>navigate("/admin/landing-page")}>
+  Landing Page
+</Button>
+```
+
+---
+
+# 🌐 7) PUBLIC LANDING PAGE PATCH
+
+## 📁 File:
+
+`/src/pages/LandingPage.tsx`
+
+### ADD:
+
+```tsx
+const [config,setConfig] = useState(null);
+
+useEffect(()=>{
+  fetch("/api/admin/landing-page")
+    .then(res=>res.json())
+    .then(setConfig);
+},[]);
+```
+
+---
+
+### USE DATA:
+
+#### Background
+
+```tsx
+<div style={{
+  backgroundImage: `url(${config?.topBackground})`
+}}>
+```
+
+---
+
+#### Home Bar
+
+```tsx
+<h1>{config?.homeBar?.title}</h1>
+<p>{config?.homeBar?.subtitle}</p>
+```
+
+---
+
+#### Buttons
+
+```tsx
+{config?.homeBarButtons?.map(btn=>(
+  btn.active && (
+    <a href={btn.link}>{btn.label}</a>
+  )
+))}
+```
+
+---
+
+#### Products
+
+```tsx
+{config?.platformProducts?.map(p=>(
+  p.active && (
+    <div>
+      <img src={p.image} />
+      <h3>{p.title}</h3>
+    </div>
+  )
+))}
+```
+
+---
+
+#### Support Card
+
+```tsx
+{config?.supportCard?.active && (
+  <div>
+    <h3>{config.supportCard.title}</h3>
+    <p>{config.supportCard.message}</p>
+  </div>
+)}
+```
+
+---
+
+#### Footer
+
+```tsx
+{config?.footer?.map(f=>(
+  f.active && <a href={f.link}>{f.label}</a>
+))}
+```
+
+---
+
+# 🔐 8) ADMIN PROTECTION
+
+## Add middleware:
+
+```js
+if (req.user.role !== "admin") {
+  return res.status(403).json({ message: "Forbidden" });
+}
+```
+
+Apply to all `/api/admin/*`
+
+---
+
+# ⚠️ 9) REMOVE HARDCODED DATA
+
+Search and REMOVE:
+
+* static landing content
+* dummy product arrays
+* default footer links
+
+Replace with config-driven UI.
+
+---
+
+# 🧪 10) FINAL TEST CHECKLIST
+
+✔ Admin can edit landing page
+✔ Background upload works
+✔ JSON product import works
+✔ Buttons add/remove works
+✔ Footer editable
+✔ Support card editable
+✔ Public page updates instantly
+✔ No hardcoded UI remains
+✔ No crashes
+
+---
+
+# 🚀 FINAL RESULT
+
+You now have:
+
+* Full admin control over landing page
+* Dynamic UI
+* JSON-based product system
+* Background upload system
+* Scalable structure
+
+---
+
+If you want next level 🔥
+I can upgrade this to:
+
+* drag & drop builder (like Shopify)
+* section-based CMS blocks
+* live preview editor
+
+Just say: **“make it advanced builder”**

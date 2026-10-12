@@ -1,0 +1,64 @@
+Use the attached screens as the UI reference and update only the existing Deal Stocks codebase. Do not rebuild from scratch.
+
+## Prompt 1 — Mine / Profile screen (technical)
+
+```text id="9q4xk1"
+Update only the Mine/Profile flow in the existing app.
+
+Frontend:
+- Restore the Settings button in Mine/Profile; do NOT remove it.
+- Keep all existing Settings features inside the Settings screen.
+- Keep the outer Mine screen buttons that were removed by mistake.
+- Remove Invite Friends from Quick Links and move it into the Team section instead.
+- Remove Security & Privacy from Quick Links.
+- Add a visible back button on the Activity screen inside Profile.
+- Make every Mine/Profile sub-screen open from the top and preserve scroll position correctly when navigating back.
+
+Backend / state:
+- Keep the Mine/Profile screen fully bound to current user data from the database.
+- Do not reset or overwrite saved profile/settings values.
+- Any change made in admin settings should reflect in Mine/Profile in real time.
+- Keep the route/state structure stable and do not break existing auth/session handling.
+- Use the existing component structure; patch only the broken UI and navigation logic.
+
+Important:
+- Do not change working features.
+- Do not remove any settings functionality.
+- Keep the screen clean, simple, and mobile-friendly.
+```
+
+## Prompt 2 — Amazon / task-grab flow + dashboard/product animation
+
+```text id="3r8m5n"
+Update only the Amazon task flow and the dashboard product strip in the existing app.
+
+Task flow:
+- The task assigned by admin must NOT appear as a separate dashboard popup.
+- Remove any task popup from the dashboard top area completely.
+- The assigned task must appear only inside the Amazon flow after the user clicks Start Task.
+- If the user clicks the Amazon task card or Start Task button, open the next screen and show only the assigned task there.
+- Do not show task details twice.
+- Remove any duplicate preview, undefined text, or placeholder task block from the dashboard.
+- Keep the dashboard clean and show only real stats such as balance, tasks done, total earned, commission, and progress.
+
+Restriction logic:
+- Alibaba and AliExpress can remain visually locked when restricted.
+- If the user balance is enough, allow the task flow normally.
+- If the balance is short, block the task and show a clear deposit-required message.
+- Make this logic driven by the database and admin assignment state.
+
+Product strip:
+- Show 15 products per platform.
+- Display 5 products at a time.
+- Animate them one-by-one from left to right.
+- Move to the next set every 5 seconds with a 1-second gap between movements.
+- Keep the strip infinite and smooth.
+- Use the existing product image/link data already in the system.
+- Do not reload the page or break layout while animating.
+
+Backend:
+- Keep the task assignment and product data synced in real time.
+- Admin changes must reflect immediately in the user panel.
+- Preserve existing database values and do not overwrite working task data.
+- Keep the implementation lightweight and stable.
+```

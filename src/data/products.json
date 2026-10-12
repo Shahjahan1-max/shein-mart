@@ -1,0 +1,145 @@
+{
+  "platform": "DealX Stocks",
+  "version": "1.0",
+  "platforms": [
+    {
+      "name": "Amazon",
+      "url": "https://www.amazon.com",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Amazon_logo.svg/320px-Amazon_logo.svg.png",
+      "color": "#FF9900",
+      "categories": [
+        {
+          "category_name": "Electronics",
+          "products": [
+            { "id": "amz-el-1", "title": "Echo Dot (5th Gen) Smart Speaker", "price": "$49.99", "compare_price": "$59.99", "image": "https://images.unsplash.com/photo-1543512214-318c7553f230?w=400&q=80", "product_url": "https://www.amazon.com/dp/B09B8V1LZ3", "platform": "Amazon", "rating": 4.7, "reviews": 89421, "description": "Compact smart speaker with Alexa. Control smart home devices, play music, and more." },
+            { "id": "amz-el-2", "title": "Kindle Paperwhite (16 GB)", "price": "$139.99", "compare_price": "$159.99", "image": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80", "product_url": "https://www.amazon.com/dp/B09TMF6742", "platform": "Amazon", "rating": 4.8, "reviews": 62340, "description": "The thinnest, lightest Kindle Paperwhite ever. Waterproof with a 6.8\" display." },
+            { "id": "amz-el-3", "title": "Fire TV Stick 4K Max", "price": "$59.99", "compare_price": "$74.99", "image": "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80", "product_url": "https://www.amazon.com/dp/B08MT4MY9J", "platform": "Amazon", "rating": 4.6, "reviews": 44210, "description": "Fastest Fire TV Stick. 4K streaming with Wi-Fi 6E support and Alexa Voice Remote." },
+            { "id": "amz-el-4", "title": "Bose QuietComfort 45 Headphones", "price": "$279.00", "compare_price": "$329.00", "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80", "product_url": "https://www.amazon.com/dp/B098FKXT8L", "platform": "Amazon", "rating": 4.5, "reviews": 18920, "description": "Wireless noise cancelling headphones with up to 24 hours of battery life." },
+            { "id": "amz-el-5", "title": "Apple AirPods Pro (2nd Generation)", "price": "$189.00", "compare_price": "$249.00", "image": "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=400&q=80", "product_url": "https://www.amazon.com/dp/B0BDHWDR12", "platform": "Amazon", "rating": 4.8, "reviews": 127430, "description": "Active Noise Cancellation, Transparency mode, Personalized Spatial Audio." }
+          ]
+        },
+        {
+          "category_name": "Smart Home",
+          "products": [
+            { "id": "amz-sh-1", "title": "Amazon Smart Plug", "price": "$24.99", "compare_price": "$29.99", "image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80", "product_url": "https://www.amazon.com/dp/B089DR29S6", "platform": "Amazon", "rating": 4.6, "reviews": 53400, "description": "Works with Alexa. Control your home appliances from anywhere." },
+            { "id": "amz-sh-2", "title": "Ring Video Doorbell (2nd Gen)", "price": "$99.99", "compare_price": "$129.99", "image": "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&q=80", "product_url": "https://www.amazon.com/dp/B08N5NQ69J", "platform": "Amazon", "rating": 4.4, "reviews": 28760, "description": "1080p HD video, two-way talk, and customizable motion zones." },
+            { "id": "amz-sh-3", "title": "Philips Hue White & Color Smart Bulbs", "price": "$39.99", "compare_price": "$49.99", "image": "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&q=80", "product_url": "https://www.amazon.com/dp/B01M9AU8MB", "platform": "Amazon", "rating": 4.7, "reviews": 41230, "description": "16 million colors, works with Alexa, Google Assistant, and Apple HomeKit." },
+            { "id": "amz-sh-4", "title": "TP-Link Kasa Smart WiFi Thermostat", "price": "$64.99", "compare_price": "$79.99", "image": "https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400&q=80", "product_url": "https://www.amazon.com/dp/B092GGZLMN", "platform": "Amazon", "rating": 4.5, "reviews": 12340, "description": "Smart thermostat with geofencing and scheduling. Compatible with Alexa and Google." }
+          ]
+        },
+        {
+          "category_name": "Books",
+          "products": [
+            { "id": "amz-bk-1", "title": "Atomic Habits by James Clear", "price": "$11.98", "compare_price": "$27.00", "image": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&q=80", "product_url": "https://www.amazon.com/dp/0735211299", "platform": "Amazon", "rating": 4.8, "reviews": 99870, "description": "Tiny changes, remarkable results. The proven framework for building good habits." },
+            { "id": "amz-bk-2", "title": "The Psychology of Money", "price": "$14.99", "compare_price": "$20.00", "image": "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&q=80", "product_url": "https://www.amazon.com/dp/0857197681", "platform": "Amazon", "rating": 4.7, "reviews": 67520, "description": "Timeless lessons on wealth, greed, and happiness by Morgan Housel." },
+            { "id": "amz-bk-3", "title": "Rich Dad Poor Dad (20th Anniversary)", "price": "$8.99", "compare_price": "$17.99", "image": "https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=400&q=80", "product_url": "https://www.amazon.com/dp/1612680194", "platform": "Amazon", "rating": 4.7, "reviews": 82100, "description": "What the rich teach their kids about money that the poor and middle class do not." }
+          ]
+        },
+        {
+          "category_name": "Health & Fitness",
+          "products": [
+            { "id": "amz-hf-1", "title": "Fitbit Charge 6 Activity Tracker", "price": "$149.95", "compare_price": "$179.95", "image": "https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=400&q=80", "product_url": "https://www.amazon.com/dp/B0CCQ7DNQL", "platform": "Amazon", "rating": 4.5, "reviews": 22340, "description": "Built-in GPS, heart rate monitoring, sleep tracking and 40+ exercise modes." },
+            { "id": "amz-hf-2", "title": "Resistance Bands Set (12 Pack)", "price": "$29.99", "compare_price": "$39.99", "image": "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400&q=80", "product_url": "https://www.amazon.com/dp/B07G3YNNH6", "platform": "Amazon", "rating": 4.6, "reviews": 35670, "description": "Heavy duty exercise bands for home workouts. Multiple resistance levels." },
+            { "id": "amz-hf-3", "title": "Whey Protein Powder Vanilla (5 lb)", "price": "$54.97", "compare_price": "$69.99", "image": "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&q=80", "product_url": "https://www.amazon.com/dp/B002DYJ0M0", "platform": "Amazon", "rating": 4.5, "reviews": 54280, "description": "25g protein per serving. All-natural whey concentrate. Supports muscle recovery." },
+            { "id": "amz-hf-4", "title": "Adjustable Dumbbell Set 5-52.5 lbs", "price": "$349.00", "compare_price": "$429.00", "image": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80", "product_url": "https://www.amazon.com/dp/B001ARYU58", "platform": "Amazon", "rating": 4.8, "reviews": 41290, "description": "Replaces 15 sets of weights. Easy dial adjustment system." }
+          ]
+        },
+        {
+          "category_name": "Home & Kitchen",
+          "products": [
+            { "id": "amz-hk-1", "title": "Instant Pot Duo 7-in-1 (6 Qt)", "price": "$79.95", "compare_price": "$99.95", "image": "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&q=80", "product_url": "https://www.amazon.com/dp/B00FLYWNYQ", "platform": "Amazon", "rating": 4.7, "reviews": 136740, "description": "Pressure cooker, slow cooker, rice cooker, steamer, sauté, yogurt maker." },
+            { "id": "amz-hk-2", "title": "Ninja AF101 Air Fryer (4 Qt)", "price": "$99.95", "compare_price": "$129.99", "image": "https://images.unsplash.com/photo-1585515320310-259814833e62?w=400&q=80", "product_url": "https://www.amazon.com/dp/B07FDJMC9Q", "platform": "Amazon", "rating": 4.8, "reviews": 88450, "description": "Up to 75% less fat. Wide temperature range 105°F to 400°F." },
+            { "id": "amz-hk-3", "title": "KitchenAid 5 Qt Stand Mixer", "price": "$349.99", "compare_price": "$449.99", "image": "https://images.unsplash.com/photo-1593618998160-e34014e67546?w=400&q=80", "product_url": "https://www.amazon.com/dp/B00005UP2P", "platform": "Amazon", "rating": 4.8, "reviews": 52340, "description": "Tilt-head stand mixer with 10 speeds. Includes flat beater, dough hook, wire whip." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Alibaba",
+      "url": "https://www.alibaba.com",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Alibaba_logo_PRC.svg/320px-Alibaba_logo_PRC.svg.png",
+      "color": "#FF6A00",
+      "categories": [
+        {
+          "category_name": "Electronics & Components",
+          "products": [
+            { "id": "ali-ec-1", "title": "Wireless Earbuds TWS Bluetooth 5.3 (MOQ: 100)", "price": "$4.50/pc", "compare_price": "$7.00/pc", "image": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/TWS-Earbuds", "platform": "Alibaba", "rating": 4.5, "reviews": 312, "description": "OEM/ODM support. Active noise cancellation. Custom logo available." },
+            { "id": "ali-ec-2", "title": "Portable Solar Power Bank 20000mAh", "price": "$8.90/pc", "compare_price": "$14.00/pc", "image": "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/Solar-Power-Bank", "platform": "Alibaba", "rating": 4.4, "reviews": 187, "description": "Dual USB output, LED flashlight, waterproof casing. Bulk pricing available." },
+            { "id": "ali-ec-3", "title": "LED Smart Light Strip RGBIC 5M", "price": "$3.20/pc", "compare_price": "$5.50/pc", "image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/LED-Strip-Lights", "platform": "Alibaba", "rating": 4.6, "reviews": 455, "description": "App controlled, works with Alexa and Google. Music sync mode included." },
+            { "id": "ali-ec-4", "title": "Security Camera 4K PTZ Outdoor (MOQ: 50)", "price": "$18.60/pc", "compare_price": "$28.00/pc", "image": "https://images.unsplash.com/photo-1557597774-9d273605dfa9?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/Security-Camera", "platform": "Alibaba", "rating": 4.5, "reviews": 234, "description": "360° rotation, night vision, motion detection, two-way audio." },
+            { "id": "ali-ec-5", "title": "Mini Drone with 4K Camera (MOQ: 20)", "price": "$45.00/pc", "compare_price": "$70.00/pc", "image": "https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/Mini-Drone", "platform": "Alibaba", "rating": 4.3, "reviews": 142, "description": "30 min flight time, GPS return home, obstacle avoidance. White label available." }
+          ]
+        },
+        {
+          "category_name": "Clothing & Textiles",
+          "products": [
+            { "id": "ali-ct-1", "title": "Custom Logo Unisex Hoodie (MOQ: 50 pcs)", "price": "$8.50/pc", "compare_price": "$13.00/pc", "image": "https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/Custom-Hoodie", "platform": "Alibaba", "rating": 4.6, "reviews": 289, "description": "300 GSM heavyweight cotton blend. Screen printing or embroidery available." },
+            { "id": "ali-ct-2", "title": "Men's Business Suit Sets (MOQ: 30 pcs)", "price": "$35.00/pc", "compare_price": "$55.00/pc", "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/Men-Suit", "platform": "Alibaba", "rating": 4.4, "reviews": 167, "description": "Premium wool blend. Slim fit. Available in multiple colors and sizes." },
+            { "id": "ali-ct-3", "title": "Yoga Pants Women's Leggings (MOQ: 100 pcs)", "price": "$5.80/pc", "compare_price": "$9.00/pc", "image": "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/Yoga-Pants", "platform": "Alibaba", "rating": 4.7, "reviews": 512, "description": "High waist, 4-way stretch, moisture wicking. OEM available." }
+          ]
+        },
+        {
+          "category_name": "Industrial Machinery",
+          "products": [
+            { "id": "ali-im-1", "title": "CNC Router Machine 1300x2500mm", "price": "$3,500.00", "compare_price": "$5,200.00", "image": "https://images.unsplash.com/photo-1565043666747-69f6646db940?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/CNC-Router", "platform": "Alibaba", "rating": 4.5, "reviews": 78, "description": "3-axis CNC router for wood, acrylic, aluminum. 3kW spindle motor." },
+            { "id": "ali-im-2", "title": "Industrial 3D Printer FDM Large Format", "price": "$1,800.00", "compare_price": "$2,500.00", "image": "https://images.unsplash.com/photo-1565687981296-535f09db714e?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/Industrial-3D-Printer", "platform": "Alibaba", "rating": 4.4, "reviews": 95, "description": "Build volume 400x400x500mm. Dual extruder. Auto-leveling bed." },
+            { "id": "ali-im-3", "title": "Laser Engraver Cutter 60W CO2", "price": "$1,200.00", "compare_price": "$1,800.00", "image": "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/Laser-Engraver", "platform": "Alibaba", "rating": 4.6, "reviews": 134, "description": "Works on wood, leather, acrylic, glass. 600x900mm work area." }
+          ]
+        },
+        {
+          "category_name": "Home Furnishings",
+          "products": [
+            { "id": "ali-hf-1", "title": "Modern Sofa Set L-Shape (MOQ: 5 sets)", "price": "$280.00/set", "compare_price": "$420.00/set", "image": "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/L-Shape-Sofa", "platform": "Alibaba", "rating": 4.3, "reviews": 89, "description": "Sectional sofa with chaise lounge. Genuine leather option available." },
+            { "id": "ali-hf-2", "title": "Bamboo Office Desk 140x70cm", "price": "$95.00/pc", "compare_price": "$140.00/pc", "image": "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400&q=80", "product_url": "https://www.alibaba.com/product-detail/Bamboo-Desk", "platform": "Alibaba", "rating": 4.6, "reviews": 213, "description": "Eco-friendly solid bamboo. Cable management system included." }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AliExpress",
+      "url": "https://www.aliexpress.com",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/AliExpress_logo.svg/320px-AliExpress_logo.svg.png",
+      "color": "#E62B31",
+      "categories": [
+        {
+          "category_name": "Gadgets & Tech",
+          "products": [
+            { "id": "aex-gt-1", "title": "Mini Wireless Keyboard & Touchpad Combo", "price": "$12.99", "compare_price": "$22.00", "image": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400&q=80", "product_url": "https://www.aliexpress.com/item/keyboard-touchpad", "platform": "AliExpress", "rating": 4.4, "reviews": 8921, "description": "Bluetooth 5.0. 2.4GHz wireless. Works with TV, PC, Raspberry Pi." },
+            { "id": "aex-gt-2", "title": "USB C Hub 7-in-1 Multiport Adapter", "price": "$18.99", "compare_price": "$32.00", "image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80", "product_url": "https://www.aliexpress.com/item/usb-hub", "platform": "AliExpress", "rating": 4.5, "reviews": 14320, "description": "4K HDMI, 3x USB 3.0, SD card reader, 100W PD charging." },
+            { "id": "aex-gt-3", "title": "Magnetic Wireless Charger 15W Fast Charge", "price": "$9.99", "compare_price": "$18.00", "image": "https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=400&q=80", "product_url": "https://www.aliexpress.com/item/wireless-charger", "platform": "AliExpress", "rating": 4.3, "reviews": 22180, "description": "MagSafe compatible. Qi 2.0. Slim design with LED indicator." },
+            { "id": "aex-gt-4", "title": "Smart Watch Fitness Tracker IP68", "price": "$24.99", "compare_price": "$45.00", "image": "https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=400&q=80", "product_url": "https://www.aliexpress.com/item/smart-watch", "platform": "AliExpress", "rating": 4.4, "reviews": 31450, "description": "Heart rate, SpO2, sleep monitor. 7-day battery life." },
+            { "id": "aex-gt-5", "title": "Portable Projector Mini 1080P WiFi", "price": "$89.99", "compare_price": "$150.00", "image": "https://images.unsplash.com/photo-1536240478700-b869ad10e9b4?w=400&q=80", "product_url": "https://www.aliexpress.com/item/mini-projector", "platform": "AliExpress", "rating": 4.2, "reviews": 6780, "description": "200 ANSI lumens, Android 9.0, built-in speaker. Perfect for outdoor use." }
+          ]
+        },
+        {
+          "category_name": "Fashion & Accessories",
+          "products": [
+            { "id": "aex-fa-1", "title": "Vintage Leather Crossbody Bag Women", "price": "$19.99", "compare_price": "$38.00", "image": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&q=80", "product_url": "https://www.aliexpress.com/item/crossbody-bag", "platform": "AliExpress", "rating": 4.6, "reviews": 18920, "description": "PU leather, adjustable strap, multiple compartments, 10 color options." },
+            { "id": "aex-fa-2", "title": "Men's Slim Fit Casual Shirt", "price": "$11.99", "compare_price": "$22.00", "image": "https://images.unsplash.com/photo-1607345366928-199ea26cfe3e?w=400&q=80", "product_url": "https://www.aliexpress.com/item/mens-shirt", "platform": "AliExpress", "rating": 4.4, "reviews": 24560, "description": "100% cotton, wrinkle-resistant. Available in 20 colors, sizes S-5XL." },
+            { "id": "aex-fa-3", "title": "Luxury Watch Mechanical Automatic Men", "price": "$45.99", "compare_price": "$89.00", "image": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80", "product_url": "https://www.aliexpress.com/item/mechanical-watch", "platform": "AliExpress", "rating": 4.5, "reviews": 9870, "description": "Sapphire crystal glass, stainless steel case, 50m water resistant." },
+            { "id": "aex-fa-4", "title": "Titanium Sunglasses Polarized UV400", "price": "$16.99", "compare_price": "$32.00", "image": "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400&q=80", "product_url": "https://www.aliexpress.com/item/sunglasses", "platform": "AliExpress", "rating": 4.6, "reviews": 34120, "description": "Lightweight titanium frame. TAC polarized lenses." }
+          ]
+        },
+        {
+          "category_name": "Home & Garden",
+          "products": [
+            { "id": "aex-hg-1", "title": "Plant Grow Light Full Spectrum LED 100W", "price": "$29.99", "compare_price": "$55.00", "image": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&q=80", "product_url": "https://www.aliexpress.com/item/grow-light", "platform": "AliExpress", "rating": 4.5, "reviews": 12340, "description": "For indoor plants, seedlings, succulents. Timer function. Dimmable." },
+            { "id": "aex-hg-2", "title": "Electric Coffee Grinder Burr Mill", "price": "$34.99", "compare_price": "$60.00", "image": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&q=80", "product_url": "https://www.aliexpress.com/item/coffee-grinder", "platform": "AliExpress", "rating": 4.6, "reviews": 8920, "description": "Conical burr grinding, 18 grind settings, 200g capacity." },
+            { "id": "aex-hg-3", "title": "Smart Sensor Night Light USB", "price": "$5.99", "compare_price": "$12.00", "image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80", "product_url": "https://www.aliexpress.com/item/night-light", "platform": "AliExpress", "rating": 4.4, "reviews": 45670, "description": "Motion + light sensor. Plug-in design. Warm white glow." },
+            { "id": "aex-hg-4", "title": "Stainless Steel Knife Set 8-Piece", "price": "$39.99", "compare_price": "$75.00", "image": "https://images.unsplash.com/photo-1593618998160-e34014e67546?w=400&q=80", "product_url": "https://www.aliexpress.com/item/knife-set", "platform": "AliExpress", "rating": 4.7, "reviews": 21340, "description": "German steel, ergonomic handle, with wooden block. Full tang blade." },
+            { "id": "aex-hg-5", "title": "Foldable Storage Boxes Organizer (6 Pack)", "price": "$18.99", "compare_price": "$35.00", "image": "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&q=80", "product_url": "https://www.aliexpress.com/item/storage-boxes", "platform": "AliExpress", "rating": 4.5, "reviews": 33210, "description": "Collapsible fabric bins with handles. Multiple sizes and colors." }
+          ]
+        },
+        {
+          "category_name": "Beauty & Care",
+          "products": [
+            { "id": "aex-bc-1", "title": "Vitamin C Brightening Serum 30ml", "price": "$8.99", "compare_price": "$18.00", "image": "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400&q=80", "product_url": "https://www.aliexpress.com/item/vitamin-c-serum", "platform": "AliExpress", "rating": 4.5, "reviews": 28910, "description": "15% Vitamin C + Hyaluronic Acid + Collagen. Targets dark spots and fine lines." },
+            { "id": "aex-bc-2", "title": "Professional Hair Dryer 3000W Ionic", "price": "$32.99", "compare_price": "$65.00", "image": "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=400&q=80", "product_url": "https://www.aliexpress.com/item/hair-dryer", "platform": "AliExpress", "rating": 4.6, "reviews": 14230, "description": "Negative ion technology. Cool shot button. 3 heat settings, 2 speed." },
+            { "id": "aex-bc-3", "title": "Electric Face Cleansing Brush Sonic", "price": "$14.99", "compare_price": "$30.00", "image": "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&q=80", "product_url": "https://www.aliexpress.com/item/face-brush", "platform": "AliExpress", "rating": 4.4, "reviews": 19870, "description": "Silicone bristles. 3 modes, waterproof IPX7. Rechargeable via USB." },
+            { "id": "aex-bc-4", "title": "Retinol Anti-Aging Eye Cream 15ml", "price": "$6.99", "compare_price": "$14.00", "image": "https://images.unsplash.com/photo-1631390138938-0fa7e7e11095?w=400&q=80", "product_url": "https://www.aliexpress.com/item/eye-cream", "platform": "AliExpress", "rating": 4.5, "reviews": 22110, "description": "Reduces puffiness, dark circles, fine lines. Paraben-free formula." }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,311 @@
+
+You are a senior full-stack architect. Build and fix a complete admin-driven task reward system with strict session control, dynamic task packages, and popup-based task execution flow.
+
+====================================================
+1. CORE ARCHITECTURE OVERVIEW
+====================================================
+
+System has 3 layers:
+
+1. Admin Panel (Task Creator & Controller)
+2. Backend API (Node.js / Express)
+3. Frontend App (React / Next.js)
+
+Everything is driven by ADMIN TASK PACKAGES — nothing is hardcoded in frontend.
+
+====================================================
+2. DATABASE SCHEMA (MongoDB)
+====================================================
+
+--- USERS ---
+User {
+  _id,
+  name,
+  email,
+  password,
+  balance: Number,
+  totalEarnings: Number,
+  currentPackageCode: String | null,
+  activeSessionId: ObjectId | null,
+  createdAt
+}
+
+--- TASK PACKAGES ---
+TaskPackage {
+  _id,
+  code: String,   // e.g. "201", "301", "302"
+  title: String,
+  isActive: Boolean,
+  tasks: [TaskSchema],
+  createdAt
+}
+
+--- TASK SCHEMA (Embedded or Separate Collection) ---
+Task {
+  _id,
+  packageCode: String,
+  title: String,
+  type: "ad" | "product" | "click" | "view",
+  order: Number,
+  commission: Number,
+  isRequired: Boolean,  // deposit required or not
+  depositAmount: Number | null,
+  isActive: Boolean
+}
+
+--- USER TASK SESSION ---
+UserTaskSession {
+  _id,
+  userId,
+  packageCode,
+  currentTaskIndex: Number,
+  completedTaskIds: [ObjectId],
+  status: "pending" | "active" | "completed" | "paused",
+  balanceSnapshot: Number,
+  createdAt,
+  updatedAt
+}
+
+--- TRANSACTIONS ---
+Transaction {
+  _id,
+  userId,
+  type: "commission" | "deposit" | "deduction",
+  amount: Number,
+  relatedTaskId,
+  packageCode,
+  createdAt
+}
+
+====================================================
+3. API ENDPOINTS (NODE/EXPRESS)
+====================================================
+
+--- AUTH ---
+POST /api/auth/login
+POST /api/auth/register
+
+--- ADMIN ---
+POST /api/admin/package/create
+PUT /api/admin/package/:code/update
+POST /api/admin/package/:code/task/add
+PUT /api/admin/task/:taskId/update
+POST /api/admin/assign-package
+BODY: { userId, packageCode }
+
+--- USER TASK FLOW ---
+
+1. START TASK REQUEST
+POST /api/task/start
+BODY: { userId, source: "amazon" }
+
+LOGIC:
+- Create task session OR return existing pending session
+- Send request to admin approval queue
+
+---
+
+2. ADMIN APPROVAL
+POST /api/admin/task/approve
+BODY: { userId, packageCode }
+
+LOGIC:
+- Assign package to user
+- Create UserTaskSession
+- Set currentTaskIndex = 0
+- Return session
+
+---
+
+3. GET ACTIVE SESSION
+GET /api/task/session/:userId
+
+RETURN:
+- packageCode
+- currentTask
+- balance
+- progress
+- required/deposit status
+
+---
+
+4. GET CURRENT TASK POPUP
+GET /api/task/current/:userId
+
+RETURN:
+- currentTask based on session index
+- must strictly match packageCode tasks sorted by order
+
+---
+
+5. COMPLETE TASK
+POST /api/task/complete
+BODY: { userId, taskId }
+
+LOGIC:
+- validate task belongs to active package
+- check required/deposit condition
+- update balance
+- increment session index
+- log transaction
+- return next task
+
+---
+
+6. DEPOSIT (REQUIRED TASK)
+POST /api/task/deposit
+BODY: { userId, amount }
+
+====================================================
+4. FRONTEND STATE FLOW (REACT / NEXT.JS)
+====================================================
+
+--- GLOBAL STATE (Redux/Zustand Context) ---
+
+State:
+{
+  user,
+  session,
+  currentTask,
+  loading,
+  popupVisible,
+  approvalStatus,
+  balance,
+  packageCode
+}
+
+---
+
+--- FLOW LOGIC ---
+
+STEP 1: USER CLICKS START TASK
+startTask()
+
+→ call /api/task/start
+→ show "waiting for admin approval screen"
+→ DO NOT show dashboard yet
+
+---
+
+STEP 2: ADMIN APPROVES
+poll or websocket:
+
+if (approved):
+  fetch /api/task/session
+  set session active
+  show popup
+
+---
+
+STEP 3: TASK POPUP ENGINE
+
+IF session.status === "active":
+  show <TaskPopup />
+
+TaskPopup logic:
+
+currentTask = session.tasks[session.currentTaskIndex]
+
+Render ONLY this task.
+
+NO LIST VIEW unless explicitly required.
+
+---
+
+STEP 4: COMPLETE TASK
+
+onComplete(taskId):
+  call /api/task/complete
+  update session
+  increment index
+  refresh popup
+
+---
+
+STEP 5: REQUIRED TASK HANDLING
+
+IF currentTask.isRequired === true:
+  IF balance < depositAmount:
+     show DepositModal
+     block completion
+  ELSE:
+     allow completion
+
+---
+
+STEP 6: SESSION RESTORE (IMPORTANT FIX)
+
+On app reload:
+
+GET /api/task/session
+
+IF session exists:
+  restore:
+    packageCode
+    currentTaskIndex
+    popup state
+    balance
+    progress
+
+DO NOT reset session.
+
+====================================================
+5. CRITICAL BUG FIX (YOUR ISSUE)
+====================================================
+
+CURRENT BUG:
+- popup not showing
+- wrong screen after Start Task
+- task list skipped
+
+ROOT CAUSE:
+- frontend is bypassing session state
+- task popup is not bound to backend session.currentTaskIndex
+- navigation is overriding task engine
+
+FIX:
+
+RULE:
+ALWAYS RENDER UI FROM SESSION STATE ONLY
+
+NEVER:
+- navigate directly to dashboard after start task
+- load static task list
+- skip popup layer
+
+ONLY:
+session.currentTask → controls UI
+
+====================================================
+6. PACKAGE ISOLATION RULE
+====================================================
+
+Strict rule:
+
+IF user.packageCode = "201"
+→ ONLY load TaskPackage.code === "201"
+
+IF "301"
+→ ONLY 301 tasks
+
+NO CROSS ACCESS BETWEEN PACKAGES.
+
+====================================================
+7. ACCEPTANCE CHECKLIST
+====================================================
+
+System is correct only if:
+
+✔ popup always appears after approval
+✔ tasks load one-by-one
+✔ correct package isolation works
+✔ session persists after refresh
+✔ required tasks enforce deposit
+✔ balance updates correctly
+✔ no screen skipping occurs
+✔ no hardcoded frontend tasks exist
+✔ admin changes reflect instantly
+
+====================================================
+END OF SPEC
+====================================================

@@ -1,0 +1,132 @@
+Update existing Deal Stocks app ONLY. Do NOT rebuild.
+
+Goal:
+Stability + persistence + maintenance mode + zero data loss + real-time sync.
+
+================================
+1) DATABASE (SOURCE OF TRUTH)
+================================
+
+Use persistent DB (no resets).
+
+Ensure tables/collections:
+
+- users:
+  id, username, email, passwordHash, role, status, balance, language, theme
+
+- settings_global:
+  maintenanceMode (boolean),
+  defaultTheme ("system" | "light" | "dark"),
+  defaultLanguage ("en"),
+  updatedAt
+
+- admin_audit_logs:
+  id, action, actorId, entity, entityId, changes, timestamp
+
+Rules:
+- NEVER overwrite existing records
+- Add fields using safe defaults (migration-safe)
+- All configs must be DB-driven (no hardcoding)
+
+================================
+2) BACKEND ROUTES
+================================
+
+Create/patch ONLY these routes:
+
+[GET] /api/settings/global
+→ return global settings
+
+[PATCH] /api/admin/maintenance
+body: { enabled: boolean }
+→ update maintenanceMode in DB
+→ log in audit_logs
+
+Middleware:
+- if maintenanceMode == true:
+  block all user routes except:
+    - auth (login/signup)
+    - read-only data
+  allow admin routes
+
+[GET] /api/health
+→ return { status: "ok", maintenance: boolean }
+
+Rules:
+- Do NOT reset data on server restart
+- Use DB as single source of truth
+- All admin updates must persist immediately
+
+================================
+3) REAL-TIME SYNC
+================================
+
+Use existing realtime system (WebSocket/SSE).
+
+On change:
+- maintenance toggle
+- admin updates
+
+→ broadcast event:
+  "settings_updated"
+
+Frontend must auto-update WITHOUT refresh.
+
+================================
+4) FRONTEND HOOKS / STATE
+================================
+
+Create hook:
+
+useGlobalSettings()
+
+- fetch /api/settings/global
+- subscribe to "settings_updated"
+- update state live
+
+Behavior:
+
+IF maintenanceMode == true:
+  - show maintenance screen (user side)
+  - block actions (tasks, deposits, etc.)
+  - DO NOT clear UI state or data
+
+Admin:
+  - bypass maintenance screen
+
+================================
+5) PERSISTENCE RULES
+================================
+
+MUST ensure:
+
+- page refresh → data stays
+- redeploy → data stays
+- admin changes → permanent
+- user balance/history → unchanged
+
+DO NOT:
+- reinitialize DB
+- override existing values
+- use temporary in-memory state as source
+
+================================
+6) SAFETY / NO BREAKAGE
+================================
+
+- Do NOT touch working features unless required
+- Do NOT break auth
+- Do NOT modify existing schema destructively
+- Extend only (safe patching)
+
+================================
+EXPECTED RESULT
+================================
+
+- Maintenance mode ON/OFF works instantly
+- No data loss ever
+- Admin changes persist permanently
+- No full page reloads
+- System stable for future updates
+
+ONLY implement above. No extra changes.

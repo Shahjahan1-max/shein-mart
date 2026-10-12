@@ -1,0 +1,217 @@
+Update the existing Deal Stocks application ONLY.
+Do NOT rebuild anything. Do NOT skip any instruction. Do NOT partially implement.
+
+This task is STRICT and must be implemented exactly as defined.
+
+========================
+CORE OBJECTIVE
+==============
+
+Make the system:
+
+* Fully persistent (no data loss)
+* Safe for future updates
+* Stable under all conditions
+* Maintenance-mode ready
+* Zero reset on refresh/redeploy
+
+========================
+
+1. MAINTENANCE MODE (MANDATORY)
+   ========================
+
+Implement a **database-driven global maintenance system**.
+
+Admin Panel:
+
+* Add: `maintenanceMode: boolean`
+* Store in DB (NOT local state)
+
+Behavior:
+
+IF maintenanceMode = TRUE:
+
+* Block ALL user actions:
+
+  * task start
+  * grab task
+  * deposits
+  * withdrawals
+  * extra task
+* Show a clean "Maintenance Mode Active" screen
+* Allow ONLY:
+
+  * login
+  * logout
+* Admin panel must remain fully accessible
+
+IF maintenanceMode = FALSE:
+
+* System must return to normal instantly (no reload issues)
+
+CRITICAL:
+
+* Do NOT delete or reset any data
+* Do NOT break sessions
+* Do NOT affect stored balances, tasks, or history
+
+========================
+2) DATA PERSISTENCE (CRITICAL)
+==============================
+
+Database = SINGLE SOURCE OF TRUTH
+
+The following must NEVER reset:
+
+* users
+* balances
+* transactions
+* assigned tasks
+* ads data
+* admin settings
+* support messages
+* notifications
+* UI settings (theme/language/device)
+* maintenance mode state
+
+Rules:
+
+* Refresh ≠ reset
+* Redeploy ≠ reset
+* Code update ≠ reset
+* Admin changes must persist permanently
+* No default overwrite of existing data
+
+========================
+3) SAFE UPDATE SYSTEM
+=====================
+
+When code changes:
+
+* Existing DB data MUST remain valid
+* Add new fields safely:
+
+  * Use fallback defaults
+  * Do NOT overwrite old values
+
+Example:
+IF newField not exists → assign default WITHOUT modifying existing records
+
+DO NOT:
+
+* Drop tables
+* Reinitialize DB
+* Replace existing configs
+
+========================
+4) REAL-TIME INTEGRITY
+======================
+
+* Admin changes → reflect instantly on user side
+* No manual refresh required
+* Use existing real-time system (WebSocket / listener / polling)
+
+Must sync:
+
+* balance updates
+* task assignment
+* maintenance toggle
+* notifications
+* admin edits
+
+========================
+5) STATE SAFETY RULE
+====================
+
+DO NOT use volatile-only state for critical data.
+
+ALL must be persisted:
+
+* auth session (based on existing system)
+* user settings
+* admin settings
+
+Avoid:
+
+* temporary in-memory-only logic
+* UI-only toggles without DB sync
+
+========================
+6) ERROR-PROOFING
+=================
+
+System must:
+
+* Never crash on missing data
+* Never show undefined/null UI
+* Always fallback safely
+
+Add:
+
+* null checks
+* safe parsing
+* defensive rendering
+
+User-facing:
+
+* show clean messages, NOT raw errors
+
+========================
+7) PERFORMANCE + LOW INTERNET
+=============================
+
+* Avoid full page reloads
+* Use SPA behavior
+* Lazy load heavy data
+* Cache read-only data carefully
+* Minimize API calls
+
+Low bandwidth support:
+
+* keep payloads small
+* avoid unnecessary re-fetch
+
+========================
+8) DO NOT BREAK (STRICT)
+========================
+
+DO NOT:
+
+* break login/signup
+* break dashboard
+* break task system
+* break admin panel
+* remove existing features
+* overwrite saved data
+* change working logic unnecessarily
+
+ONLY extend + fix safely
+
+========================
+9) TEST SCENARIOS (MUST PASS)
+=============================
+
+Test all:
+
+1. Enable maintenance → user blocked, admin works
+2. Disable maintenance → normal flow restored
+3. Refresh → data still intact
+4. Assign task → persists after reload
+5. Update admin setting → reflects instantly
+6. Deploy/update → NO data loss
+
+========================
+FINAL RULE
+==========
+
+This is NOT a redesign task.
+
+This is:
+
+* stability patch
+* persistence enforcement
+* maintenance system integration
+
+Implement carefully inside existing architecture.
+
+DO NOT SKIP ANY POINT.

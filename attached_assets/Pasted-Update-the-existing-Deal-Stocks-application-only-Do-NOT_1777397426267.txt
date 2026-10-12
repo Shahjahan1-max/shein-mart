@@ -1,0 +1,187 @@
+Update the existing Deal Stocks application only. Do NOT rebuild anything.
+This task is specifically for:
+
+1. DB indexing + schema tuning
+2. Replit deployment optimization
+
+Do NOT remove working features. Do NOT reset data. Do NOT change the app design.
+
+================================
+
+1. DB INDEXING + SCHEMA TUNING
+   ================================
+
+Goal:
+Make the database faster, safer, and scalable under real traffic.
+
+Database rules:
+
+* Keep the current database as the single source of truth.
+* Do NOT drop tables or overwrite existing records.
+* Use migration-safe changes only.
+* Preserve all existing users, balances, tasks, transactions, notifications, support messages, admin settings, branding, and preferences.
+
+Schema improvements:
+
+* Normalize repeated data where safe.
+* Add missing foreign keys only if they do not break current data.
+* Keep task/assignment state separate from history.
+* Keep support/notification data separate from financial data.
+* Do not mix user settings, task data, and transaction history in one table unless already required by the current design.
+
+Indexes to add / verify:
+
+* users:
+
+  * email
+  * username
+  * role
+  * status
+* tasks / assignments:
+
+  * userId
+  * platform
+  * adCode
+  * status
+  * createdAt
+* transactions:
+
+  * userId
+  * status
+  * type
+  * createdAt
+* notifications:
+
+  * recipientId
+  * isDeleted
+  * createdAt
+* support messages:
+
+  * userId
+  * isDeleted
+  * createdAt
+* ads / menu items:
+
+  * setCode
+  * platform
+  * adCode
+  * isActive
+* admin logs:
+
+  * adminId
+  * action
+  * createdAt
+
+Performance rules:
+
+* Add indexes for all common filter/sort fields.
+* Avoid full table scans on large lists.
+* Use pagination for large queries.
+* Use selective field projection instead of returning full rows when not needed.
+* Avoid N+1 query patterns.
+* Keep joins minimal and indexed.
+* Use safe caching only for read-heavy, rarely changing data.
+* Invalidate cache immediately on admin update.
+
+Schema tuning rules:
+
+* Add default values for new fields so old rows still work.
+* Use nullable fields only when necessary.
+* Keep timestamps consistent across tables.
+* Keep boolean flags explicit:
+
+  * isActive
+  * isDeleted
+  * isLocked
+  * isRequired
+  * maintenanceMode
+* Do not store computed values unless needed for performance; otherwise compute server-side.
+
+Critical:
+
+* Do NOT break existing auth, task lifecycle, or transaction history.
+* Do NOT change any user-visible behavior unless required for speed or correctness.
+
+================================
+2) REPLIT DEPLOYMENT OPTIMIZATION
+=================================
+
+Goal:
+Make the app deploy cleanly on Replit, load fast, and stay stable under slow internet and runtime restarts.
+
+Deployment rules:
+
+* Keep the app lightweight and production-safe.
+* Do NOT rely on memory-only state for critical data.
+* All important data must persist in the database.
+* Use environment variables for secrets and config.
+* Do not hardcode URLs, keys, or sensitive settings.
+
+Startup optimization:
+
+* Minimize startup work.
+* Do not preload large datasets at boot unless required.
+* Lazy-load non-critical modules.
+* Initialize only what is needed for the app to respond quickly.
+* Avoid blocking the server on heavy background tasks.
+
+Build/runtime optimization:
+
+* Remove unnecessary dependencies if safe.
+* Split heavy frontend code into lazy-loaded chunks.
+* Compress and optimize static assets.
+* Use caching headers where appropriate for static resources.
+* Keep bundle size small.
+* Avoid repeated expensive computations on page load.
+
+Server stability:
+
+* Add health check endpoint.
+* Ensure server can restart without data loss.
+* Make startup idempotent.
+* Do not re-seed or reinitialize existing DB data on every deploy.
+* Avoid memory leaks, long-running unbounded loops, and duplicate timers.
+
+Replit-specific behavior:
+
+* Keep the project runnable in a single deployment environment.
+* Use clear start commands.
+* Make sure the app can boot reliably after refresh or redeploy.
+* Ensure logs are readable for debugging.
+* Keep environment config separate from code.
+* Make sure persistent data survives Replit restarts through the database, not local memory.
+
+Low-bandwidth optimization:
+
+* Reduce unnecessary API calls.
+* Paginate long lists.
+* Use skeleton loaders instead of blocking screens.
+* Lazy-load heavy UI sections like analytics, transactions, activity, and product lists.
+* Avoid full page reloads.
+* Keep initial screen responsive first, then load secondary content.
+
+Safety rules:
+
+* Do NOT change the app architecture unnecessarily.
+* Do NOT remove working features.
+* Do NOT break real-time sync.
+* Do NOT reset the database on deploy.
+* Do NOT hardcode production values into the code.
+
+================================
+EXPECTED RESULT
+===============
+
+* Faster queries
+* Better load time
+* Stable deployment on Replit
+* No data loss on restart
+* No duplicate seeding
+* Better scalability
+* Smooth UI under slow internet
+* Existing app behavior preserved
+
+Only patch the existing system.
+Do not redesign it.
+Do not rebuild it.
+Do not touch unrelated modules unless required for performance, indexing, or safe deployment.

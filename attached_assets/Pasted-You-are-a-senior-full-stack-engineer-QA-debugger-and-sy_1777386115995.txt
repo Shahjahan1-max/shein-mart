@@ -1,0 +1,442 @@
+You are a senior full-stack engineer, QA debugger, and system architect.
+
+Your job is to analyze the full website/app, fix all relevant bugs, and finalize the task-flow system exactly according to the business rules below.
+
+====================================================
+PRIMARY OBJECTIVE
+====================================================
+
+Build and stabilize a dynamic admin-driven task system where:
+
+- Users start from Menu → Amazon (or any category) → Start Task.
+- Admin approves or assigns a task package/code.
+- The correct task popup / ad popup / product popup appears.
+- Tasks are shown in the exact order assigned by admin.
+- The system supports free tasks, required tasks, and deposit-based required tasks.
+- The user session must persist correctly.
+- Back navigation must return to the exact previous screen, not to Home unless Home was the original previous route.
+- JSON and Excel files must be imported to populate or replace ads/tasks by code.
+- Existing task data must be preserved for codes not included in the new import file.
+- The whole site must be checked for bugs, state issues, wrong redirects, broken UI, and expectation mismatches.
+
+====================================================
+1) ROUTE / NAVIGATION REQUIREMENT
+====================================================
+
+Critical bug to fix:
+
+When the user clicks Continue Task and is moved to the Deposit screen, pressing Back should return the user to the exact screen they came from.
+
+Examples:
+- If the user came from Menu → Amazon → Start Task → Continue Task → Deposit,
+  then Back must return to the Amazon task/session screen, not Home.
+- If the user came from any other task screen, Back must restore that exact source screen.
+- Do not reset the route to Home unless Home was the actual origin.
+- Preserve navigation context using session-aware routing, route state, or history stack restoration.
+
+Implement:
+- previousRoute tracking
+- activeTaskContext tracking
+- sourceScreen restoration
+- route guard so redirect does not destroy task state
+- browser back and in-app back must behave consistently
+
+Do not allow:
+- accidental home redirect
+- task state loss on back
+- route reset when user returns from deposit or required task screen
+
+====================================================
+2) TASK FLOW REQUIREMENT
+====================================================
+
+User flow:
+
+1. User opens Menu.
+2. User selects Amazon or another category.
+3. User clicks Start Task.
+4. System sends approval request to admin panel.
+5. Admin approves / assigns package/code.
+6. User is routed to the correct task session screen.
+7. The correct popup/list appears from the assigned package only.
+8. Tasks continue one by one in exact order.
+9. Balance, commission, completed count, pending count update correctly.
+10. Deposit-required tasks block completion until requirement is satisfied.
+
+Important:
+- Do not skip the popup.
+- Do not show wrong screens.
+- Do not show tasks from another code.
+- Do not hardcode frontend task lists.
+
+====================================================
+3) CODE-WISE PACKAGE ISOLATION
+====================================================
+
+Each task package is identified by a code.
+
+Examples:
+- 201
+- 301
+- 302
+- 303
+- 401
+- 402
+- 403
+- 404
+
+Rules:
+- Each code must only load its own task list.
+- If a user is assigned code 301, only 301 tasks must appear.
+- If a user is assigned code 402, only 402 tasks must appear.
+- No cross-mixing between codes.
+- Task order must follow admin order exactly.
+
+====================================================
+4) JSON + EXCEL IMPORT REQUIREMENT
+====================================================
+
+I will provide:
+- one JSON file
+- one Excel file
+
+These files contain ads/tasks mapped by code.
+
+You must build an import process that:
+
+- reads both JSON and Excel
+- matches data by code
+- inserts or updates tasks for that code
+- preserves ordering
+- updates the current assigned ads/tasks for codes found in the file
+- leaves untouched any codes not present in the file
+
+Very important replacement rule:
+- If a code exists in the import file, replace that code’s existing ads/tasks with the imported ads/tasks.
+- If a code is NOT present in the import file, do NOT delete or alter the existing data for that code.
+- Example: if code 904 is not in the file, keep the already existing 904 data as-is.
+- Only replace the codes explicitly present in the file.
+
+Import behavior:
+- Support bulk upsert by code
+- Support replacing existing task arrays for matched codes
+- Support preserving untouched packages
+- Log import summary: created, updated, preserved, skipped, failed
+
+If JSON and Excel both contain the same code:
+- Prefer the newest import source based on the import order configured
+- Or merge only if fields are complementary, but never break task order
+
+====================================================
+5) REQUIRED / FREE / DEPOSIT TASK RULES
+====================================================
+
+Each task can be:
+- free
+- required
+- deposit-required
+
+Rules:
+- Free tasks should run normally.
+- Required tasks must clearly show that deposit/recharge is needed before completion.
+- If deposit is insufficient, show the deposit screen instead of allowing invalid completion.
+- The task must not advance incorrectly when the user balance is insufficient.
+- The UI must clearly label task state.
+
+====================================================
+6) BALANCE / COMMISSION LOGIC
+====================================================
+
+- Balance updates according to completed tasks and package rules.
+- Commission is added only when task completion is valid.
+- Earnings, completed tasks, and remaining tasks must refresh in real time.
+- Required tasks must not falsely increase balance.
+- Do not break session logic when balance changes.
+- Do not allow duplicate completion.
+
+====================================================
+7) SESSION / STATE MODEL
+====================================================
+
+You must implement a robust task session model.
+
+Track:
+- userId
+- assignedPackageCode
+- currentTaskIndex
+- currentTaskId
+- taskStatus
+- approvalStatus
+- routeSource
+- previousRoute
+- balanceSnapshot
+- totalEarnings
+- completedTasks
+- remainingTasks
+- depositRequired flag
+- active screen/state
+
+State must persist across:
+- refresh
+- page reload
+- browser back
+- in-app back
+- temporary route changes
+- closing and reopening the app if session is active
+
+====================================================
+8) FRONTEND STATE FLOW
+====================================================
+
+The frontend must render strictly from session state.
+
+State values should include:
+- idle
+- awaitingApproval
+- packageAssigned
+- popupActive
+- taskRunning
+- depositRequired
+- taskCompleted
+- packageCompleted
+- paused
+
+Rendering rules:
+- If awaiting approval, show approval waiting UI.
+- If package assigned and task session active, show the popup/task screen.
+- If deposit required, show deposit screen but preserve the origin route.
+- On back, restore the exact previous task-related screen.
+- Do not render Home unless session state actually resolves to Home.
+
+Use explicit conditional rendering:
+- no hardcoded route jumps
+- no stale state render
+- no default fallback to wrong page
+- no task list bypass
+
+====================================================
+9) BACKEND / API REQUIREMENTS
+====================================================
+
+Create or fix the following APIs:
+
+AUTH
+- POST /api/auth/login
+- POST /api/auth/register
+
+TASK START / APPROVAL
+- POST /api/task/start
+- POST /api/admin/task/approve
+- POST /api/admin/task/assign
+
+SESSION
+- GET /api/task/session/:userId
+- GET /api/task/current/:userId
+
+COMPLETION
+- POST /api/task/complete
+- POST /api/task/deposit
+- POST /api/task/next
+
+ADMIN PACKAGE MANAGEMENT
+- POST /api/admin/package/create
+- PUT /api/admin/package/:code/update
+- POST /api/admin/package/:code/task/add
+- PUT /api/admin/task/:taskId/update
+- DELETE /api/admin/task/:taskId
+- POST /api/admin/package/import
+
+IMPORT
+- POST /api/admin/import/json
+- POST /api/admin/import/excel
+- POST /api/admin/import/merge
+
+API validation rules:
+- verify package ownership
+- verify task belongs to current package code
+- verify current task index
+- verify deposit eligibility
+- prevent duplicate completion
+- prevent wrong code access
+- reject any task not in active session
+
+====================================================
+10) DATABASE SCHEMA
+====================================================
+
+Use a clean schema design such as:
+
+User
+- _id
+- name
+- email
+- password
+- balance
+- totalEarnings
+- currentPackageCode
+- activeSessionId
+- createdAt
+- updatedAt
+
+TaskPackage
+- _id
+- code
+- title
+- isActive
+- createdAt
+- updatedAt
+
+Task
+- _id
+- packageCode
+- title
+- type
+- order
+- commission
+- isRequired
+- depositAmount
+- isActive
+- metadata
+- createdAt
+- updatedAt
+
+UserTaskSession
+- _id
+- userId
+- packageCode
+- currentTaskIndex
+- currentTaskId
+- status
+- approvalStatus
+- previousRoute
+- routeSource
+- balanceSnapshot
+- createdAt
+- updatedAt
+
+Transaction
+- _id
+- userId
+- type
+- amount
+- relatedTaskId
+- packageCode
+- createdAt
+
+ImportLog
+- _id
+- sourceType
+- fileName
+- importedCodes
+- updatedCount
+- createdCount
+- preservedCount
+- failedCount
+- createdAt
+
+====================================================
+11) BACK BUTTON FIX
+====================================================
+
+This is a mandatory fix.
+
+When a user navigates:
+Menu → Amazon → Start Task → Continue Task → Deposit
+
+Then Back must return to:
+- Amazon task/session screen
+or
+- the exact screen stored in previousRoute
+
+Do not:
+- send user to Home
+- reset session state
+- lose active task context
+
+Implement:
+- route stack memory
+- previousRoute in session
+- sourceScreen preservation
+- guarded back handler for in-app navigation
+- browser popstate handling if needed
+
+====================================================
+12) WEBSITE-WIDE BUG ANALYSIS
+====================================================
+
+Perform a full site analysis and fix any issue that violates expectations.
+
+Look for:
+- wrong redirects
+- missing popup rendering
+- state desync
+- broken buttons
+- task list not loading
+- code mismatch
+- deposit flow issues
+- back navigation issues
+- stale screen after refresh
+- duplicate tasks
+- missing session restoration
+- incorrect task ordering
+- import overwrite bugs
+- unexpected home redirects
+- any UI or API mismatch
+
+Fix only what is broken.
+Do not break working logic.
+Do not rewrite stable modules unnecessarily.
+Preserve existing good behavior.
+
+====================================================
+13) ADMIN PANEL ASSIGNMENT RULE
+====================================================
+
+Admin panel must allow:
+- assigning task package by code
+- replacing package tasks from import files
+- keeping codes not present in import untouched
+- marking tasks required/free
+- changing commission
+- changing order
+- activating/deactivating tasks
+- viewing import result summary
+
+====================================================
+14) ACCEPTANCE CRITERIA
+====================================================
+
+The implementation is correct only if all are true:
+
+- Continue Task does not send user to the wrong screen.
+- Back returns to the exact previous task-related screen.
+- Popup appears at the correct stage after approval.
+- Code 201, 301, 302, 303, 401, 402, 403, 404 each show only their own tasks.
+- JSON and Excel imports replace only matching codes.
+- Codes missing from import remain unchanged.
+- Required tasks enforce deposit rules.
+- Free tasks remain free.
+- Balance and commission update correctly.
+- Session persists on refresh.
+- Wrong screen rendering is eliminated.
+- The whole system is stable and production-ready.
+
+====================================================
+15) FINAL OUTPUT EXPECTATION
+====================================================
+
+Provide:
+- corrected frontend state flow
+- corrected back-navigation logic
+- corrected task-session logic
+- corrected admin assignment logic
+- JSON + Excel import handler
+- code-wise replacement logic
+- bug fixes across the site
+- clean production-ready implementation
+
+Use clean, maintainable, explicit, defensive code.
+Avoid hardcoding task lists.
+Avoid route shortcuts.
+Avoid silent state resets.
+Avoid replacing codes not present in the import file.

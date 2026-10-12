@@ -1,0 +1,109 @@
+Fix the user task completion flow and add a next-task request system without breaking any existing dashboard, admin panel, or task logic.
+
+GOAL
+When a user completes a task and it becomes “Completed” in the Amazon section card, show TWO buttons at the end of that card:
+1) Request New Task
+2) Completed
+
+The user must be able to request the next task from the same card, and the admin must be able to approve and assign the next task from the admin panel.
+
+IMPORTANT RULES
+- Do not rebuild the existing system from scratch.
+- Do not break current completed-task display.
+- Do not remove existing task history, dashboard stats, or user records.
+- Keep the current task structure and only extend it.
+- No duplicate task assignment.
+- No external APIs.
+
+FRONTEND REQUIREMENTS
+
+1) Completed Task Card Buttons
+- On any task card marked “Completed” in the Amazon section, show two buttons at the end:
+  - Request New Task
+  - Completed
+- Do not show the request button on incomplete tasks.
+- Keep the card layout clean and consistent.
+
+2) Request New Task Action
+- When the user clicks “Request New Task”:
+  - create a request record
+  - mark it as pending
+  - send it to the admin panel for review
+  - do not auto-assign a task without admin approval
+
+3) Task Status Flow
+Use a clear status flow:
+- assigned
+- in_progress
+- completed
+- request_new_task_pending
+- approved_for_new_task
+
+4) New Task Assignment
+- After the admin approves the request, assign the next task automatically or manually from admin.
+- Example flow:
+  - user completes task 301
+  - user clicks Request New Task
+  - admin approves
+  - admin assigns task 302
+  - after completion, user can request task 303
+- Each next task must be unique and increment properly.
+
+ADMIN PANEL REQUIREMENTS
+
+5) Request Review Section
+- Add a visible admin section for new task requests.
+- Admin must be able to:
+  - view pending requests
+  - approve request
+  - reject request
+  - assign the next task number manually
+  - see which user requested it
+  - see the previously completed task
+
+6) Task Assignment Control
+- Admin must be able to assign the next task from the panel.
+- Support task numbering like:
+  - 301
+  - 302
+  - 303
+  - 304 & more from admin
+- Prevent assigning the same task twice to the same user unless intended.
+
+7) User Task History
+- Keep a proper history of:
+  - completed task
+  - request for new task
+  - admin approval/rejection
+  - newly assigned task
+- Show this in admin and user records if already supported.
+
+DATA / LOGIC REQUIREMENTS
+
+8) Database / Model Updates
+Add or extend fields such as:
+- task_id
+- user_id
+- status
+- completed_at
+- request_new_task_at
+- assigned_next_task_id
+- admin_response_status
+- admin_response_at
+
+9) Validation
+- Only show Request New Task when the current task is completed.
+- Do not allow empty or duplicate requests.
+- Do not assign a new task before admin approval.
+
+10) Real-Time / Refresh Behavior
+- If possible, update user and admin views in real time.
+- At minimum, reflect changes correctly after save/refresh.
+
+ACCEPTANCE CRITERIA
+- Completed task card shows two buttons: Request New Task and Completed
+- User can request the next task from the completed card
+- Admin receives the request in panel
+- Admin can approve and assign the next task
+- Task sequence continues correctly (301 → 302 → 303-304 & more)
+- No existing task system is broken

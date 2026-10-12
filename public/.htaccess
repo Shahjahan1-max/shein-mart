@@ -1,0 +1,46 @@
+# ─── SPA (React) routing ─────────────────────────────────────────────────────
+# Rewrites all non-file, non-directory requests to index.html so React Router
+# (Wouter) can handle them client-side. Required on every Hostinger Apache host.
+# /api/* routes are excluded so Node.js server handles them directly.
+Options -MultiViews
+RewriteEngine On
+RewriteBase /
+
+# Do NOT rewrite /api/* — let Node.js handle these
+RewriteRule ^api/ - [L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [QSA,L]
+
+# ─── Force HTTPS ──────────────────────────────────────────────────────────────
+# Uncomment once your SSL certificate is active on Hostinger.
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# ─── Browser caching for static assets ───────────────────────────────────────
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg        "access plus 1 year"
+  ExpiresByType image/png         "access plus 1 year"
+  ExpiresByType image/webp        "access plus 1 year"
+  ExpiresByType image/svg+xml     "access plus 1 year"
+  ExpiresByType image/gif         "access plus 1 year"
+  ExpiresByType text/css          "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+  ExpiresByType font/woff2        "access plus 1 year"
+</IfModule>
+
+# ─── Gzip compression ─────────────────────────────────────────────────────────
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css
+  AddOutputFilterByType DEFLATE application/javascript application/json
+  AddOutputFilterByType DEFLATE image/svg+xml font/woff2
+</IfModule>
+
+# ─── Security headers ─────────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

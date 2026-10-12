@@ -1,0 +1,38 @@
+# DealX Stocks Robots Directive
+# Allows legitimate search crawlers (Googlebot, Bingbot, OAI-SearchBot, Applebot)
+# Protects private auth, user dashboard, and admin routes.
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /super-admin
+Disallow: /super-admin/
+Disallow: /dashboard
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /quote
+
+# Explicit Search Bot Declarations
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+# Note regarding Google-Extended vs Googlebot:
+# Google-Extended is Google's standalone web crawler control for AI model training/features.
+# Google Search and Google AI Overviews use Googlebot for indexing.
+# Do not disallow Googlebot if you wish to remain indexable in Google Search and AI Overviews.
+
+# Sitemap location
+Sitemap: https://dealxstocks.com/sitemap.xml

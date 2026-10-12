@@ -1,0 +1,56 @@
+You are working on an already-built website. IMPORTANT: do NOT rebuild the app, do NOT redesign the architecture, and do NOT make major changes that can break existing working features.
+
+Your task is only to IMPROVE, OPTIMIZE, and FIX the current system safely.
+
+MAIN GOAL
+- Keep all already-built features, pages, flows, and logic intact.
+- Improve performance, conversion, and stability.
+- Fix errors and bugs without changing the current working structure.
+- Avoid major refactoring unless absolutely necessary for a bug fix.
+
+STRICT RULES
+- Do not remove working components.
+- Do not rewrite the full app.
+- Do not change existing routes or page structure unless required for a bug fix.
+- Do not break any task flow, admin flow, or user flow already working.
+- Make minimal, safe, incremental changes only.
+- Preserve existing database structure, UI layout, and logic as much as possible.
+
+TASKS TO DO
+1) Performance Optimization
+- Improve page load speed.
+- Reduce unnecessary re-renders.
+- Optimize images, scripts, and API calls.
+- Make navigation and task screens load faster.
+- Improve overall responsiveness without changing the design.
+
+2) Conversion Optimization
+- Improve CTA visibility and user flow.
+- Make earning/task actions clearer and easier to complete.
+- Reduce friction in task, deposit, and approval flow.
+- Keep the current UI, but make it more conversion-friendly.
+
+3) Bug Fixes
+- Remove existing errors and broken behavior.
+- Fix loading issues, redirect issues, popup issues, back navigation issues, and state mismatch issues.
+- Fix only what is broken.
+
+4) Search Console / Hosting Readiness
+- Prepare the site for hosting on Hostinger.
+- Make sure it is ready for Google Search Console verification.
+- Ensure pages are crawlable and indexable.
+- Check sitemap, robots, HTTPS, mobile responsiveness, and basic SEO health.
+
+IMPORTANT SAFETY CONDITION
+- If a fix can be done without changing the current structure, do it that way.
+- If a change may break already working parts, avoid it and use the safest possible fix.
+- Existing work must remain stable and untouched as much as possible.
+
+EXPECTED OUTPUT
+- Better performance
+- Better user conversion flow
+- Fewer bugs
+- Stable existing features
+- Hostinger + Search Console readiness
+- No major rebuild
+- No risky changes

@@ -1,0 +1,320 @@
+# 🔧 FILE-LEVEL PATCH PLAN — AMAZON TASK FLOW FIX (CRITICAL)
+
+Work ONLY on existing codebase. Do NOT rebuild. Patch carefully.
+
+---
+
+# 🧠 ROOT CAUSE (IMPORTANT)
+
+Current bug is happening because:
+
+* Frontend is **defaulting to insufficient balance state**
+* Instead of checking:
+  **“Does user have approved assigned task?”**
+
+👉 This condition must be FIRST.
+
+---
+
+# 🧱 1) BACKEND — TASK ASSIGNMENT API
+
+## 📁 File:
+
+`/server/routes/task.js` (or similar)
+
+### ADD / FIX endpoint:
+
+```js
+GET /api/tasks/current
+```
+
+---
+
+## ✅ RESPONSE STRUCTURE (MANDATORY)
+
+```js
+{
+  hasAssignment: true,
+  approvalStatus: "approved",
+  status: "assigned",
+  taskPackageId: "amazon_301",
+  requiredBalance: 139.99,
+  userBalance: 50.96,
+  balanceShortage: 89.03,
+  taskList: [...], // MUST contain your 25 ads
+}
+```
+
+---
+
+## 🔧 LOGIC:
+
+```js
+const assignment = await TaskAssignment.findOne({
+  userId: req.user.id,
+  status: { $in: ["assigned", "in_progress"] }
+});
+
+if (!assignment) {
+  return res.json({ hasAssignment: false });
+}
+
+// populate task list
+const tasks = await Tasks.find({
+  packageId: assignment.taskPackageId
+});
+
+return res.json({
+  hasAssignment: true,
+  approvalStatus: assignment.approvalStatus,
+  status: assignment.status,
+  taskPackageId: assignment.taskPackageId,
+  requiredBalance: assignment.requiredBalance,
+  userBalance: user.balance,
+  balanceShortage: Math.max(0, assignment.requiredBalance - user.balance),
+  taskList: tasks
+});
+```
+
+---
+
+# 🎯 2) FRONTEND — AMAZON SCREEN FIX
+
+## 📁 File:
+
+`/src/pages/Amazon.tsx` (or similar)
+
+---
+
+## 🔴 REMOVE THIS BUG:
+
+❌ Any default:
+
+```js
+if (!data) showInsufficientBalance();
+```
+
+---
+
+## ✅ REPLACE WITH STRICT LOGIC:
+
+```js
+if (!data.hasAssignment) {
+  return <NoTaskScreen />;
+}
+
+if (data.approvalStatus !== "approved") {
+  return <PendingApprovalScreen />;
+}
+
+// 👇 THIS MUST COME BEFORE BALANCE CHECK
+return (
+  <AmazonTaskScreen
+    tasks={data.taskList}
+    data={data}
+  />
+);
+```
+
+---
+
+## ⚠️ BALANCE CHECK (ONLY INSIDE TASK ACTION)
+
+DO NOT block whole screen.
+
+Instead:
+
+```js
+const handleStartTask = () => {
+  if (data.balanceShortage > 0) {
+    showInsufficientModal();
+    return;
+  }
+
+  startTask();
+};
+```
+
+---
+
+# 🧱 3) TASK LIST RENDER (25 ADS FIX)
+
+## 📁 File:
+
+`/src/components/AmazonTaskScreen.tsx`
+
+---
+
+## ✅ RENDER REAL TASKS:
+
+```jsx
+{tasks.map((task, index) => (
+  <TaskCard key={task.id} task={task} index={index} />
+))}
+```
+
+---
+
+## ❌ REMOVE:
+
+* hardcoded tasks
+* empty placeholders
+* dummy ads
+
+---
+
+# 🧱 4) INSUFFICIENT BALANCE UI FIX
+
+## 📁 File:
+
+`/src/components/InsufficientBalance.tsx`
+
+---
+
+## CHANGE:
+
+* This component must ONLY be used as:
+
+  * modal OR inline warning
+
+## ❌ DO NOT:
+
+* render as full screen override
+
+---
+
+# 🧱 5) ADMIN PANEL — ASSIGNMENT FIX
+
+## 📁 File:
+
+`/src/pages/admin/AssignTask.tsx`
+
+---
+
+## ENSURE:
+
+When admin assigns task:
+
+```js
+{
+  userId,
+  taskPackageId,
+  status: "assigned",
+  approvalStatus: "approved",
+  requiredBalance: number
+}
+```
+
+---
+
+## 🔴 BUG TO FIX:
+
+Make sure:
+
+* approvalStatus is actually saved
+* not undefined
+* not pending by default
+
+---
+
+# 🧱 6) DATABASE VALIDATION
+
+## 📁 Model:
+
+`/server/models/TaskAssignment.js`
+
+---
+
+## REQUIRED FIELDS:
+
+```js
+{
+  userId: ObjectId,
+  taskPackageId: String,
+  status: "assigned" | "in_progress" | "completed",
+  approvalStatus: "pending" | "approved",
+  requiredBalance: Number
+}
+```
+
+---
+
+# 🧱 7) DEBUG LOGGING (TEMP)
+
+Add logs:
+
+```js
+console.log("ASSIGNMENT:", assignment);
+console.log("TASKS:", tasks.length);
+```
+
+👉 This will confirm:
+
+* assignment exists
+* tasks are loaded (25 ads)
+
+---
+
+# 🧱 8) ADMIN BUG FIXES (GLOBAL)
+
+Fix ALL:
+
+* undefined variables
+* missing imports (like SEED_TICKETS error earlier)
+* broken state after refresh
+* API mismatch between admin → user
+
+---
+
+# 🧱 9) FINAL FLOW (EXPECTED)
+
+## ✅ CORRECT FLOW:
+
+1. Admin assigns task ✅
+2. Admin approves task ✅
+3. User → Menu → Amazon
+4. API returns assignment
+5. UI shows:
+   👉 Assigned 25 tasks
+6. User clicks Start
+7. IF balance low → show modal
+8. ELSE → start task
+
+---
+
+# 🧪 10) TEST CHECKLIST
+
+✔ Assigned task shows immediately
+✔ No wrong balance screen
+✔ 25 ads visible
+✔ Button works
+✔ Modal only on action
+✔ Admin assignment reflects instantly
+✔ No crashes
+
+---
+
+# 🚨 FINAL RULE
+
+If assigned task exists → SHOW TASK SCREEN FIRST
+Balance check must NEVER override assigned task UI.
+
+---
+
+# 🚀 RESULT
+
+After this fix:
+
+* Your real assigned ads (201, 202, 301 etc.) will show
+* No fake error screen
+* Proper task flow
+* Stable admin → user sync
+
+---
+
+If you want next 🔥
+I can give:
+👉 exact MongoDB seed for 25 ads per package
+👉 or full API for task progression system
+👉 or real earning/commission tracking system
+Just tell me.
