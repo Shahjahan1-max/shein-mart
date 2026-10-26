@@ -1,0 +1,11 @@
+{
+  "name": "sheinstore-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun server.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2"
+  }
+}
