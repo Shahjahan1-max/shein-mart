@@ -1,20 +1,32 @@
-// Typed RPC client. Types come straight from `server/src/actions.ts` — no
-// codegen. `createActionClient` returns a proxy that POSTs `{action, args}`
-// to `./actions` and returns the typed response.
-//
-// `import type { Actions }` is type-only by design: the client bundle never
-// pulls in any server runtime (bun:sqlite, file APIs, etc.). With
-// `verbatimModuleSyntax: true`, dropping `type` is a compile error.
+// Fetch-based action client for standalone hosting (Vercel frontend +
+// Render backend). Same call shape as before, so no App.tsx call site
+// changes: api.listProducts(args), api.getCart(args), ...
+// Each call POSTs { action, args } to the backend's /actions endpoint.
+// Backend URL comes from VITE_API_URL (set it in Vercel to the Render
+// service URL once the backend actions adapter is live). Until then the
+// bundle still builds fine; data calls fail at runtime only.
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
-import type { Actions } from "../../server/src/actions";
-import { createActionClient } from "@hatch/space-sdk/client";
+async function callAction(action: string, args: unknown): Promise<any> {
+  const res = await fetch(`${API_URL}/actions`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action, args }),
+  });
+  if (!res.ok) {
+    throw new Error(`Action ${action} failed: ${res.status}`);
+  }
+  return res.json();
+}
 
-export const api = createActionClient<typeof Actions>();
+type ActionFn = (args: any) => Promise<any>;
 
-// Re-exported for convenience so client code can do
-//
-//     import { api, type ApiResponse } from "./api";
-//     type Article = ApiResponse<typeof api, "listArticles">["articles"][number];
-//
-// They are also available directly from "@hatch/space-sdk/client".
-export type { ApiRequest, ApiResponse } from "@hatch/space-sdk/client";
+export const api: Record<string, ActionFn> = new Proxy({} as Record<string, ActionFn>, {
+  get(_t, prop: string) {
+    if (prop === "then") return undefined;
+    return (args: any) => callAction(prop, args);
+  },
+});
+
+export type ApiResponse<T, M extends keyof T> = T[M] extends (args: any) => Promise<infer R> ? R : unknown;
+export type ApiRequest<T, M extends keyof T> = T[M] extends (args: infer A) => any ? A : never;

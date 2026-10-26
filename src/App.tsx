@@ -9,8 +9,7 @@ type ReactNode,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ApiResponse } from "./api";
-import { PdfViewer } from "@hatch/space-sdk/pdf";
-import { fileToBase64 } from "@hatch/space-sdk/client";
+import { PdfViewer, fileToBase64 } from "./compat";
 import { QRCodeSVG } from "qrcode.react";
 import {
 formatMoney,

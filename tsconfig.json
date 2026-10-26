@@ -1,15 +1,13 @@
 {
-  "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2022", "DOM"],
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "types": ["bun-types", "react", "react-dom"],
-    "rootDir": "..",
-    "tsBuildInfoFile": "./.tsbuildinfo.client",
-    "paths": {
-      "@space/server/*": ["../server/src/*"],
-      "@space/privileged": ["../server/.generated/privileged.contract"]
-    }
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*", "../server/src/**/*"]
+  "include": ["src/**/*", "vite.config.ts"]
 }
