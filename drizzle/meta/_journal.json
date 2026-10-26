@@ -1,0 +1,202 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1792768286034,
+      "tag": "0001_initial",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1792768286034,
+      "tag": "0002_marketplace_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792774306400,
+      "tag": "0003_india_platform_seller_verification_and_live_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792774306400,
+      "tag": "0004_seller_wallet_transactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792774439516,
+      "tag": "0005_unique_product_names",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792776852287,
+      "tag": "0006_mobile_or_gmail_login_seller_auto_approved",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792778478582,
+      "tag": "0007_seller_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1792781418910,
+      "tag": "0008_seller_documents_blobs_and_admin_credit",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792781418910,
+      "tag": "0009_deleted_account_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1792783426073,
+      "tag": "0010_admin_created_by_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1792783426073,
+      "tag": "0011_password_reset_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1792784061979,
+      "tag": "0012_must_change_password_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1792784517794,
+      "tag": "0013_bulk_profit_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1792786976950,
+      "tag": "0014_order_placed_by_marker",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1792787524460,
+      "tag": "0015_admin_activity_marks",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1792810949965,
+      "tag": "0016_theme_design_price_sync_seller_notices_order_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1792810949965,
+      "tag": "0017_product_catalog_source_for_bulk_generated",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1792819361276,
+      "tag": "0018_add_usdt_deposit_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1792819361276,
+      "tag": "0019_add_local_deposit_note_setting",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1792820918633,
+      "tag": "0020_language_and_price_switches",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1792833629115,
+      "tag": "0021_wallet_paid_status_and_admin_withdraw",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1792849139771,
+      "tag": "0022_external_products_section",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1792898237282,
+      "tag": "0023_order_time_seller_attribution_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1792909297672,
+      "tag": "0024_chat_message_attachments",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1792910922223,
+      "tag": "0025_add_user_country",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1792916699454,
+      "tag": "0026_deposit_screenshot_and_payment_method_switches",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1792921723590,
+      "tag": "0027_order_payment_proof_and_country_checkout",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1792922337827,
+      "tag": "0028_order_payment_verification_gate",
+      "breakpoints": true
+    }
+  ]
+}
