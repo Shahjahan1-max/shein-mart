@@ -1,0 +1,254 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap');
+@import "tailwindcss";
+@import "tailwindcss-safe-area";
+
+@theme {
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 18px;
+  --text-lg--line-height: 28px;
+  --text-xl: 20px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 32px;
+  --text-3xl: 30px;
+  --text-3xl--line-height: 36px;
+  --text-4xl: 36px;
+  --text-4xl--line-height: 40px;
+  --text-5xl: 48px;
+  --text-5xl--line-height: 52px;
+  --font-display: "Sora", system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light dark;
+  /* Professional palette: deep navy primary, slate greys, amber accent.
+     Alert red is reserved sparingly for new-order / pending-shipment. */
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-alt: #eef1f5;
+  --text: #111827;
+  --dim: #5b6b82;
+  --border: #dde3ea;
+  --accent: #1a365d;
+  --accent-strong: #122847;
+  --accent-soft: #e8eef6;
+  --gold: #d97706;
+  --gold-ink: #ffffff;
+  --amber: #f59e0b;
+  --amber-bg: #fff7e0;
+  --alert: #dc2626;
+  --alert-bg: #fef2f2;
+  --teal: #0f766e;
+  --radius: 12px;
+  --space-surface: var(--surface);
+  --space-surface-alt: var(--surface-alt);
+  --space-muted: var(--dim);
+  --space-border: var(--border);
+  --space-accent: var(--accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-alt: #273449;
+    --text: #f1f5f9;
+    --dim: #94a3b8;
+    --border: #334155;
+    --accent: #5b8dd9;
+    --accent-strong: #7aa8e8;
+    --accent-soft: #1e3658;
+    --gold: #f59e0b;
+    --gold-ink: #111827;
+    --amber: #fbbf24;
+    --amber-bg: #3a2f0a;
+    --alert: #f87171;
+    --alert-bg: #3f1d1d;
+    --teal: #2dd4bf;
+  }
+}
+
+/* Manual theme choice (header / drawer Dark Theme toggle). The choice is
+   stored on <html data-theme="light|dark"> by the app and always wins over
+   the OS preference, so the user's pick persists exactly as chosen. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-alt: #eef1f5;
+  --text: #111827;
+  --dim: #5b6b82;
+  --border: #dde3ea;
+  --accent: #1a365d;
+  --accent-strong: #122847;
+  --accent-soft: #e8eef6;
+  --gold: #d97706;
+  --gold-ink: #ffffff;
+  --amber: #f59e0b;
+  --amber-bg: #fff7e0;
+  --alert: #dc2626;
+  --alert-bg: #fef2f2;
+  --teal: #0f766e;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b1120;
+  --surface: #16213a;
+  --surface-alt: #1f2c47;
+  --text: #f1f5f9;
+  --dim: #a5b4c9;
+  --border: #2e3d59;
+  --accent: #5b8dd9;
+  --accent-strong: #93b8ec;
+  --accent-soft: #1e3658;
+  --gold: #f5a623;
+  --gold-ink: #111827;
+  --amber: #fbbf24;
+  --amber-bg: #3a2f0a;
+  --alert: #f87171;
+  --alert-bg: #42202a;
+  --teal: #2dd4bf;
+}
+
+/* Store colour schemes (Admin → Theme & Design). The Admin's pick is
+   stored in settings and applied as <html data-scheme="…"> for every
+   visitor; it recolours the accent family (header, buttons, nav, links,
+   highlights) on top of the light/dark choice. "navy" is the default
+   professional scheme defined above, so it needs no override block. */
+:root[data-scheme="emerald"] {
+  --accent: #047857;
+  --accent-strong: #065f46;
+  --accent-soft: #d1fae5;
+  --gold: #b45309;
+  --bg: #f4f8f5;
+}
+:root[data-theme="dark"][data-scheme="emerald"] {
+  --accent: #34d399;
+  --accent-strong: #6ee7b7;
+  --accent-soft: #064e3b;
+  --gold: #f59e0b;
+  --bg: #0c1512;
+}
+:root[data-scheme="royal"] {
+  --accent: #6d28d9;
+  --accent-strong: #5b21b6;
+  --accent-soft: #ede9fe;
+  --gold: #d97706;
+  --bg: #f7f5fc;
+}
+:root[data-theme="dark"][data-scheme="royal"] {
+  --accent: #a78bfa;
+  --accent-strong: #c4b5fd;
+  --accent-soft: #2e1065;
+  --gold: #f59e0b;
+  --bg: #120e1d;
+}
+:root[data-scheme="charcoal"] {
+  --accent: #1f2937;
+  --accent-strong: #030712;
+  --accent-soft: #e5e7eb;
+  --gold: #dc2626;
+  --bg: #f7f7f8;
+}
+:root[data-theme="dark"][data-scheme="charcoal"] {
+  --accent: #9ca3af;
+  --accent-strong: #d1d5db;
+  --accent-soft: #1f2937;
+  --gold: #f87171;
+  --bg: #101012;
+}
+:root[data-scheme="teal"] {
+  --accent: #0f766e;
+  --accent-strong: #115e59;
+  --accent-soft: #ccfbf1;
+  --gold: #ea580c;
+  --bg: #f3f8f7;
+}
+:root[data-theme="dark"][data-scheme="teal"] {
+  --accent: #2dd4bf;
+  --accent-strong: #5eead4;
+  --accent-soft: #042f2e;
+  --gold: #fb923c;
+  --bg: #0a1413;
+}
+/* When the OS prefers dark and no manual theme is set yet, schemes still
+   apply their dark accent variants. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme])[data-scheme="emerald"] { --accent: #34d399; --accent-strong: #6ee7b7; --accent-soft: #064e3b; --bg: #0c1512; }
+  :root:not([data-theme])[data-scheme="royal"] { --accent: #a78bfa; --accent-strong: #c4b5fd; --accent-soft: #2e1065; --bg: #120e1d; }
+  :root:not([data-theme])[data-scheme="charcoal"] { --accent: #9ca3af; --accent-strong: #d1d5db; --accent-soft: #1f2937; --bg: #101012; }
+  :root:not([data-theme])[data-scheme="teal"] { --accent: #2dd4bf; --accent-strong: #5eead4; --accent-soft: #042f2e; --bg: #0a1413; }
+}
+
+/* Right-to-left (Arabic selected): the App sets dir="rtl" on <html>.
+   Flex/grid layouts follow the direction automatically; the physical
+   text-alignment utilities used across the app follow it too, so Arabic
+   text aligns to the right and English/Hindi (dir="ltr") are untouched. */
+:root[dir="rtl"] .text-left { text-align: right; }
+:root[dir="rtl"] .text-right { text-align: left; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* ---- Responsive safeguards: every device width (360px → 1440px+) ----
+   The page itself must never scroll sideways on any phone, tablet or
+   laptop: any single over-wide element (a long price, an unbroken
+   email/URL, a wide row) is clipped or wrapped instead of pushing the
+   whole layout off-screen. `clip` (not `hidden`) keeps position:sticky
+   working for the header / category bar / seller nav. */
+html,
+body {
+  overflow-x: clip;
+  max-width: 100%;
+}
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+/* Long words and amounts (USDT prices, emails, addresses, shop names)
+   wrap inside their own card instead of overflowing it. Elements that
+   deliberately truncate (line-clamp / .truncate) keep their ellipsis:
+   those utilities set overflow/white-space themselves. */
+h1, h2, h3, h4, h5, h6, p, li, dt, dd {
+  overflow-wrap: break-word;
+}
+/* Hide the thin scrollbars of the horizontally scrolling chip/tab rows
+   (categories, Admin sections) — they still scroll by touch/swipe. */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Respect visitors who ask for less motion: the NEW/order pulse and
+   ping animations and the header shrink transition calm down. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
