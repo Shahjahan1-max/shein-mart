@@ -28,15 +28,15 @@
   color-scheme: light dark;
   /* Professional palette: deep navy primary, slate greys, amber accent.
      Alert red is reserved sparingly for new-order / pending-shipment. */
-  --bg: #f3f4f6;
+  --bg: #f6f7f9;
   --surface: #ffffff;
-  --surface-alt: #eef2f7;
-  --text: #0f172a;
-  --dim: #64748b;
-  --border: #e2e8f0;
+  --surface-alt: #eef1f5;
+  --text: #111827;
+  --dim: #5b6b82;
+  --border: #dde3ea;
   --accent: #1a365d;
-  --accent-strong: #0f2440;
-  --accent-soft: #e9eff7;
+  --accent-strong: #122847;
+  --accent-soft: #e8eef6;
   --gold: #d97706;
   --gold-ink: #ffffff;
   --amber: #f59e0b;
@@ -54,21 +54,21 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0b1120;
-    --surface: #131f33;
-    --surface-alt: #1c2b45;
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-alt: #273449;
     --text: #f1f5f9;
     --dim: #94a3b8;
-    --border: #243349;
+    --border: #334155;
     --accent: #5b8dd9;
-    --accent-strong: #93b8ec;
+    --accent-strong: #7aa8e8;
     --accent-soft: #1e3658;
     --gold: #f59e0b;
     --gold-ink: #111827;
     --amber: #fbbf24;
     --amber-bg: #3a2f0a;
     --alert: #f87171;
-    --alert-bg: #42202a;
+    --alert-bg: #3f1d1d;
     --teal: #2dd4bf;
   }
 }
@@ -78,15 +78,15 @@
    the OS preference, so the user's pick persists exactly as chosen. */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f3f4f6;
+  --bg: #f6f7f9;
   --surface: #ffffff;
-  --surface-alt: #eef2f7;
-  --text: #0f172a;
-  --dim: #64748b;
-  --border: #e2e8f0;
+  --surface-alt: #eef1f5;
+  --text: #111827;
+  --dim: #5b6b82;
+  --border: #dde3ea;
   --accent: #1a365d;
-  --accent-strong: #0f2440;
-  --accent-soft: #e9eff7;
+  --accent-strong: #122847;
+  --accent-soft: #e8eef6;
   --gold: #d97706;
   --gold-ink: #ffffff;
   --amber: #f59e0b;
@@ -99,11 +99,11 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0b1120;
-  --surface: #131f33;
-  --surface-alt: #1c2b45;
+  --surface: #16213a;
+  --surface-alt: #1f2c47;
   --text: #f1f5f9;
   --dim: #a5b4c9;
-  --border: #243349;
+  --border: #2e3d59;
   --accent: #5b8dd9;
   --accent-strong: #93b8ec;
   --accent-soft: #1e3658;
@@ -195,10 +195,20 @@
 
 body {
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .font-display {
   font-family: var(--font-display);
+}
+
+/* Professional type: headings sit tighter and never leave a single
+   word stranded on its own line. */
+h1, h2, h3, h4 {
+  text-wrap: balance;
+  letter-spacing: -0.01em;
 }
 
 /* ---- Responsive safeguards: every device width (360px → 1440px+) ----

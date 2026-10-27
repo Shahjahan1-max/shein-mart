@@ -562,9 +562,9 @@ const inputCls =
   "w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base text-[var(--text)] outline-none focus:border-[var(--accent)]";
 
 const primaryBtn =
-  "rounded-lg bg-[var(--accent)] px-4 py-2.5 font-display text-sm font-bold text-white disabled:opacity-50";
+  "rounded-xl bg-[var(--accent)] px-4 py-2.5 font-display text-sm font-bold text-white shadow-sm disabled:opacity-50";
 const goldBtn =
-  "rounded-lg bg-[var(--gold)] px-4 py-2.5 font-display text-sm font-bold text-white shadow-sm disabled:opacity-50";
+  "rounded-xl bg-[var(--gold)] px-4 py-2.5 font-display text-sm font-bold text-white shadow-sm disabled:opacity-50";
 const ghostBtn =
   "rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold text-[var(--text)] disabled:opacity-50";
 
@@ -619,7 +619,7 @@ function ProductCard({
           {product.name}
         </h3>
         <div className="mt-auto pt-1">
-          <p className={`font-display font-bold leading-tight text-[var(--text)] ${dense ? "text-[15px]" : "text-lg"}`}>
+          <p className={`font-display font-extrabold leading-tight tracking-tight text-[var(--text)] ${dense ? "text-[15px]" : "text-lg"}`}>
             {fmt(product.buyerPrice)}
           </p>
           {product.oldPrice && (
@@ -8726,7 +8726,7 @@ export function App() {
         {layoutDesign !== "menu" && (
         <nav
           aria-label="Main navigation"
-          className="fixed inset-x-3 bottom-3 z-40 rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-xl pb-safe sm:hidden"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] shadow-[0_-6px_20px_rgba(15,23,42,0.08)] pb-safe sm:hidden"
         >
           <div className={`grid ${NAV.length === 5 ? "grid-cols-5" : "grid-cols-6"}`}>
             {NAV.map((n) => (
@@ -8736,12 +8736,13 @@ export function App() {
                 aria-label={n.label}
                 aria-current={navCurrent(n) ? "page" : undefined}
                 onClick={() => navGo(n)}
-                className={`relative flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold leading-tight ${
+                className={`relative flex min-h-[4rem] flex-col items-center justify-center gap-1 pb-2 pt-2.5 text-[10px] font-medium leading-tight tracking-wide ${
                   navCurrent(n) ? "text-[var(--accent)]" : "text-[var(--dim)]"
                 }`}
               >
+                {navCurrent(n) && <span aria-hidden className="absolute left-1/2 top-0 h-[3px] w-8 -translate-x-1/2 rounded-full bg-[var(--accent)]" />}
                 {n.isNew && <NewBadge id="nav-products" className="absolute right-0.5 top-0.5" />}
-                <span className={navCurrent(n) ? "rounded-full bg-[var(--accent)] px-3 py-1 text-lg leading-none text-white" : "text-lg leading-none"}>{n.icon}</span>
+                <span className="text-[22px] leading-none">{n.icon}</span>
                 <span className="max-w-full truncate px-0.5">{n.label}</span>
               </button>
             ))}
@@ -8752,7 +8753,7 @@ export function App() {
         {layoutDesign !== "menu" && (
         <nav
           aria-label="Desktop navigation"
-          className="scrollbar-none fixed bottom-5 left-1/2 z-40 hidden max-w-[calc(100vw-1.5rem)] -translate-x-1/2 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface)] p-1 shadow-xl sm:flex"
+          className="scrollbar-none fixed bottom-5 left-1/2 z-40 hidden max-w-[calc(100vw-1.5rem)] -translate-x-1/2 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_8px_28px_rgba(15,23,42,0.12)] sm:flex"
         >
           {NAV.map((n) => (
             <button
