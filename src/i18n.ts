@@ -224,6 +224,7 @@ export const STR = {
 
   // Auth — Gmail / mobile tabs
   "auth.withGmail": { en: "Continue with Gmail", hi: "Gmail से आगे बढ़ें" , ar: "المتابعة باستخدام Gmail"},
+  "auth.googleFailed": { en: "Google sign-in could not be completed. Please try again.", hi: "Google साइन-इन पूरा नहीं हो सका। कृपया दोबारा कोशिश करें।", ar: "تعذّر إكمال تسجيل الدخول عبر Google. يرجى المحاولة مجددًا." },
   "auth.withMobile": { en: "Continue with Mobile Number", hi: "मोबाइल नंबर से आगे बढ़ें" , ar: "المتابعة باستخدام رقم الهاتف المحمول"},
   "auth.identifierGmail": { en: "Gmail / Email address", hi: "Gmail / ईमेल पता" , ar: "Gmail / عنوان البريد الإلكتروني"},
   "auth.identifierMobile": { en: "Mobile number (10 digits)", hi: "मोबाइल नंबर (10 अंक)" , ar: "رقم الهاتف المحمول (10 أرقام)"},
