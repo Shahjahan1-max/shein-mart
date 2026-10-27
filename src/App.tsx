@@ -281,7 +281,8 @@ type Ui = {
   // category bar) offset themselves by exactly this much.
   headerH: number;
   // Store layout design chosen by the Admin in settings ("classic" |
-  // "menu" | "topsearch"); recolours/rearranges chrome for everyone.
+  // "menu" | "topsearch" | "minimal" | "wide"); recolours/rearranges
+  // chrome for everyone.
   layout: string;
 };
 
@@ -3234,6 +3235,62 @@ function AdminSellerLogo({
   );
 }
 
+function PrefsCard({
+  lang,
+  currency,
+  enabledLangs,
+  enabledCurrencies,
+  onLangChange,
+  onCurrencyChange,
+}: {
+  lang: Lang;
+  currency: Currency;
+  enabledLangs: Lang[];
+  enabledCurrencies: Currency[];
+  onLangChange: (l: Lang) => void;
+  onCurrencyChange: (c: Currency) => void;
+}) {
+  const { t } = useUi();
+  return (
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)]">
+      <h3 className="font-display text-lg font-bold text-[var(--text)]">🌐 {t("pref.title")}</h3>
+      <p className="mt-1 text-sm text-[var(--dim)]">{t("pref.sub")}</p>
+      <div className="mt-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--dim)]">{t("header.language")}</p>
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={t("header.language")}>
+          {enabledLangs.map((l) => (
+            <button
+              key={l}
+              type="button"
+              aria-pressed={lang === l}
+              onClick={() => onLangChange(l)}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${lang === l ? "bg-[var(--accent)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+            >
+              {l === "en" ? "EN" : l === "hi" ? "हिंदी" : "عربي"}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--dim)]">{t("header.currency")}</p>
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={t("header.currency")}>
+          {enabledCurrencies.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-pressed={currency === c}
+              onClick={() => onCurrencyChange(c)}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${currency === c ? "bg-[var(--accent)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+            >
+              {c === "INR" ? "₹ INR" : c === "USD" ? "$ USD" : "USDT"}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function AccountView({
   user,
   onAuth,
@@ -3242,6 +3299,8 @@ function AccountView({
   onGoAdmin,
   onGoSupport,
   onUserUpdated,
+  onLangChange,
+  onCurrencyChange,
 }: {
   user: User;
   onAuth: (u: NonNullable<User>) => void;
@@ -3250,8 +3309,10 @@ function AccountView({
   onGoAdmin: () => void;
   onGoSupport?: () => void;
   onUserUpdated?: (u: NonNullable<User>) => void;
+  onLangChange: (l: Lang) => void;
+  onCurrencyChange: (c: Currency) => void;
 }) {
-  const { t, lang } = useUi();
+  const { t, lang, currency, enabledLangs, enabledCurrencies } = useUi();
   const [mode, setMode] = useState<"login" | "register" | "admin">("login");
   const [role, setRole] = useState<"buyer" | "seller">("buyer");
   const [method, setMethod] = useState<"gmail" | "mobile">("gmail");
@@ -3270,7 +3331,7 @@ function AccountView({
   // Signed-in Account is a tidy menu ("menu") with a separate Profile
   // section ("profile") inside it — photo/logo/password editing lives
   // ONLY in the Profile section, never dumped on the menu itself.
-  const [section, setSection] = useState<"menu" | "profile">("menu");
+  const [section, setSection] = useState<"menu" | "profile" | "preferences">("menu");
   // A customer on a temporary (Admin/Customer-Service-set) password is
   // taken straight to the Profile section, where the Change Password
   // form lives — the must-change-password notice flow is unchanged.
@@ -3420,6 +3481,31 @@ function AccountView({
         </div>
       );
     }
+    if (section === "preferences") {
+      // ---- Language & Currency section (moved here from the header) ----
+      return (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <button
+            type="button"
+            onClick={() => setSection("menu")}
+            aria-label={t("acc.back")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--text)]"
+          >
+            <span aria-hidden className="inline-block rtl:-scale-x-100">←</span> {t("acc.back")}
+          </button>
+          <div className="mt-4">
+            <PrefsCard
+              lang={lang}
+              currency={currency}
+              enabledLangs={enabledLangs}
+              enabledCurrencies={enabledCurrencies}
+              onLangChange={onLangChange}
+              onCurrencyChange={onCurrencyChange}
+            />
+          </div>
+        </div>
+      );
+    }
     // ---- Account menu: profile summary header + tidy option rows ----
     // No upload blocks or forms are dumped here — editing lives inside
     // the Profile section above.
@@ -3474,6 +3560,23 @@ function AccountView({
                   : user.role === "admin"
                     ? t("acc.profileSubAdmin")
                     : t("acc.profileSubBuyer")}
+              </span>
+            </span>
+            <span aria-hidden className="shrink-0 text-lg text-[var(--dim)] rtl:-scale-x-100">›</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSection("preferences")}
+            aria-label={t("pref.title")}
+            className={menuRowCls}
+          >
+            <span aria-hidden className="text-xl leading-none">🌐</span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display text-[15px] font-bold text-[var(--text)]">
+                {t("pref.title")}
+              </span>
+              <span className="block truncate text-xs text-[var(--dim)]">
+                {t("pref.sub")}
               </span>
             </span>
             <span aria-hidden className="shrink-0 text-lg text-[var(--dim)] rtl:-scale-x-100">›</span>
@@ -3805,6 +3908,16 @@ function AccountView({
           </button>
         </p>
       )}
+      <div className="mt-4">
+        <PrefsCard
+          lang={lang}
+          currency={currency}
+          enabledLangs={enabledLangs}
+          enabledCurrencies={enabledCurrencies}
+          onLangChange={onLangChange}
+          onCurrencyChange={onCurrencyChange}
+        />
+      </div>
     </div>
   );
 }
@@ -5796,7 +5909,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
     onError: (e, args) => setNoticeResult({ key: args.key, ok: false, text: String(e) }),
   });
   const saveDesign = useMutation({
-    mutationFn: () => api.updateStoreDesign({ adminId: user!.id, colorScheme: (schemeDraft ?? settings?.colorScheme ?? "navy") as "navy" | "emerald" | "royal" | "charcoal" | "teal", layoutDesign: (layoutDraft ?? settings?.layoutDesign ?? "classic") as "classic" | "menu" | "topsearch" }),
+    mutationFn: () => api.updateStoreDesign({ adminId: user!.id, colorScheme: (schemeDraft ?? settings?.colorScheme ?? "navy") as "navy" | "emerald" | "royal" | "charcoal" | "teal" | "crimson" | "sunset" | "rose", layoutDesign: (layoutDraft ?? settings?.layoutDesign ?? "classic") as "classic" | "menu" | "topsearch" | "minimal" | "wide" }),
     onSuccess: (r) => {
       if (!r.ok) { setDesignErr(r.error ?? "Failed."); setDesignOk(null); return; }
       setDesignErr(null);
@@ -6519,11 +6632,16 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
       { id: "royal", label: "theme.scheme.royal", pal: { accent: "#6d28d9", strong: "#5b21b6", soft: "#ede9fe", gold: "#d97706", bg: "#f7f5fc" } },
       { id: "charcoal", label: "theme.scheme.charcoal", pal: { accent: "#1f2937", strong: "#030712", soft: "#e5e7eb", gold: "#dc2626", bg: "#f7f7f8" } },
       { id: "teal", label: "theme.scheme.teal", pal: { accent: "#0f766e", strong: "#115e59", soft: "#ccfbf1", gold: "#ea580c", bg: "#f3f8f7" } },
+      { id: "crimson", label: "theme.scheme.crimson", pal: { accent: "#b91c1c", strong: "#991b1b", soft: "#fee2e2", gold: "#d97706", bg: "#fdf6f6" } },
+      { id: "sunset", label: "theme.scheme.sunset", pal: { accent: "#c2410c", strong: "#9a3412", soft: "#ffedd5", gold: "#b45309", bg: "#fdf8f4" } },
+      { id: "rose", label: "theme.scheme.rose", pal: { accent: "#be185d", strong: "#9d174d", soft: "#fce7f3", gold: "#d97706", bg: "#fdf5f8" } },
     ];
     const layouts: Array<{ id: string; label: StrKey; desc: StrKey }> = [
       { id: "classic", label: "theme.layout.classic", desc: "theme.layout.classicD" },
       { id: "menu", label: "theme.layout.menu", desc: "theme.layout.menuD" },
       { id: "topsearch", label: "theme.layout.topsearch", desc: "theme.layout.topsearchD" },
+      { id: "minimal", label: "theme.layout.minimal", desc: "theme.layout.minimalD" },
+      { id: "wide", label: "theme.layout.wide", desc: "theme.layout.wideD" },
     ];
     const dirty = scheme !== (settings?.colorScheme ?? "navy") || layoutD !== (settings?.layoutDesign ?? "classic");
     return (
@@ -8653,6 +8771,8 @@ export function App() {
   // whole store for everyone; layout design rearranges the chrome.
   const colorScheme = settings.data?.colorScheme ?? "navy";
   const layoutDesign = settings.data?.layoutDesign ?? "classic";
+  // "wide" layout: a wider storefront container on laptops and large screens.
+  const containerW = layoutDesign === "wide" ? "max-w-7xl" : "max-w-6xl";
   useEffect(() => {
     document.documentElement.dataset.scheme = colorScheme;
   }, [colorScheme]);
@@ -8887,14 +9007,14 @@ const NAV: NavItem[] =
   return (
     <UiContext.Provider value={ui}>
       <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-        <header ref={headerRef} className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
-          <div className={`mx-auto flex max-w-6xl flex-wrap items-center gap-x-1.5 px-3 transition-all duration-300 sm:px-4 ${headerMini ? "gap-y-0 py-0.5" : "gap-y-0.5 py-0.5"}`}>
+        <header ref={headerRef} className="sticky top-0 z-40 border-b-2 border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
+          <div className={`mx-auto flex ${containerW} flex-wrap items-center gap-x-1.5 px-3 transition-all duration-300 sm:px-4 ${headerMini ? "gap-y-0 py-1" : "gap-y-1 py-2.5"}`}>
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label={ui.t("menu.open")}
               aria-expanded={drawerOpen}
-              className={`rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[13px]" : "min-h-9 py-0.5 text-[15px]"}`}
+              className={`rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] transition-all duration-300 ${headerMini ? "min-h-9 py-0.5 text-sm" : "min-h-11 py-0.5 text-lg"}`}
             >
               ☰
             </button>
@@ -8902,7 +9022,7 @@ const NAV: NavItem[] =
               type="button"
               onClick={() => (user?.role === "seller" ? goSellerTab("home") : setView("shop"))}
               aria-label={`${storeName} home`}
-              className={`min-w-0 max-w-[34vw] truncate text-left font-display font-extrabold tracking-tight text-[var(--accent)] transition-all duration-300 ${headerMini ? "text-sm" : "text-lg"}`}
+              className={`min-w-0 max-w-[34vw] truncate text-left font-display font-extrabold tracking-tight text-[var(--accent)] transition-all duration-300 ${headerMini ? "text-base" : "text-2xl"}`}
             >
               {storeName}
               <span className="text-[var(--gold)]">.</span>
@@ -8911,45 +9031,7 @@ const NAV: NavItem[] =
               {ui.t("header.tagline")}
             </span>
             <div className="ml-auto flex flex-wrap items-center gap-1.5">
-              <div
-                className="flex overflow-hidden rounded-full bg-[var(--surface-alt)] p-0.5"
-                role="group"
-                aria-label={ui.t("header.currency")}
-              >
-                {/* Only currencies the Admin has switched ON are shown. */}
-                {enabledCurrencies.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    aria-label={c === "INR" ? "Show prices in Indian Rupees" : c === "USD" ? "Show prices in US Dollars" : "Show prices in USDT"}
-                    aria-pressed={effectiveCurrency === c}
-                    onClick={() => changeCurrency(c)}
-                    className={`rounded-full px-2 text-[10px] font-bold transition-all duration-300 ${headerMini ? "min-h-7 py-0" : "min-h-8 py-0.5"} ${effectiveCurrency === c ? "bg-[var(--accent)] text-white" : "text-[var(--dim)]"}`}
-                  >
-                    {c === "INR" ? "₹ INR" : c === "USD" ? "$ USD" : "USDT"}
-                  </button>
-                ))}
-              </div>
-              <div
-                className="flex overflow-hidden rounded-full bg-[var(--surface-alt)] p-0.5"
-                role="group"
-                aria-label={ui.t("header.language")}
-              >
-                {/* Only languages the Admin has switched ON are shown;
-                    English is always ON. */}
-                {enabledLangs.map((l) => (
-                  <button
-                    key={l}
-                    type="button"
-                    aria-label={l === "en" ? "Switch language to English" : l === "hi" ? "Switch language to Hindi" : "Switch language to Arabic"}
-                    aria-pressed={effectiveLang === l}
-                    onClick={() => changeLang(l)}
-                    className={`rounded-full px-2 text-[10px] font-bold transition-all duration-300 ${headerMini ? "min-h-7 py-0" : "min-h-8 py-0.5"} ${effectiveLang === l ? "bg-[var(--accent)] text-white" : "text-[var(--dim)]"}`}
-                  >
-                    {l === "en" ? "EN" : l === "hi" ? "हिंदी" : "عربي"}
-                  </button>
-                ))}
-              </div>
+              
               {user?.role === "seller" && (
                 <div className="relative">
                   <button
@@ -8957,7 +9039,7 @@ const NAV: NavItem[] =
                     onClick={() => { const next = !notifOpen; setNotifOpen(next); if (next && sellerUnread > 0) { /* keep unread until panel viewed */ } }}
                     aria-label={`${ui.t("notif.bell")}${sellerUnread > 0 ? `, ${sellerUnread} unread` : ""}`}
                     aria-expanded={notifOpen}
-                    className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[13px]" : "min-h-9 py-0.5 text-[15px]"}`}
+                    className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 ${headerMini ? "min-h-9 py-0.5 text-sm" : "min-h-11 py-0.5 text-lg"}`}
                   >
                     🔔
                     {sellerUnread > 0 && (
@@ -9014,7 +9096,7 @@ const NAV: NavItem[] =
                   onClick={() => setView("cart")}
                   aria-label={`${ui.t("cart.title")}${cartCount > 0 ? ` (${cartCount})` : ""}`}
                   aria-current={view === "cart" ? "page" : undefined}
-                  className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[13px]" : "min-h-9 py-0.5 text-[15px]"}`}
+                  className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 ${headerMini ? "min-h-9 py-0.5 text-sm" : "min-h-11 py-0.5 text-lg"}`}
                 >
                   🛒
                   {cartCount > 0 && (
@@ -9030,7 +9112,7 @@ const NAV: NavItem[] =
                 aria-label={theme === "dark" ? ui.t("theme.toLight") : ui.t("theme.toDark")}
                 aria-pressed={theme === "dark"}
                 title={theme === "dark" ? ui.t("theme.light") : ui.t("theme.dark")}
-                className={`rounded-full bg-[var(--surface-alt)] px-2.5 font-semibold text-[var(--text)] transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[11px]" : "min-h-9 py-0.5 text-xs"}`}
+                className={`rounded-full bg-[var(--surface-alt)] px-2.5 font-semibold text-[var(--text)] transition-all duration-300 ${headerMini ? "min-h-9 py-0.5 text-xs" : "min-h-11 py-0.5 text-sm"}`}
               >
                 {theme === "dark" ? "☀️" : "🌙"}
               </button>
@@ -9039,7 +9121,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="My account"
-                  className={`max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-2 font-semibold text-white transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[11px]" : "min-h-9 py-0.5 text-xs"}`}
+                  className={`max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-white transition-all duration-300 ${headerMini ? "min-h-10 py-0.5 text-[13px]" : "min-h-11 py-0.5 text-sm"}`}
                 >
                   {user.name.split(" ")[0]}
                 </button>
@@ -9048,7 +9130,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="Sign in or register"
-                  className={`flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-white shadow-sm transition-all duration-300 hover:brightness-110 ${headerMini ? "min-h-9 px-3.5 text-[13px]" : "min-h-10 px-4 text-sm"}`}
+                  className={`flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-white shadow-sm transition-all duration-300 hover:brightness-110 ${headerMini ? "min-h-10 px-4 text-sm" : "min-h-11 px-5 text-[15px]"}`}
                 >
                   {iconUser}
                   {ui.t("header.signIn")}
@@ -9062,7 +9144,7 @@ const NAV: NavItem[] =
               It drives the same shop search and jumps to the shop. */}
           {(layoutDesign === "menu" || layoutDesign === "topsearch") && (
             <div className={`border-t border-[var(--border)] px-3 transition-all duration-300 sm:px-4 ${layoutDesign === "topsearch" ? "py-2" : "py-1"}`}>
-              <div className="mx-auto max-w-6xl">
+              <div className={`mx-auto ${containerW}`}>
                 <label className="block">
                   <span className="sr-only">Search products</span>
                   <input
@@ -9264,7 +9346,7 @@ const NAV: NavItem[] =
           </div>
         )}
 
-        <main className={`mx-auto max-w-6xl px-3 pt-3 min-[400px]:px-4 ${layoutDesign === "menu" ? "pb-10" : "pb-28 sm:pb-24"}`}>
+        <main className={`mx-auto ${containerW} px-3 pt-3 min-[400px]:px-4 ${(layoutDesign === "menu" || layoutDesign === "minimal") ? "pb-10" : "pb-28 sm:pb-24"}`}>
           {user && user.mustChangePassword && user.role !== "admin" && (
             <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border-2 border-amber-400 bg-[var(--amber-bg)] px-4 py-3">
               <p className="min-w-0 flex-1 text-sm font-bold text-[var(--text)]">🔑 {ui.t("cp.tempNotice")}</p>
@@ -9305,6 +9387,8 @@ const NAV: NavItem[] =
               onGoAdmin={() => setView("admin")}
               onGoSupport={goSupportChat}
               onUserUpdated={handleUserUpdated}
+              onLangChange={changeLang}
+              onCurrencyChange={changeCurrency}
             />
           )}
           {view === "seller" && (
@@ -9325,7 +9409,7 @@ const NAV: NavItem[] =
           )}
         </main>
 
-        <footer className={`mx-auto max-w-6xl px-3 min-[400px]:px-4 ${layoutDesign === "menu" ? "pb-8" : "pb-28 sm:pb-20"}`}>
+        <footer className={`mx-auto ${containerW} px-3 min-[400px]:px-4 ${(layoutDesign === "menu" || layoutDesign === "minimal") ? "pb-8" : "pb-28 sm:pb-20"}`}>
           <div className="flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-sm text-[var(--dim)] sm:flex-row sm:items-center">
             <p>
               <strong className="font-display text-[var(--accent)]">{storeName}</strong>{" "}
@@ -9341,7 +9425,7 @@ const NAV: NavItem[] =
           </div>
         </footer>
 
-        {layoutDesign !== "menu" && (
+        {layoutDesign !== "menu" && layoutDesign !== "minimal" && (
         <nav
           aria-label="Main navigation"
           className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] shadow-[0_-6px_20px_rgba(15,23,42,0.08)] pb-safe sm:hidden"
@@ -9368,7 +9452,7 @@ const NAV: NavItem[] =
         </nav>
 
         )}
-        {layoutDesign !== "menu" && (
+        {layoutDesign !== "menu" && layoutDesign !== "minimal" && (
         <nav
           aria-label="Desktop navigation"
           className="scrollbar-none fixed bottom-5 left-1/2 z-40 hidden max-w-[calc(100vw-1.5rem)] -translate-x-1/2 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_8px_28px_rgba(15,23,42,0.12)] sm:flex"

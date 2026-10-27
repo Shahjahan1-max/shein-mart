@@ -177,6 +177,48 @@
   --gold: #fb923c;
   --bg: #0a1413;
 }
+:root[data-scheme="crimson"] {
+  --accent: #b91c1c;
+  --accent-strong: #991b1b;
+  --accent-soft: #fee2e2;
+  --gold: #d97706;
+  --bg: #fdf6f6;
+}
+:root[data-theme="dark"][data-scheme="crimson"] {
+  --accent: #f87171;
+  --accent-strong: #fca5a5;
+  --accent-soft: #450a0a;
+  --gold: #f59e0b;
+  --bg: #170d0d;
+}
+:root[data-scheme="sunset"] {
+  --accent: #c2410c;
+  --accent-strong: #9a3412;
+  --accent-soft: #ffedd5;
+  --gold: #b45309;
+  --bg: #fdf8f4;
+}
+:root[data-theme="dark"][data-scheme="sunset"] {
+  --accent: #fb923c;
+  --accent-strong: #fdba74;
+  --accent-soft: #431407;
+  --gold: #f59e0b;
+  --bg: #150f0b;
+}
+:root[data-scheme="rose"] {
+  --accent: #be185d;
+  --accent-strong: #9d174d;
+  --accent-soft: #fce7f3;
+  --gold: #d97706;
+  --bg: #fdf5f8;
+}
+:root[data-theme="dark"][data-scheme="rose"] {
+  --accent: #f472b6;
+  --accent-strong: #f9a8d4;
+  --accent-soft: #500724;
+  --gold: #f59e0b;
+  --bg: #160a10;
+}
 /* When the OS prefers dark and no manual theme is set yet, schemes still
    apply their dark accent variants. */
 @media (prefers-color-scheme: dark) {
@@ -184,6 +226,9 @@
   :root:not([data-theme])[data-scheme="royal"] { --accent: #a78bfa; --accent-strong: #c4b5fd; --accent-soft: #2e1065; --bg: #120e1d; }
   :root:not([data-theme])[data-scheme="charcoal"] { --accent: #9ca3af; --accent-strong: #d1d5db; --accent-soft: #1f2937; --bg: #101012; }
   :root:not([data-theme])[data-scheme="teal"] { --accent: #2dd4bf; --accent-strong: #5eead4; --accent-soft: #042f2e; --bg: #0a1413; }
+  :root:not([data-theme])[data-scheme="crimson"] { --accent: #f87171; --accent-strong: #fca5a5; --accent-soft: #450a0a; --bg: #170d0d; }
+  :root:not([data-theme])[data-scheme="sunset"] { --accent: #fb923c; --accent-strong: #fdba74; --accent-soft: #431407; --bg: #150f0b; }
+  :root:not([data-theme])[data-scheme="rose"] { --accent: #f472b6; --accent-strong: #f9a8d4; --accent-soft: #500724; --bg: #160a10; }
 }
 
 /* Right-to-left (Arabic selected): the App sets dir="rtl" on <html>.

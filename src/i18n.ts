@@ -58,6 +58,8 @@ export const STR = {
   "header.signIn": { en: "Sign In", hi: "साइन इन" , ar: "تسجيل الدخول"},
   "header.currency": { en: "Currency", hi: "मुद्रा" , ar: "العملة"},
   "header.language": { en: "Language", hi: "भाषा" , ar: "اللغة"},
+  "pref.title": { en: "Language & Currency", hi: "भाषा और मुद्रा", ar: "اللغة والعملة" },
+  "pref.sub": { en: "Applies to the whole store immediately, on this device.", hi: "पूरे स्टोर पर तुरंत लागू होता है, इस डिवाइस पर।", ar: "يُطبَّق على المتجر كله فورًا، على هذا الجهاز." },
 
   // Shop
   "hero.title": {
@@ -1362,6 +1364,9 @@ export const STR = {
   "theme.scheme.royal": { en: "Royal Purple", hi: "शाही बैंगनी" },
   "theme.scheme.charcoal": { en: "Charcoal & Red", hi: "चारकोल और लाल" },
   "theme.scheme.teal": { en: "Fresh Teal", hi: "ताज़ा टील" },
+  "theme.scheme.crimson": { en: "Crimson Red", hi: "गहरा लाल" },
+  "theme.scheme.sunset": { en: "Sunset Orange", hi: "सूर्यास्त नारंगी" },
+  "theme.scheme.rose": { en: "Rose Pink", hi: "गुलाबी" },
   "theme.layoutTitle": { en: "Store Layout Design", hi: "स्टोर लेआउट डिज़ाइन" , ar: "تصميم تخطيط المتجر"},
   "theme.layoutSub": { en: "Pick how the store is arranged. The design changes for every visitor immediately.", hi: "चुनें कि स्टोर कैसा दिखेगा। डिज़ाइन हर आगंतुक के लिए तुरंत बदल जाएगा।" , ar: "اختر كيفية ترتيب المتجر. يتغير التصميم لكل زائر فورًا."},
   "theme.layout.classic": { en: "Design 1 — Classic", hi: "डिज़ाइन 1 — क्लासिक" },
@@ -1370,6 +1375,10 @@ export const STR = {
   "theme.layout.menuD": { en: "No bottom bar — all navigation lives in the ☰ menu, and the search bar sits in the top header.", hi: "नीचे वाली बार नहीं — सारा नेविगेशन ☰ मेनू में, और सर्च बार ऊपर हेडर में।" },
   "theme.layout.topsearch": { en: "Design 3 — Top Search", hi: "डिज़ाइन 3 — टॉप सर्च" },
   "theme.layout.topsearchD": { en: "A slim brand row with a big full-width search row under it; the bottom navigation stays.", hi: "पतली ब्रांड पंक्ति और उसके नीचे बड़ी पूरी-चौड़ाई सर्च पंक्ति; नीचे का नेविगेशन रहता है।" },
+  "theme.layout.minimal": { en: "Design 4 — Minimal", hi: "डिज़ाइन 4 — मिनिमल" },
+  "theme.layout.minimalD": { en: "No bottom bar and no header search row — all navigation lives in the ☰ menu. Maximum room for products.", hi: "नीचे वाली बार नहीं और हेडर में सर्च पंक्ति नहीं — सारा नेविगेशन ☰ मेनू में। उत्पादों के लिए सबसे ज़्यादा जगह।" },
+  "theme.layout.wide": { en: "Design 5 — Wide", hi: "डिज़ाइन 5 — वाइड" },
+  "theme.layout.wideD": { en: "The classic look, but wider — more room on laptops and large screens. The bottom navigation stays.", hi: "क्लासिक रूप, लेकिन चौड़ा — लैपटॉप और बड़ी स्क्रीन पर ज़्यादा जगह। नीचे का नेविगेशन रहता है।" },
   "theme.savedOk": { en: "Store theme updated — the whole store now uses this design.", hi: "स्टोर थीम अपडेट हो गई — पूरा स्टोर अब इसी डिज़ाइन में है।" , ar: "تم تحديث مظهر المتجر — يستخدم المتجر بالكامل هذا التصميم الآن."},
   "theme.applying": { en: "Applying…", hi: "लागू हो रहा है…" , ar: "جارٍ التطبيق…"},
 
