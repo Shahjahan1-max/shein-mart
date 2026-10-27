@@ -3301,6 +3301,7 @@ function AccountView({
   onUserUpdated,
   onLangChange,
   onCurrencyChange,
+  storeName,
 }: {
   user: User;
   onAuth: (u: NonNullable<User>) => void;
@@ -3311,6 +3312,7 @@ function AccountView({
   onUserUpdated?: (u: NonNullable<User>) => void;
   onLangChange: (l: Lang) => void;
   onCurrencyChange: (c: Currency) => void;
+  storeName: string;
 }) {
   const { t, lang, currency, enabledLangs, enabledCurrencies } = useUi();
   const [mode, setMode] = useState<"login" | "register" | "admin">("login");
@@ -3636,8 +3638,18 @@ function AccountView({
       {/* Sign-in first: guests land on the sign-in form only. The
           register page opens from the link under the form, and a
           completed registration returns here with a notice. */}
+      {/* Branded auth header: logo mark + store name above the form. */}
+      <div className="flex flex-col items-center pt-2 text-center">
+        <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent)] font-display text-3xl font-extrabold text-white shadow-md">
+          S<span className="text-[var(--gold)]">.</span>
+        </span>
+        <p className="mt-3 font-display text-xl font-extrabold tracking-tight text-[var(--text)]">
+          {storeName}<span className="text-[var(--gold)]">.</span>
+        </p>
+        <p className="text-sm text-[var(--dim)]">{t("header.tagline")}</p>
+      </div>
       {authNote && (
-        <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+        <p role="status" className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
           {authNote}
         </p>
       )}
@@ -3649,7 +3661,7 @@ function AccountView({
             aria-label="Continue with Gmail"
             aria-pressed={method === "gmail"}
             onClick={() => { setMethod("gmail"); setAuthTouched(false); setError(null); }}
-            className={`rounded-xl border px-3 py-2.5 text-sm font-bold ${method === "gmail" ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+            className={`rounded-full border px-3 py-3 text-sm font-bold ${method === "gmail" ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
           >
             ✉️ {t("auth.withGmail")}
           </button>
@@ -3658,7 +3670,7 @@ function AccountView({
             aria-label="Continue with Mobile Number"
             aria-pressed={method === "mobile"}
             onClick={() => { setMethod("mobile"); setAuthTouched(false); setError(null); }}
-            className={`rounded-xl border px-3 py-2.5 text-sm font-bold ${method === "mobile" ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+            className={`rounded-full border px-3 py-3 text-sm font-bold ${method === "mobile" ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
           >
             📱 {t("auth.withMobile")}
           </button>
@@ -3687,7 +3699,7 @@ function AccountView({
         </div>
       ) : (
         <form
-          className="mt-4 flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)]"
+          className="mt-4 flex flex-col gap-3 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)]"
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
@@ -3699,6 +3711,7 @@ function AccountView({
             else createAdmin.mutate();
           }}
         >
+          <div aria-hidden className="-mx-5 -mt-5 mb-1 h-1.5 bg-gradient-to-r from-[var(--accent)] via-[var(--gold)] to-[var(--accent)]" />
           <h2 className="font-display text-xl font-bold text-[var(--text)]">
             {mode === "login"
               ? t("acc.welcome")
@@ -3834,7 +3847,7 @@ function AccountView({
           <button
             type="submit"
             disabled={login.isPending || register.isPending || createAdmin.isPending}
-            className={primaryBtn + " w-full"}
+            className={primaryBtn + " w-full shadow-md"}
           >
             {mode === "login"
               ? t("acc.signIn")
@@ -9393,6 +9406,7 @@ const NAV: NavItem[] =
               onUserUpdated={handleUserUpdated}
               onLangChange={changeLang}
               onCurrencyChange={changeCurrency}
+              storeName={storeName}
             />
           )}
           {view === "seller" && (
