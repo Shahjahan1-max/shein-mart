@@ -889,6 +889,7 @@ function ProductDetail({
           </div>
         </section>
       )}
+      <ProductReviews productId={product.id} />
     </div>
   );
 }
@@ -1882,8 +1883,173 @@ function CheckoutView({
   );
 }
 
-function OrderCard({ order, hideItems, proofViewerId }: { order: Order; hideItems?: boolean; proofViewerId?: number }) {
+function ProductReviews({ productId }: { productId: number }) {
+  const { t } = useUi();
+  const q = useQuery({
+    queryKey: ["product-reviews", productId],
+    queryFn: () => api.listProductReviews({ productId }),
+  });
+  const reviews = q.data?.reviews ?? [];
+  const count = q.data?.count ?? 0;
+  const avg = q.data?.avgRating ?? 0;
+  return (
+    <section className="mt-6">
+      <h2 className="font-display text-lg font-extrabold text-[var(--text)]">{t("reviews.title")}</h2>
+      {q.isPending ? (
+        <p className="mt-2 text-sm text-[var(--dim)]">{t("orders.loading")}</p>
+      ) : count === 0 ? (
+        <p className="mt-2 text-sm text-[var(--dim)]">{t("reviews.none")}</p>
+      ) : (
+        <>
+          <p className="mt-2 text-sm font-semibold text-[var(--text)]">
+            {"★".repeat(Math.round(avg))}
+            {"☆".repeat(5 - Math.round(avg))} {avg.toFixed(1)} · {count} {count === 1 ? t("reviews.one") : t("reviews.many")}
+          </p>
+          <ul className="mt-3 flex flex-col gap-3">
+            {reviews.map((r: any) => (
+              <li key={r.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                <p className="text-sm font-bold text-[var(--text)]">
+                  {"★".repeat(r.rating)}
+                  {"☆".repeat(5 - r.rating)}
+                  <span className="ml-1 font-semibold text-[var(--dim)]">
+                    {r.buyerName} · {t("reviews.verified")}
+                  </span>
+                </p>
+                {r.comment && <p className="mt-1 text-sm text-[var(--text)]">{r.comment}</p>}
+                <p className="mt-1 text-xs text-[var(--dim)]">{new Date(r.createdAt).toLocaleDateString()}</p>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
+function OrderItemReviews({ order, buyerId }: { order: Order; buyerId: number }) {
+  const { t } = useUi();
+  const queryClient = useQueryClient();
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [doneId, setDoneId] = useState<number | null>(null);
+  const mine = useQuery({
+    queryKey: ["my-reviews", buyerId],
+    queryFn: () => api.listMyReviews({ buyerId }),
+  });
+  const reviewed = new Set((mine.data?.reviewed ?? []).map((r: any) => `${r.orderId}:${r.productId}`));
+  const submit = useMutation({
+    mutationFn: (args: { productId: number; rating: number; comment: string }) =>
+      api.submitReview({ buyerId, orderId: order.id, productId: args.productId, rating: args.rating, comment: args.comment }),
+    onSuccess: (res: any, args: { productId: number }) => {
+      if (!res?.ok) {
+        setErr(res?.error ?? "Could not submit review.");
+        return;
+      }
+      setDoneId(args.productId);
+      setOpenId(null);
+      setStars(0);
+      setComment("");
+      setErr(null);
+      queryClient.invalidateQueries({ queryKey: ["my-reviews", buyerId] });
+      queryClient.invalidateQueries({ queryKey: ["product-reviews", args.productId] });
+    },
+    onError: (e: any) => setErr(String(e?.message ?? e)),
+  });
+  return (
+    <div className="mt-2 flex flex-col gap-2 border-t border-[var(--border)] pt-2">
+      {order.items.map((it: any) => {
+        const key = `${order.id}:${it.productId}`;
+        if (reviewed.has(key) || doneId === it.productId) {
+          return (
+            <p key={key} className="text-xs font-semibold text-emerald-600">
+              {t("reviews.submitted")} — {it.productName}
+            </p>
+          );
+        }
+        return (
+          <div key={key}>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenId(openId === it.productId ? null : it.productId);
+                setErr(null);
+              }}
+              className={ghostBtn + " px-3 py-1.5 text-xs"}
+            >
+              {t("reviews.write")} — {it.productName}
+            </button>
+            {openId === it.productId && (
+              <div className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] p-3">
+                <p className="text-xs font-bold text-[var(--text)]">{t("reviews.yourRating")}</p>
+                <div className="mt-1 flex gap-1">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-label={`${n} star`}
+                      onClick={() => setStars(n)}
+                      className={`text-2xl ${stars >= n ? "text-amber-500" : "text-[var(--dim)]"}`}
+                    >
+                      {stars >= n ? "★" : "☆"}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  maxLength={500}
+                  rows={2}
+                  placeholder={t("reviews.yourComment")}
+                  className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
+                />
+                {err && (
+                  <p role="alert" className="mt-1 text-xs font-semibold text-rose-600">
+                    {err}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  disabled={submit.isPending}
+                  onClick={() => {
+                    if (!stars) {
+                      setErr(t("reviews.pickRating"));
+                      return;
+                    }
+                    submit.mutate({ productId: it.productId, rating: stars, comment });
+                  }}
+                  className={goldBtn + " mt-2 px-4 py-2 text-sm"}
+                >
+                  {t("reviews.submit")}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor }: { order: Order; hideItems?: boolean; proofViewerId?: number; reviewBuyerId?: number; codActor?: { role: "seller" | "admin"; id: number } }) {
   const { fmt, t } = useUi();
+  const queryClient = useQueryClient();
+  const [codBusy, setCodBusy] = useState(false);
+  const [codErr, setCodErr] = useState<string | null>(null);
+  // WhatsApp number for the COD confirmation chat: Pakistan 03XX numbers
+  // get +92, Indian 10-digit numbers get +91, a leading + is kept as-is.
+  const waDigits = (order.phone || "").replace(/\D/g, "");
+  const waPhone = order.phone.trim().startsWith("+")
+    ? waDigits
+    : waDigits.length === 11 && waDigits.startsWith("0")
+      ? `92${waDigits.slice(1)}`
+      : waDigits.length === 10
+        ? `91${waDigits}`
+        : waDigits;
+  const waLink = waPhone
+    ? `https://wa.me/${waPhone}?text=${encodeURIComponent(`Hello, this is about your sheinmart order #${order.id} (Cash on Delivery). Please confirm that you will accept this order when it arrives.`)}`
+    : "";
   const byCustomer = order.placedBy === "admin";
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -1957,6 +2123,9 @@ function OrderCard({ order, hideItems, proofViewerId }: { order: Order; hideItem
           ))}
         </ul>
       )}
+      {reviewBuyerId === order.buyerId && order.status === "Delivered" && (
+        <OrderItemReviews order={order} buyerId={reviewBuyerId} />
+      )}
       <div className="mt-2 flex flex-wrap justify-between gap-2 border-t border-[var(--border)] pt-2 text-sm">
         <span className="text-[var(--dim)]">
           {byCustomer ? (
@@ -2019,6 +2188,51 @@ function OrderCard({ order, hideItems, proofViewerId }: { order: Order; hideItem
           {order.paymentRejectReason && <> {t("paygate.reason")}: {order.paymentRejectReason}</>}
         </p>
       )}
+      {order.paymentMethod === "Cash on Delivery" && order.codConfirmed ? (
+        <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {t("cod.confirmed")}</p>
+      ) : order.paymentMethod === "Cash on Delivery" && order.status !== "Delivered" && order.status !== "Cancelled" ? (
+        <div className="mt-2 rounded-lg bg-[var(--amber-bg)] px-3 py-2">
+          <p className="text-xs font-semibold text-[var(--text)]">⏳ {t("cod.awaiting")}</p>
+          {codActor && (
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {waLink && (
+                <a href={waLink} target="_blank" rel="noreferrer" className={ghostBtn + " px-3 py-1.5 text-xs"}>💬 {t("cod.whatsapp")}</a>
+              )}
+              <button
+                type="button"
+                disabled={codBusy}
+                onClick={async () => {
+                  setCodBusy(true);
+                  setCodErr(null);
+                  try {
+                    const res: any = await api.markCodConfirmed({ actorRole: codActor.role, actorId: codActor.id, orderId: order.id });
+                    if (!res?.ok) {
+                      setCodErr(res?.error ?? "Could not mark COD confirmed.");
+                      setCodBusy(false);
+                      return;
+                    }
+                    queryClient.invalidateQueries({ queryKey: ["buyer-orders"] });
+                    queryClient.invalidateQueries({ queryKey: ["seller-dashboard"] });
+                    queryClient.invalidateQueries({ queryKey: ["admin-seller-orders"] });
+                    queryClient.invalidateQueries({ queryKey: ["admin-overview"] });
+                  } catch (e: any) {
+                    setCodErr(String(e?.message ?? e));
+                  }
+                  setCodBusy(false);
+                }}
+                className={goldBtn + " px-3 py-1.5 text-xs"}
+              >
+                ✓ {t("cod.markConfirmed")}
+              </button>
+            </div>
+          )}
+          {codErr && (
+            <p role="alert" className="mt-1 text-xs font-semibold text-rose-600">
+              {codErr}
+            </p>
+          )}
+        </div>
+      ) : null}
       {proofViewerId !== undefined && order.hasPaymentProof && (
         <div className="mt-2"><OrderPaymentProofView orderId={order.id} adminId={proofViewerId} /></div>
       )}
@@ -2050,7 +2264,7 @@ function OrdersView({ user }: { user: User }) {
       <h2 className="font-display text-2xl font-bold text-[var(--text)]">{t("orders.title")}</h2>
       <div className="mt-4 flex flex-col gap-3">
         {list.map((o) => (
-          <OrderCard key={o.id} order={o} proofViewerId={user.id} />
+          <OrderCard key={o.id} order={o} proofViewerId={user.id} reviewBuyerId={user.id} />
         ))}
       </div>
     </div>
@@ -4561,7 +4775,7 @@ function SellerView({
                           <span aria-hidden>⏳</span> {t("sord.waitingApproval")}
                         </p>
                       )}
-                      <OrderCard order={o} hideItems />
+                      <OrderCard order={o} hideItems codActor={{ role: "seller", id: user.id }} />
                       {orderSection === "pending" && (
                         <div className="rounded-b-xl border border-t-0 border-[var(--border)] bg-[var(--surface)] px-4 pb-4 pt-3">
                           {!confirming ? (
@@ -4668,7 +4882,7 @@ function SellerView({
                     const cancelled = o.status === "Cancelled";
                     return (
                       <div key={o.id}>
-                        <OrderCard order={o} hideItems />
+                        <OrderCard order={o} hideItems codActor={{ role: "seller", id: user.id }} />
                         <p className="mt-1.5 flex flex-wrap items-center justify-between gap-2 px-1 text-sm">
                           <span className="text-[var(--dim)]">
                             {t("sord.sellerShare")}: <strong className="text-[var(--text)]">{fmt(myAmount)}</strong>
@@ -6519,7 +6733,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
           <p className="rounded-t-xl bg-[var(--gold)] px-3 py-1.5 text-xs font-bold text-white">💳 {t("paygate.title")} — {t("paygate.under")}</p>
         ) : pend && <p className="rounded-t-xl bg-[var(--alert)] px-3 py-1.5 text-xs font-bold text-white">● {t("sd.pendingShipment")} — {t("notif.pendingAlert")}</p>}
         {isNewOrder && <p className="flex items-center gap-2 px-1 pt-1.5"><NewBadge /><span className="text-xs font-bold text-[var(--text)]">{t("act.title")}</span></p>}
-        <OrderCard order={o} />
+        <OrderCard order={o} codActor={{ role: "admin", id: user.id }} />
         {o.hasPaymentProof && <div className="px-1 pt-1.5"><OrderPaymentProofView orderId={o.id} adminId={user.id} /></div>}
         {opts?.showBuyer && <p className="px-1 pt-1 text-xs text-[var(--dim)]">{t("aord.buyerWord")}: <strong className="text-[var(--text)]">{o.customerName}</strong>{o.phone ? ` · ${o.phone}` : ""}</p>}
         <p className="px-1 pt-1 text-xs text-[var(--dim)]">Seller: {info?.sellerNames ?? "Main Store"}{info ? ` · ${t("fin.profit")}: ${fmt(info.profit)}` : ""}{delInfo?.sellerDeleted ? ` · ⚠ ${t("del.sellerNote")}` : ""}{delInfo?.buyerDeleted ? ` · ⚠ ${t("del.buyerNote")}` : ""}</p>
@@ -6955,7 +7169,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
                   <div className="mt-2 flex flex-col gap-3">
                     {selectedBuyerOrders.map((o) => (
                       <div key={o.id}>
-                        <OrderCard order={o} />
+                        <OrderCard order={o} codActor={{ role: "admin", id: user.id }} />
                         {o.hasPaymentProof && <div className="px-1 pt-1.5"><OrderPaymentProofView orderId={o.id} adminId={user.id} /></div>}
                         {o.paymentStatus === "pending" ? (
                           <div className="px-1">{renderPaymentGate(o)}</div>
