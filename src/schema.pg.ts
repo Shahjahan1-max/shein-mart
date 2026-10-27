@@ -352,6 +352,14 @@ export const settings = pgTable("settings", {
   paymentUsdtEnabled: integer("payment_usdt_enabled").notNull().default(1),
   lastPriceSyncAt: timestamp("last_price_sync_at", { precision: 3, withTimezone: true, mode: "date" }),
   lastPriceSyncNote: text("last_price_sync_note").notNull().default(""),
+  // Header logo (Admin → Theme & Design → Header Logo). Either an
+  // uploaded image (stored as a blob, served from the backend) or a
+  // pasted image URL. Uploaded blob wins over the URL; both empty =
+  // the built-in text brand (store name + gold dot).
+  headerLogoBlobKey: text("header_logo_blob_key"),
+  headerLogoContentType: text("header_logo_content_type"),
+  headerLogoSize: integer("header_logo_size"),
+  headerLogoUrl: text("header_logo_url").notNull().default(""),
 });
 
 // External products sold on OTHER platforms ("Shop from Other

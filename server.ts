@@ -119,8 +119,14 @@ CREATE TABLE IF NOT EXISTS settings (
   currency_usdt_enabled INTEGER NOT NULL DEFAULT 1, external_products_enabled INTEGER NOT NULL DEFAULT 1,
   payment_upi_enabled INTEGER NOT NULL DEFAULT 1, payment_bank_enabled INTEGER NOT NULL DEFAULT 1,
   payment_usdt_enabled INTEGER NOT NULL DEFAULT 1, last_price_sync_at TIMESTAMPTZ,
-  last_price_sync_note TEXT NOT NULL DEFAULT ''
+  last_price_sync_note TEXT NOT NULL DEFAULT '',
+  header_logo_blob_key TEXT, header_logo_content_type TEXT, header_logo_size INTEGER,
+  header_logo_url TEXT NOT NULL DEFAULT ''
 );
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_logo_blob_key TEXT;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_logo_content_type TEXT;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_logo_size INTEGER;
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_logo_url TEXT NOT NULL DEFAULT '';
 CREATE TABLE IF NOT EXISTS external_products (
   id SERIAL PRIMARY KEY, name TEXT NOT NULL, brand TEXT NOT NULL DEFAULT '',
   category TEXT NOT NULL, price_inr INTEGER NOT NULL, merchant TEXT NOT NULL,

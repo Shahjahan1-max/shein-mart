@@ -2121,6 +2121,7 @@ export const Actions = {
       lastPriceSyncAt: z.string().nullable(),
       lastPriceSyncNote: z.string(),
       googleSignInEnabled: z.boolean(),
+      headerLogoUrl: z.string(),
     }),
     async handler(ctx) {
       const db = ctx.db<typeof schema>();
@@ -2148,7 +2149,55 @@ export const Actions = {
         lastPriceSyncAt: s.lastPriceSyncAt ? s.lastPriceSyncAt.toISOString() : null,
         lastPriceSyncNote: s.lastPriceSyncNote ?? "",
         googleSignInEnabled: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+        headerLogoUrl: s.headerLogoBlobKey ? await ctx.blobs.getUrl(s.headerLogoBlobKey) : (s.headerLogoUrl ?? ""),
       };
+    },
+  }),
+
+  // Admin → Theme & Design → Header Logo: upload an image (stored as
+  // a blob, same 3 MB / image-type rules as seller document uploads)
+  // or paste an image URL; remove restores the text brand. Only the
+  // admin may change it; the resolved URL is public via getSettings.
+  adminSetHeaderLogo: defineAction({
+    request: z.object({
+      adminId: z.number(),
+      mode: z.enum(["upload", "url", "remove"]),
+      dataBase64: z.string().max(6000000).optional(),
+      fileName: z.string().max(200).optional(),
+      contentType: z.string().max(100).optional(),
+      imageUrl: z.string().max(1000).optional(),
+    }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable(), headerLogoUrl: z.string() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the admin can change the header logo.", headerLogoUrl: "" };
+      const s = await getSettingsRow(db);
+      const patch: Record<string, unknown> = {};
+      if (args.mode === "remove") {
+        patch.headerLogoBlobKey = null; patch.headerLogoContentType = null; patch.headerLogoSize = null; patch.headerLogoUrl = "";
+      } else if (args.mode === "url") {
+        const url = (args.imageUrl ?? "").trim();
+        if (!url) return { ok: false, error: "Paste an image URL first.", headerLogoUrl: "" };
+        if (!/^https?:\/\//i.test(url)) return { ok: false, error: "The image URL must start with http:// or https://.", headerLogoUrl: "" };
+        patch.headerLogoBlobKey = null; patch.headerLogoContentType = null; patch.headerLogoSize = null; patch.headerLogoUrl = url;
+      } else {
+        const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
+        if (!allowed.includes(args.contentType ?? "")) return { ok: false, error: "Only JPG, PNG, WEBP, GIF or SVG images are allowed.", headerLogoUrl: "" };
+        let bytes: Uint8Array;
+        try { bytes = new Uint8Array(Buffer.from(args.dataBase64 ?? "", "base64")); } catch { return { ok: false, error: "The file could not be read. Please try again.", headerLogoUrl: "" }; }
+        if (bytes.length === 0) return { ok: false, error: "The selected file is empty.", headerLogoUrl: "" };
+        if (bytes.length > 3 * 1024 * 1024) return { ok: false, error: "File is too large — maximum 3 MB.", headerLogoUrl: "" };
+        const safe = (args.fileName ?? "logo").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
+        const key = `header-logo/${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${safe}`;
+        await ctx.blobs.put(key, bytes, { contentType: args.contentType! });
+        patch.headerLogoBlobKey = key; patch.headerLogoContentType = args.contentType; patch.headerLogoSize = bytes.length; patch.headerLogoUrl = "";
+      }
+      await db.update(schema.settings).set(patch as never).where(eq(schema.settings.id, s.id));
+      ctx.invalidateQueries();
+      const after = await getSettingsRow(db);
+      const headerLogoUrl = after.headerLogoBlobKey ? await ctx.blobs.getUrl(after.headerLogoBlobKey) : (after.headerLogoUrl ?? "");
+      return { ok: true, error: null, headerLogoUrl };
     },
   }),
 
