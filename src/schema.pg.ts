@@ -509,3 +509,16 @@ export const blobs = pgTable("blobs", {
   size: integer("size").notNull(),
   dataBase64: text("data_base64").notNull(),
 });
+
+// Google sign-in (OAuth 2.0): short-lived CSRF states for the OAuth
+// redirect and one-time login codes the frontend exchanges for a user
+// session. Both are pruned on each use (older than 10 minutes).
+export const googleOauthStates = pgTable("google_oauth_states", {
+  state: text("state").primaryKey(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export const googleLoginCodes = pgTable("google_login_codes", {
+  code: text("code").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -2120,6 +2120,7 @@ export const Actions = {
       paymentUsdtEnabled: z.boolean(),
       lastPriceSyncAt: z.string().nullable(),
       lastPriceSyncNote: z.string(),
+      googleSignInEnabled: z.boolean(),
     }),
     async handler(ctx) {
       const db = ctx.db<typeof schema>();
@@ -2146,6 +2147,7 @@ export const Actions = {
         paymentUsdtEnabled: (s.paymentUsdtEnabled ?? 1) === 1,
         lastPriceSyncAt: s.lastPriceSyncAt ? s.lastPriceSyncAt.toISOString() : null,
         lastPriceSyncNote: s.lastPriceSyncNote ?? "",
+        googleSignInEnabled: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
       };
     },
   }),
@@ -2878,6 +2880,32 @@ export const Actions = {
       // Seller verification is decided by the Admin only (reviewSeller):
       // signing in never changes a pending/rejected status.
       return { ok: true, error: null, user: toUserOut(u) };
+    },
+  }),
+
+  // Google sign-in return: the frontend exchanges the one-time code the
+  // backend callback issued (after Google verified the email) for the
+  // user session. The code is single-use and expires after 10 minutes.
+  // Existing accounts match by email (any role); new Google users were
+  // already created as buyers by the callback.
+  completeGoogleLogin: defineAction({
+    request: z.object({ code: z.string().min(10).max(128) }),
+    response: z.object({
+      ok: z.boolean(),
+      error: z.string().nullable(),
+      user: userOut.nullable(),
+    }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const codes = await db.select().from(schema.googleLoginCodes).where(eq(schema.googleLoginCodes.code, args.code)).limit(1);
+      const row = codes[0];
+      if (!row) return { ok: false, error: "Google sign-in session expired. Please try again.", user: null };
+      await db.delete(schema.googleLoginCodes).where(eq(schema.googleLoginCodes.code, args.code));
+      const ageMs = Date.now() - new Date(row.createdAt as any).getTime();
+      if (ageMs > 10 * 60 * 1000) return { ok: false, error: "Google sign-in session expired. Please try again.", user: null };
+      const users = await db.select().from(schema.users).where(eq(schema.users.id, row.userId)).limit(1);
+      if (!users[0]) return { ok: false, error: "Account not found. Please register first.", user: null };
+      return { ok: true, error: null, user: toUserOut(users[0]) };
     },
   }),
 

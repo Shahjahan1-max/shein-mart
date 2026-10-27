@@ -12,6 +12,7 @@
 // but /actions returns 503 until the database is configured.
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { pbkdf2Sync, randomBytes } from "node:crypto";
 import { Actions } from "./src/actions.pg";
 import type { Ctx } from "./src/space-shim";
 
@@ -179,6 +180,13 @@ END;
 $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS wallet_ledger_guard ON wallet_transactions;
 CREATE TRIGGER wallet_ledger_guard BEFORE UPDATE OF amount, type, seller_id ON wallet_transactions FOR EACH ROW EXECUTE FUNCTION guard_wallet_ledger();
+CREATE TABLE IF NOT EXISTS google_oauth_states (
+  state TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS google_login_codes (
+  code TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 `;
 
 // FK-safe insert order for /seed (parents before children).
@@ -353,6 +361,91 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
       }
       counts.blobs = blobRows.length;
       return json({ ok: true, counts });
+    }
+
+    // ---- Google sign-in (OAuth 2.0) ----
+    // Env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (set in the Render
+    // dashboard; never shared in chat). The sign-in page button only
+    // appears once both are set (getSettings.googleSignInEnabled).
+    // The redirect URI registered in Google Cloud must match exactly:
+    // <backend>/auth/google/callback
+    const backendOrigin = (process.env.GOOGLE_REDIRECT_BASE ?? baseUrl ?? "").replace(/\/$/, "") || (() => { try { return new URL(req.url).origin; } catch { return "https://shein-mart.onrender.com"; } })();
+    const frontendOrigin = (process.env.FRONTEND_URL ?? "https://www.sheinmart.com").replace(/\/$/, "");
+    const googleRedirectUri = process.env.GOOGLE_REDIRECT_URI ?? `${backendOrigin}/auth/google/callback`;
+    const googleErrorRedirect = (code: string) => new Response(null, { status: 302, headers: { Location: `${frontendOrigin}/?google_error=${encodeURIComponent(code)}`, ...corsHeaders } });
+    const randomHex = (bytes = 32) => { const buf = new Uint8Array(bytes); crypto.getRandomValues(buf); return Array.from(buf).map((x) => x.toString(16).padStart(2, "0")).join(""); };
+    if (req.method === "GET" && url.pathname === "/auth/google/start") {
+      if (!pool) return new Response("Database not configured", { status: 503 });
+      const clientId = process.env.GOOGLE_CLIENT_ID ?? "";
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET ?? "";
+      if (!clientId || !clientSecret) {
+        return new Response("Google sign-in is not configured yet. The store owner needs to add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the Render dashboard.", { status: 400, headers: { "content-type": "text/plain", ...corsHeaders } });
+      }
+      const state = randomHex(16);
+      await pool.query("DELETE FROM google_oauth_states WHERE created_at < now() - interval '10 minutes'");
+      await pool.query("INSERT INTO google_oauth_states (state) VALUES ($1)", [state]);
+      const auth = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+      auth.searchParams.set("client_id", clientId);
+      auth.searchParams.set("redirect_uri", googleRedirectUri);
+      auth.searchParams.set("response_type", "code");
+      auth.searchParams.set("scope", "openid email profile");
+      auth.searchParams.set("access_type", "online");
+      auth.searchParams.set("prompt", "select_account");
+      auth.searchParams.set("state", state);
+      return new Response(null, { status: 302, headers: { Location: auth.toString(), ...corsHeaders } });
+    }
+    if (req.method === "GET" && url.pathname === "/auth/google/callback") {
+      if (!pool) return new Response("Database not configured", { status: 503 });
+      if (url.searchParams.get("error")) return googleErrorRedirect("denied");
+      const code = url.searchParams.get("code") ?? "";
+      const state = url.searchParams.get("state") ?? "";
+      if (!code || !state) return googleErrorRedirect("missing");
+      const st = await pool.query("DELETE FROM google_oauth_states WHERE state = $1 AND created_at > now() - interval '10 minutes' RETURNING state", [state]);
+      if (st.rows.length === 0) return googleErrorRedirect("invalid_state");
+      try {
+        const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: process.env.GOOGLE_CLIENT_ID ?? "",
+            client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+            code,
+            grant_type: "authorization_code",
+            redirect_uri: googleRedirectUri,
+          }),
+        });
+        const tokens: any = await tokenRes.json().catch(() => ({}));
+        if (!tokenRes.ok || !tokens.access_token) return googleErrorRedirect("exchange_failed");
+        const meRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        const me: any = await meRes.json().catch(() => ({}));
+        const email = typeof me.email === "string" ? me.email.toLowerCase() : "";
+        const verified = me.email_verified === true || me.verified_email === true;
+        if (!meRes.ok || !email || !verified) return googleErrorRedirect("email_not_verified");
+        const name = typeof me.name === "string" && me.name.trim() ? me.name.trim().slice(0, 80) : (email.split("@")[0] ?? "Google User");
+        const existing = await pool.query("SELECT id FROM users WHERE lower(email) = $1 LIMIT 1", [email]);
+        let userId: number;
+        if (existing.rows.length > 0) {
+          userId = existing.rows[0].id;
+        } else {
+          // Unusable random password in the app's own pbkdf2$ format, so
+          // an OAuth-created row stays well-formed (password login can
+          // never guess it).
+          const salt = randomBytes(16);
+          const hash = pbkdf2Sync(randomHex(32), salt, 60000, 32, "sha256").toString("hex");
+          const stored = `pbkdf2$60000$${salt.toString("hex")}$${hash}`;
+          const ins = await pool.query("INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, 'buyer') RETURNING id", [name, email, stored]);
+          userId = ins.rows[0].id;
+        }
+        await pool.query("DELETE FROM google_login_codes WHERE created_at < now() - interval '10 minutes'");
+        const loginCode = randomHex(32);
+        await pool.query("INSERT INTO google_login_codes (code, user_id) VALUES ($1, $2)", [loginCode, userId]);
+        return new Response(null, { status: 302, headers: { Location: `${frontendOrigin}/?google_code=${loginCode}`, ...corsHeaders } });
+      } catch (e) {
+        console.error("google callback failed", e);
+        return googleErrorRedirect("server_error");
+      }
     }
     return new Response("Not found", { status: 404, headers: corsHeaders });
   };
