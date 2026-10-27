@@ -281,11 +281,22 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
           return json({ ok: false, error: `Unknown table: ${name}` }, 400);
         }
       }
+      // Settings is the one exception to the empty-guard: reading settings
+      // (getSettings, or the frontend's first visit) auto-creates a default
+      // row on an empty database, so a fresh database is never truly empty
+      // in this table. When the dump carries its own settings row, the
+      // auto-created default is replaced wholesale by the import; every
+      // other table keeps the strict empty-guard.
+      const dumpHasSettings = Array.isArray(tables.settings) && tables.settings.length > 0;
       for (const name of SEED_ORDER) {
+        if (name === "settings" && dumpHasSettings) continue;
         const count = await pool.query(`SELECT COUNT(*)::int AS n FROM "${name}"`);
         if (count.rows[0].n > 0) {
           return json({ ok: false, error: `Database is not empty (${name} already has rows)` }, 409);
         }
+      }
+      if (dumpHasSettings) {
+        await pool.query("DELETE FROM settings");
       }
       const counts: Record<string, number> = {};
       for (const name of SEED_ORDER) {
