@@ -309,12 +309,11 @@ function ProductImage({
   product: Product;
   className?: string;
 }) {
-  // Bulk-generated products carry a photo borrowed from another
-  // product in their category (older rows) — that picture does not
-  // depict this product, so it is never shown as if it did: bulk
-  // products render the honest initial-letter tile until they get a
-  // photo of their own. New bulk rows no longer borrow a photo at all.
-  const src = product.source === "bulk" ? undefined : product.imageAsset ? IMAGE_MAP[product.imageAsset] : undefined;
+  // Every product now carries its own photo: bulk products received
+  // their own generated photos, so their imageAsset is shown like any
+  // other product's. Products still without a photo (imageAsset empty
+  // or unresolvable) render the honest initial-letter tile.
+  const src = product.imageAsset ? IMAGE_MAP[product.imageAsset] : undefined;
   const [failed, setFailed] = useState(false);
   // If this product's photo was replaced/renamed, restart with the new src.
   useEffect(() => { setFailed(false); }, [src]);
