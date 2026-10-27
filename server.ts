@@ -1,22 +1,359 @@
-// Minimal HTTP entrypoint for the sheinstore backend on Render.
-// This starts the service and answers health checks. The store actions
-// (src/actions.ts) still need a real database connection: they currently
-// use the Muse hosted runtime's space-sdk, which does not exist on
-// Render. Wiring a real database is the next step after the service
-// starts; this file only fixes the missing start entrypoint.
-const port = Number(process.env.PORT || 3000);
+// Standalone backend for the sheinstore marketplace (Render + Postgres).
+// Serves the same 96 actions as the hosted version over plain HTTP:
+//   GET  /            -> "sheinstore backend is running"
+//   GET  /health      -> "ok"
+//   POST /actions     -> { action, args } -> the action's response JSON
+//   GET  /blobs/:key  -> uploaded file bytes (content-type preserved)
+//   POST /seed        -> one-time full data import; refuses unless every
+//                        data table is empty (prevents later abuse).
+// Env: DATABASE_URL (Postgres), PORT, RENDER_EXTERNAL_URL (used to build
+// absolute blob URLs; falls back to relative /blobs URLs when unset).
+// Without DATABASE_URL the service still starts and answers health checks,
+// but /actions returns 503 until the database is configured.
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import { Actions } from "./src/actions.pg";
+import type { Ctx } from "./src/space-shim";
 
-Bun.serve({
-  port,
-  fetch(req) {
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "content-type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+};
+
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "content-type": "application/json", ...corsHeaders },
+  });
+}
+
+// DDL matching src/schema.pg.ts (CREATE TABLE IF NOT EXISTS; safe to run
+// on every boot). Serial PKs for autoincrement ids; integer 0/1 columns
+// stay integers (handlers use 0/1, not booleans); timestamps as timestamptz.
+const DDL = `
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT UNIQUE, password TEXT NOT NULL,
+  role TEXT NOT NULL, store_name TEXT, phone TEXT, country TEXT,
+  verification_status TEXT NOT NULL DEFAULT 'none', address TEXT, city TEXT, state TEXT,
+  pin_code TEXT, date_of_birth TEXT, photo_file_name TEXT, store_description TEXT,
+  store_logo_file_name TEXT, store_address TEXT, business_type TEXT, gst_number TEXT,
+  doc_type TEXT, doc_number TEXT, doc_front_file_name TEXT, doc_back_file_name TEXT,
+  photo_blob_key TEXT, photo_content_type TEXT, photo_size INTEGER,
+  store_logo_blob_key TEXT, store_logo_content_type TEXT, store_logo_size INTEGER,
+  doc_front_blob_key TEXT, doc_front_content_type TEXT, doc_front_size INTEGER,
+  doc_back_blob_key TEXT, doc_back_content_type TEXT, doc_back_size INTEGER,
+  admin_created_by_id INTEGER, admin_created_by_email TEXT,
+  must_change_password INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS products (
+  id SERIAL PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '', base_price INTEGER NOT NULL, old_price INTEGER,
+  profit_percent INTEGER NOT NULL DEFAULT 20, stock INTEGER NOT NULL DEFAULT 50,
+  image_asset TEXT, image_source_url TEXT, catalog_source TEXT NOT NULL DEFAULT 'curated',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT products_name_unique UNIQUE (name)
+);
+CREATE TABLE IF NOT EXISTS seller_products (
+  id SERIAL PRIMARY KEY, seller_id INTEGER NOT NULL REFERENCES users(id),
+  product_id INTEGER NOT NULL REFERENCES products(id), created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS cart_items (
+  id SERIAL PRIMARY KEY, buyer_id INTEGER NOT NULL REFERENCES users(id),
+  product_id INTEGER NOT NULL REFERENCES products(id), qty INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS orders (
+  id SERIAL PRIMARY KEY, buyer_id INTEGER NOT NULL REFERENCES users(id),
+  seller_id INTEGER REFERENCES users(id), customer_name TEXT NOT NULL, phone TEXT NOT NULL,
+  address TEXT NOT NULL, city TEXT NOT NULL, state TEXT NOT NULL DEFAULT '',
+  pin_code TEXT NOT NULL DEFAULT '', payment_method TEXT NOT NULL DEFAULT 'Cash on Delivery',
+  payment_reference TEXT NOT NULL DEFAULT '', payment_proof_blob_key TEXT,
+  payment_proof_file_name TEXT, payment_proof_content_type TEXT, payment_proof_size INTEGER,
+  payment_status TEXT NOT NULL DEFAULT 'none', payment_reject_reason TEXT NOT NULL DEFAULT '',
+  payment_verified_at TIMESTAMPTZ, placed_by TEXT NOT NULL DEFAULT 'customer',
+  total INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'Pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS order_items (
+  id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL REFERENCES orders(id),
+  product_id INTEGER NOT NULL REFERENCES products(id), qty INTEGER NOT NULL,
+  base_price INTEGER NOT NULL, profit_percent INTEGER NOT NULL,
+  profit_amount INTEGER NOT NULL, buyer_price INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS tickets (
+  id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), name TEXT NOT NULL,
+  email TEXT NOT NULL, subject TEXT NOT NULL, message TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Open', reply TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), sender TEXT NOT NULL,
+  message TEXT NOT NULL, attachment_blob_key TEXT, attachment_file_name TEXT,
+  attachment_content_type TEXT, attachment_size INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS wallet_transactions (
+  id SERIAL PRIMARY KEY, seller_id INTEGER NOT NULL REFERENCES users(id), type TEXT NOT NULL,
+  amount INTEGER NOT NULL, method TEXT NOT NULL DEFAULT '', reference TEXT NOT NULL DEFAULT '',
+  details TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '',
+  payment_reference TEXT NOT NULL DEFAULT '', paid_at TIMESTAMPTZ,
+  screenshot_blob_key TEXT, screenshot_file_name TEXT, screenshot_content_type TEXT,
+  screenshot_size INTEGER, status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS seller_notifications (
+  id SERIAL PRIMARY KEY, seller_id INTEGER NOT NULL REFERENCES users(id),
+  order_id INTEGER NOT NULL REFERENCES orders(id), product_name TEXT NOT NULL DEFAULT '',
+  amount INTEGER NOT NULL DEFAULT 0, is_read INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS settings (
+  id INTEGER PRIMARY KEY, store_name TEXT NOT NULL DEFAULT 'sheinstore',
+  support_whatsapp TEXT NOT NULL DEFAULT '', support_email TEXT NOT NULL DEFAULT '',
+  default_profit_percent INTEGER NOT NULL DEFAULT 20, color_scheme TEXT NOT NULL DEFAULT 'navy',
+  layout_design TEXT NOT NULL DEFAULT 'classic', usdt_deposit_address TEXT NOT NULL DEFAULT '',
+  deposit_network TEXT NOT NULL DEFAULT 'BEP20 (BNB Smart Chain)',
+  deposits_enabled INTEGER NOT NULL DEFAULT 1, local_deposit_note TEXT NOT NULL DEFAULT '',
+  lang_hindi_enabled INTEGER NOT NULL DEFAULT 1, lang_arabic_enabled INTEGER NOT NULL DEFAULT 1,
+  currency_inr_enabled INTEGER NOT NULL DEFAULT 1, currency_usd_enabled INTEGER NOT NULL DEFAULT 1,
+  currency_usdt_enabled INTEGER NOT NULL DEFAULT 1, external_products_enabled INTEGER NOT NULL DEFAULT 1,
+  payment_upi_enabled INTEGER NOT NULL DEFAULT 1, payment_bank_enabled INTEGER NOT NULL DEFAULT 1,
+  payment_usdt_enabled INTEGER NOT NULL DEFAULT 1, last_price_sync_at TIMESTAMPTZ,
+  last_price_sync_note TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS external_products (
+  id SERIAL PRIMARY KEY, name TEXT NOT NULL, brand TEXT NOT NULL DEFAULT '',
+  category TEXT NOT NULL, price_inr INTEGER NOT NULL, merchant TEXT NOT NULL,
+  product_url TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS seller_notices (
+  id SERIAL PRIMARY KEY, seller_id INTEGER NOT NULL REFERENCES users(id),
+  order_id INTEGER REFERENCES orders(id), message TEXT NOT NULL DEFAULT '',
+  is_read INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS order_seller_items (
+  id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL, seller_id INTEGER NOT NULL, product_id INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS order_seller_snapshots (
+  id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL, seller_id_original INTEGER NOT NULL,
+  seller_name TEXT NOT NULL DEFAULT '', store_name TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS password_reset_requests (
+  id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
+  account_role TEXT NOT NULL DEFAULT '', store_name TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '', email TEXT, phone TEXT, status TEXT NOT NULL DEFAULT 'pending',
+  completed_by_admin_id INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), completed_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS bulk_profit_history (
+  id SERIAL PRIMARY KEY, admin_id INTEGER NOT NULL, scope_label TEXT NOT NULL DEFAULT '',
+  mode_label TEXT NOT NULL DEFAULT '', detail TEXT NOT NULL DEFAULT '',
+  affected_count INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS admin_activity_marks (
+  kind TEXT NOT NULL, ref_id INTEGER NOT NULL, seen INTEGER NOT NULL DEFAULT 0,
+  hidden INTEGER NOT NULL DEFAULT 0, seen_upto INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS deleted_accounts (
+  id SERIAL PRIMARY KEY, original_user_id INTEGER NOT NULL, name TEXT NOT NULL DEFAULT '',
+  store_name TEXT, email TEXT, phone TEXT, role TEXT NOT NULL DEFAULT '',
+  wallet_balance INTEGER NOT NULL DEFAULT 0, deleted_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS blobs (
+  key TEXT PRIMARY KEY, content_type TEXT NOT NULL, size INTEGER NOT NULL, data_base64 TEXT NOT NULL
+);
+`;
+
+// FK-safe insert order for /seed (parents before children).
+const SEED_ORDER = [
+  "users", "products", "settings", "external_products", "seller_products",
+  "cart_items", "orders", "order_items", "tickets", "chat_messages",
+  "wallet_transactions", "seller_notifications", "seller_notices",
+  "order_seller_items", "order_seller_snapshots", "password_reset_requests",
+  "bulk_profit_history", "admin_activity_marks", "deleted_accounts",
+];
+
+const SERIAL_TABLES = new Set([
+  "users", "products", "seller_products", "cart_items", "orders", "order_items",
+  "tickets", "chat_messages", "wallet_transactions", "seller_notifications",
+  "external_products", "seller_notices", "order_seller_items",
+  "order_seller_snapshots", "password_reset_requests", "bulk_profit_history",
+  "deleted_accounts",
+]);
+
+// DB columns that hold millisecond timestamps in the old SQLite dump.
+const TIMESTAMP_COLUMNS: Record<string, Set<string>> = {
+  users: new Set(["created_at"]),
+  products: new Set(["created_at"]),
+  seller_products: new Set(["created_at"]),
+  cart_items: new Set(["created_at"]),
+  orders: new Set(["created_at", "payment_verified_at"]),
+  tickets: new Set(["created_at"]),
+  chat_messages: new Set(["created_at"]),
+  wallet_transactions: new Set(["created_at", "paid_at"]),
+  seller_notifications: new Set(["created_at"]),
+  settings: new Set(["last_price_sync_at"]),
+  external_products: new Set(["created_at"]),
+  seller_notices: new Set(["created_at"]),
+  password_reset_requests: new Set(["created_at", "completed_at"]),
+  bulk_profit_history: new Set(["created_at"]),
+  deleted_accounts: new Set(["deleted_at"]),
+};
+
+function makeCtx(db: any, pool: any, baseUrl: string): Ctx {
+  return {
+    db: () => db,
+    blobs: {
+      put: async (key, bytes, opts) => {
+        const dataBase64 = Buffer.from(bytes).toString("base64");
+        await pool.query(
+          `INSERT INTO blobs (key, content_type, size, data_base64) VALUES ($1, $2, $3, $4)
+           ON CONFLICT (key) DO UPDATE SET content_type = EXCLUDED.content_type, size = EXCLUDED.size, data_base64 = EXCLUDED.data_base64`,
+          [key, opts.contentType, bytes.length, dataBase64],
+        );
+      },
+      getUrl: async (key) => `${baseUrl}/blobs/${encodeURIComponent(key)}`,
+    },
+    invalidateQueries: () => {},
+  };
+}
+
+export function createHandler(db: any, pool: any, baseUrl: string) {
+  const ctx = db ? makeCtx(db, pool, baseUrl) : null;
+  return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
-    if (url.pathname === "/health" || url.pathname === "/") {
-      return new Response("sheinstore backend is running", {
-        headers: { "content-type": "text/plain" },
+    if (req.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
+      return new Response(url.pathname === "/health" ? "ok" : "sheinstore backend is running", {
+        headers: { "content-type": "text/plain", ...corsHeaders },
       });
     }
-    return new Response("Not found", { status: 404 });
-  },
-});
+    if (req.method === "GET" && url.pathname.startsWith("/blobs/")) {
+      if (!pool) return new Response("Database not configured", { status: 503 });
+      const key = decodeURIComponent(url.pathname.slice("/blobs/".length));
+      const res = await pool.query(
+        "SELECT data_base64, content_type FROM blobs WHERE key = $1", [key],
+      );
+      if (res.rows.length === 0) return new Response("Not found", { status: 404 });
+      const bytes = Buffer.from(res.rows[0].data_base64, "base64");
+      return new Response(bytes as any, {
+        headers: { "content-type": res.rows[0].content_type, ...corsHeaders },
+      });
+    }
+    if (req.method === "POST" && url.pathname === "/actions") {
+      if (!ctx) return json({ ok: false, error: "Database not configured" }, 503);
+      let body: any;
+      try {
+        body = await req.json();
+      } catch {
+        return json({ ok: false, error: "Invalid JSON" }, 400);
+      }
+      const def = (Actions as any)[body?.action];
+      if (!def) return json({ ok: false, error: `Unknown action: ${body?.action}` }, 404);
+      let parsed: any;
+      try {
+        parsed = def.request.parse(body?.args ?? {});
+      } catch {
+        return json({ ok: false, error: "Invalid request" }, 400);
+      }
+      try {
+        const result = await def.handler(ctx, parsed);
+        return json(result);
+      } catch (e) {
+        console.error(`action ${body.action} failed`, e);
+        return json({ ok: false, error: "Server error" }, 500);
+      }
+    }
+    if (req.method === "POST" && url.pathname === "/seed") {
+      if (!pool) return json({ ok: false, error: "Database not configured" }, 503);
+      let body: any;
+      try {
+        body = await req.json();
+      } catch {
+        return json({ ok: false, error: "Invalid JSON" }, 400);
+      }
+      const tables = body?.tables;
+      if (!tables || typeof tables !== "object" || Array.isArray(tables)) {
+        return json({ ok: false, error: "Expected { tables: { ... } }" }, 400);
+      }
+      for (const name of Object.keys(tables)) {
+        if (!SEED_ORDER.includes(name)) {
+          return json({ ok: false, error: `Unknown table: ${name}` }, 400);
+        }
+      }
+      for (const name of SEED_ORDER) {
+        const count = await pool.query(`SELECT COUNT(*)::int AS n FROM "${name}"`);
+        if (count.rows[0].n > 0) {
+          return json({ ok: false, error: `Database is not empty (${name} already has rows)` }, 409);
+        }
+      }
+      const counts: Record<string, number> = {};
+      for (const name of SEED_ORDER) {
+        const rows = tables[name] ?? [];
+        if (!Array.isArray(rows)) return json({ ok: false, error: `${name} is not an array` }, 400);
+        const tsCols = TIMESTAMP_COLUMNS[name] ?? new Set<string>();
+        for (const row of rows) {
+          const cols = Object.keys(row);
+          if (cols.length === 0) continue;
+          const values = cols.map((c) => {
+            const v = row[c];
+            if (v === null || v === undefined) return null;
+            if (tsCols.has(c) && typeof v === "number") return new Date(v).toISOString();
+            return v;
+          });
+          const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
+          const colList = cols.map((c) => `"${c}"`).join(", ");
+          await pool.query(`INSERT INTO "${name}" (${colList}) VALUES (${placeholders})`, values);
+        }
+        counts[name] = rows.length;
+        if (SERIAL_TABLES.has(name)) {
+          await pool.query(
+            `SELECT setval(pg_get_serial_sequence('${name}', 'id'), COALESCE((SELECT MAX(id) FROM "${name}"), 1), EXISTS (SELECT 1 FROM "${name}"))`,
+          );
+        }
+      }
+      const blobRows = body?.blobs ?? [];
+      if (!Array.isArray(blobRows)) return json({ ok: false, error: "blobs is not an array" }, 400);
+      for (const b of blobRows) {
+        await pool.query(
+          `INSERT INTO blobs (key, content_type, size, data_base64) VALUES ($1, $2, $3, $4)
+           ON CONFLICT (key) DO UPDATE SET content_type = EXCLUDED.content_type, size = EXCLUDED.size, data_base64 = EXCLUDED.data_base64`,
+          [b.key, b.contentType, b.size, b.dataBase64],
+        );
+      }
+      counts.blobs = blobRows.length;
+      return json({ ok: true, counts });
+    }
+    return new Response("Not found", { status: 404, headers: corsHeaders });
+  };
+}
 
-console.log(`Listening on port ${port}...`);
+export async function ensureTables(pool: any) {
+  await pool.query(DDL);
+}
+
+async function main() {
+  const connectionString = process.env.DATABASE_URL;
+  let db: any = null;
+  let pool: any = null;
+  if (connectionString) {
+    pool = new Pool({ connectionString });
+    db = drizzle(pool);
+    try {
+      await ensureTables(pool);
+      console.log("Database tables ready");
+    } catch (e) {
+      console.error("Database setup failed (tables may be incomplete):", e);
+    }
+  } else {
+    console.warn("DATABASE_URL is not set; serving health checks only until it is configured.");
+  }
+  const baseUrl = process.env.RENDER_EXTERNAL_URL ?? "";
+  const port = Number(process.env.PORT || 3000);
+  Bun.serve({ port, fetch: createHandler(db, pool, baseUrl) });
+  console.log(`Listening on port ${port}...`);
+}
+
+if (import.meta.main) {
+  main();
+}
