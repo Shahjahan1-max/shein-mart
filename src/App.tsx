@@ -577,10 +577,12 @@ function ProductCard({
   onAddToMyStore,
   inMyStore,
   dense,
+  onOpen,
 }: {
   product: Product;
   user: User;
   onAddToCart: (p: Product) => void;
+  onOpen?: (p: Product) => void;
   // Shop is where sellers add products to their own store (restored):
   // a seller tapping "Add to My Store" here adds the product directly,
   // and it then shows only in the seller's Products tab. Buyers keep
@@ -598,7 +600,22 @@ function ProductCard({
     : 0;
   return (
     <article className="product-card flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-shadow hover:shadow-lg">
-      <div className="product-media relative aspect-square overflow-hidden">
+      <div
+      className={`product-media relative aspect-square overflow-hidden ${onOpen ? "cursor-pointer" : ""}`}
+      onClick={onOpen ? () => onOpen(product) : undefined}
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onKeyDown={
+        onOpen
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpen(product);
+              }
+            }
+          : undefined
+      }
+    >
         <ProductImage product={product} />
         {discount > 0 && (
           <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold text-white">
@@ -615,7 +632,7 @@ function ProductCard({
         <p className={`font-semibold uppercase tracking-wide text-[var(--dim)] ${dense ? "text-[10px]" : "text-xs"}`}>
           {trCategory(lang, product.category)}
         </p>
-        <h3 className={`line-clamp-2 font-semibold leading-snug text-[var(--text)] ${dense ? "text-[13px]" : "text-sm"}`}>
+        <h3 onClick={onOpen ? () => onOpen(product) : undefined} className={`line-clamp-2 font-semibold leading-snug text-[var(--text)] ${dense ? "text-[13px]" : "text-sm"} ${onOpen ? "cursor-pointer" : ""}`}>
           {product.name}
         </h3>
         <div className="mt-auto pt-1">
@@ -676,6 +693,180 @@ const AMAZON_INDIA_URL = "https://www.amazon.in";
 const SHEIN_INDIA_URL = "https://www.sheinindia.in/";
 
 const GRID_KEY = "sheinstore-grid-cols";
+
+/* ------------------------------ Product detail ------------------------------
+   Opens when a shop product is tapped: the full product page with order
+   options (quantity, Add to Cart, Buy Now) plus related products from the
+   same category. Rendered from ShopView so it reuses the shop's cart and
+   store actions. */
+function ProductDetail({
+  product,
+  user,
+  onBack,
+  onAddToCartQty,
+  onAddToMyStore,
+  inMyStore,
+  myStoreIds,
+  related,
+  onOpenProduct,
+  onMoreInCategory,
+}: {
+  product: Product;
+  user: User;
+  onBack: () => void;
+  onAddToCartQty: (p: Product, qty: number, buyNow: boolean) => void;
+  onAddToMyStore?: (p: Product) => void;
+  inMyStore?: boolean;
+  myStoreIds: Set<number>;
+  related: Product[];
+  onOpenProduct: (p: Product) => void;
+  onMoreInCategory: () => void;
+}) {
+  const { t, fmt, lang } = useUi();
+  const [qty, setQty] = useState(1);
+  const discount =
+    product.oldPrice && product.oldPrice > product.buyerPrice
+      ? Math.round((1 - product.buyerPrice / product.oldPrice) * 100)
+      : 0;
+  const maxQty = Math.max(1, Math.min(product.stock, 99));
+  const safeQty = Math.min(qty, maxQty);
+  return (
+    <div>
+      <button type="button" onClick={onBack} className={ghostBtn + " px-3 py-2 text-sm"}>
+        &larr; {t("shop.backToShop")}
+      </button>
+      <article className="mt-3 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
+        <div className="grid gap-0 md:grid-cols-2">
+          <div className="relative aspect-square overflow-hidden">
+            <ProductImage product={product} />
+            {discount > 0 && (
+              <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold text-white">
+                -{discount}%
+              </span>
+            )}
+            {product.stock <= 0 && (
+              <span className="absolute right-2 top-2 rounded-md bg-rose-600 px-1.5 py-0.5 text-xs font-bold text-white">
+                {t("shop.outOfStock")}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 p-4 sm:p-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--dim)]">
+              {trCategory(lang, product.category)}
+            </p>
+            <h1 className="font-display text-xl font-extrabold leading-tight text-[var(--text)] sm:text-2xl">
+              {product.name}
+            </h1>
+            <p className="font-display text-2xl font-extrabold leading-tight tracking-tight text-[var(--text)]">
+              {fmt(product.buyerPrice)}
+            </p>
+            {product.oldPrice && (
+              <p className="text-sm text-[var(--dim)] line-through">{fmt(product.oldPrice)}</p>
+            )}
+            <p className="inline-block w-fit rounded-md bg-[var(--surface-alt)] px-1.5 py-0.5 text-xs font-semibold text-[var(--accent)]">
+              {t("shop.sellerProfit")} {fmt(product.profitAmount)} ({product.profitPercent}%)
+            </p>
+            {product.stock > 0 ? (
+              <p className="text-sm font-semibold text-emerald-600">{t("shop.inStock")}</p>
+            ) : (
+              <p className="text-sm font-semibold text-rose-600">{t("shop.outOfStock")}</p>
+            )}
+            {product.description ? (
+              <p className="mt-1 text-sm leading-relaxed text-[var(--text)]">{product.description}</p>
+            ) : null}
+            <div className="mt-auto pt-3">
+              {(!user || user.role === "buyer") && (
+                <>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-[var(--text)]">{t("shop.quantity")}</span>
+                    <div className="flex items-center rounded-lg border border-[var(--border)]">
+                      <button
+                        type="button"
+                        aria-label="Decrease quantity"
+                        disabled={safeQty <= 1}
+                        onClick={() => setQty((q) => Math.max(1, q - 1))}
+                        className="px-3 py-2 font-bold disabled:opacity-40"
+                      >
+                        &minus;
+                      </button>
+                      <span className="min-w-10 text-center font-bold">{safeQty}</span>
+                      <button
+                        type="button"
+                        aria-label="Increase quantity"
+                        disabled={safeQty >= maxQty}
+                        onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
+                        className="px-3 py-2 font-bold disabled:opacity-40"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      disabled={product.stock <= 0}
+                      onClick={() => onAddToCartQty(product, safeQty, false)}
+                      className={goldBtn + " flex-1 py-2.5"}
+                    >
+                      {t("shop.addToCart")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={product.stock <= 0}
+                      onClick={() => onAddToCartQty(product, safeQty, true)}
+                      className={primaryBtn + " flex-1 py-2.5"}
+                    >
+                      {t("shop.buyNow")}
+                    </button>
+                  </div>
+                </>
+              )}
+              {user?.role === "seller" &&
+                (inMyStore ? (
+                  <p className="rounded-lg bg-[var(--surface-alt)] px-3 py-2.5 text-center font-display text-sm font-bold text-[var(--accent)]">
+                    {t("shop.inStore")}
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onAddToMyStore?.(product)}
+                    className={goldBtn + " w-full py-2.5"}
+                  >
+                    {t("shop.addToStore")}
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      </article>
+      {related.length > 0 && (
+        <section className="mt-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-lg font-extrabold text-[var(--text)]">
+              {t("shop.relatedProducts")}
+            </h2>
+            <button type="button" onClick={onMoreInCategory} className={ghostBtn + " px-3 py-1.5 text-sm"}>
+              {t("shop.moreInCategory")}
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {related.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                user={user}
+                onAddToCart={(pp) => onAddToCartQty(pp, 1, false)}
+                onAddToMyStore={onAddToMyStore}
+                inMyStore={myStoreIds.has(p.id)}
+                onOpen={onOpenProduct}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
 
 function ShopView({
   user,
@@ -808,6 +999,32 @@ function ShopView({
     addToMyStore.mutate(p);
   }
 
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [detailProduct]);
+  async function handleAddToCartQty(p: Product, qty: number, buyNow: boolean) {
+    if (!user) {
+      onNeedAuth();
+      return;
+    }
+    try {
+      const cart = await api.getCart({ buyerId: user.id });
+      const existing = (cart.items ?? []).find((it) => it.product.id === p.id)?.qty ?? 0;
+      if (existing === 0) await api.addToCart({ buyerId: user.id, productId: p.id });
+      await api.setCartQty({
+        buyerId: user.id,
+        productId: p.id,
+        qty: Math.min(existing + qty, Math.max(1, Math.min(p.stock, 99))),
+      });
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      showCartToast(p.name);
+      if (buyNow) onGoCart();
+    } catch (e) {
+      flash(String(e));
+    }
+  }
+
   function handleAddToCart(p: Product) {
     if (!user) {
       onNeedAuth();
@@ -822,6 +1039,30 @@ function ShopView({
     { icon: "💬", title: t("trust.live.t"), text: t("trust.live.d") },
     { icon: "🏷️", title: t("trust.prices.t"), text: t("trust.prices.d") },
   ];
+
+  if (detailProduct) {
+    const related = (allProducts.data?.products ?? [])
+      .filter((p) => p.category === detailProduct.category && p.id !== detailProduct.id)
+      .slice(0, 8);
+    return (
+      <ProductDetail
+        key={detailProduct.id}
+        product={detailProduct}
+        user={user}
+        onBack={() => setDetailProduct(null)}
+        onAddToCartQty={handleAddToCartQty}
+        onAddToMyStore={handleAddToMyStore}
+        inMyStore={myStoreIds.has(detailProduct.id)}
+        myStoreIds={myStoreIds}
+        related={related}
+        onOpenProduct={setDetailProduct}
+        onMoreInCategory={() => {
+          setCategory(detailProduct.category);
+          setDetailProduct(null);
+        }}
+      />
+    );
+  }
 
   return (
     <div>
@@ -929,6 +1170,7 @@ function ShopView({
               product={p}
               user={user}
               onAddToCart={handleAddToCart}
+              onOpen={setDetailProduct}
               onAddToMyStore={handleAddToMyStore}
               inMyStore={myStoreIds.has(p.id)}
               dense={gridCols === 3}
@@ -953,6 +1195,7 @@ function ShopView({
                   product={p}
                   user={user}
                   onAddToCart={handleAddToCart}
+                  onOpen={setDetailProduct}
                   onAddToMyStore={handleAddToMyStore}
                   inMyStore={myStoreIds.has(p.id)}
                 />
