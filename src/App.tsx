@@ -597,7 +597,7 @@ function ProductCard({
     ? Math.round((1 - product.buyerPrice / product.oldPrice) * 100)
     : 0;
   return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <article className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-shadow hover:shadow-lg">
       <div className="relative aspect-square overflow-hidden">
         <ProductImage product={product} />
         {discount > 0 && (
@@ -1067,7 +1067,7 @@ function ExternalProductCard({ product }: { product: ExternalProduct }) {
   const { t, fmt, lang } = useUi();
   const initial = (product.brand || product.merchant || product.name).charAt(0).toUpperCase();
   return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+    <article className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-shadow hover:shadow-lg">
       <div className="flex aspect-[4/3] items-center justify-center bg-[var(--surface-alt)]">
         <span aria-hidden className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--accent-soft)] font-display text-3xl font-extrabold text-[var(--accent)]">
           {initial}
@@ -8270,14 +8270,14 @@ export function App() {
   return (
     <UiContext.Provider value={ui}>
       <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-        <header ref={headerRef} className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)] shadow-sm pt-safe">
+        <header ref={headerRef} className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
           <div className={`mx-auto flex max-w-6xl flex-wrap items-center gap-x-1.5 px-3 transition-all duration-300 sm:px-4 ${headerMini ? "gap-y-0 py-0.5" : "gap-y-0.5 py-0.5"}`}>
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label={ui.t("menu.open")}
               aria-expanded={drawerOpen}
-              className={`rounded-lg border border-[var(--border)] px-2 leading-none text-[var(--text)] transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[13px]" : "min-h-9 py-0.5 text-[15px]"}`}
+              className={`rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[13px]" : "min-h-9 py-0.5 text-[15px]"}`}
             >
               ☰
             </button>
@@ -8285,7 +8285,7 @@ export function App() {
               type="button"
               onClick={() => (user?.role === "seller" ? goSellerTab("home") : setView("shop"))}
               aria-label={`${storeName} home`}
-              className={`min-w-0 max-w-[34vw] truncate text-left font-display font-extrabold tracking-tight text-[var(--accent)] transition-all duration-300 ${headerMini ? "text-[13px]" : "text-[15px]"}`}
+              className={`min-w-0 max-w-[34vw] truncate text-left font-display font-extrabold tracking-tight text-[var(--accent)] transition-all duration-300 ${headerMini ? "text-sm" : "text-lg"}`}
             >
               {storeName}
               <span className="text-[var(--gold)]">.</span>
@@ -8295,7 +8295,7 @@ export function App() {
             </span>
             <div className="ml-auto flex flex-wrap items-center gap-1.5">
               <div
-                className="flex overflow-hidden rounded-md border border-[var(--border)]"
+                className="flex overflow-hidden rounded-full bg-[var(--surface-alt)] p-0.5"
                 role="group"
                 aria-label={ui.t("header.currency")}
               >
@@ -8307,14 +8307,14 @@ export function App() {
                     aria-label={c === "INR" ? "Show prices in Indian Rupees" : c === "USD" ? "Show prices in US Dollars" : "Show prices in USDT"}
                     aria-pressed={effectiveCurrency === c}
                     onClick={() => changeCurrency(c)}
-                    className={`px-1.5 text-[10px] font-bold transition-all duration-300 ${headerMini ? "min-h-7 py-0" : "min-h-8 py-0.5"} ${effectiveCurrency === c ? "bg-[var(--accent)] text-white" : "text-[var(--dim)]"}`}
+                    className={`rounded-full px-2 text-[10px] font-bold transition-all duration-300 ${headerMini ? "min-h-7 py-0" : "min-h-8 py-0.5"} ${effectiveCurrency === c ? "bg-[var(--accent)] text-white" : "text-[var(--dim)]"}`}
                   >
                     {c === "INR" ? "₹ INR" : c === "USD" ? "$ USD" : "USDT"}
                   </button>
                 ))}
               </div>
               <div
-                className="flex overflow-hidden rounded-md border border-[var(--border)]"
+                className="flex overflow-hidden rounded-full bg-[var(--surface-alt)] p-0.5"
                 role="group"
                 aria-label={ui.t("header.language")}
               >
@@ -8327,7 +8327,7 @@ export function App() {
                     aria-label={l === "en" ? "Switch language to English" : l === "hi" ? "Switch language to Hindi" : "Switch language to Arabic"}
                     aria-pressed={effectiveLang === l}
                     onClick={() => changeLang(l)}
-                    className={`px-1.5 text-[10px] font-bold transition-all duration-300 ${headerMini ? "min-h-7 py-0" : "min-h-8 py-0.5"} ${effectiveLang === l ? "bg-[var(--accent)] text-white" : "text-[var(--dim)]"}`}
+                    className={`rounded-full px-2 text-[10px] font-bold transition-all duration-300 ${headerMini ? "min-h-7 py-0" : "min-h-8 py-0.5"} ${effectiveLang === l ? "bg-[var(--accent)] text-white" : "text-[var(--dim)]"}`}
                   >
                     {l === "en" ? "EN" : l === "hi" ? "हिंदी" : "عربي"}
                   </button>
@@ -8340,7 +8340,7 @@ export function App() {
                     onClick={() => { const next = !notifOpen; setNotifOpen(next); if (next && sellerUnread > 0) { /* keep unread until panel viewed */ } }}
                     aria-label={`${ui.t("notif.bell")}${sellerUnread > 0 ? `, ${sellerUnread} unread` : ""}`}
                     aria-expanded={notifOpen}
-                    className={`relative rounded-lg border border-[var(--border)] px-2 leading-none transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[13px]" : "min-h-9 py-0.5 text-[15px]"}`}
+                    className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[13px]" : "min-h-9 py-0.5 text-[15px]"}`}
                   >
                     🔔
                     {sellerUnread > 0 && (
@@ -8397,7 +8397,7 @@ export function App() {
                   onClick={() => setView("cart")}
                   aria-label={`${ui.t("cart.title")}${cartCount > 0 ? ` (${cartCount})` : ""}`}
                   aria-current={view === "cart" ? "page" : undefined}
-                  className={`relative rounded-lg border border-[var(--border)] px-2 leading-none transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[13px]" : "min-h-9 py-0.5 text-[15px]"}`}
+                  className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[13px]" : "min-h-9 py-0.5 text-[15px]"}`}
                 >
                   🛒
                   {cartCount > 0 && (
@@ -8413,7 +8413,7 @@ export function App() {
                 aria-label={theme === "dark" ? ui.t("theme.toLight") : ui.t("theme.toDark")}
                 aria-pressed={theme === "dark"}
                 title={theme === "dark" ? ui.t("theme.light") : ui.t("theme.dark")}
-                className={`rounded-lg border border-[var(--border)] px-2 font-semibold text-[var(--text)] transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[11px]" : "min-h-9 py-0.5 text-xs"}`}
+                className={`rounded-full bg-[var(--surface-alt)] px-2.5 font-semibold text-[var(--text)] transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[11px]" : "min-h-9 py-0.5 text-xs"}`}
               >
                 {theme === "dark" ? "☀️" : "🌙"}
               </button>
@@ -8726,7 +8726,7 @@ export function App() {
         {layoutDesign !== "menu" && (
         <nav
           aria-label="Main navigation"
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] pb-safe sm:hidden"
+          className="fixed inset-x-3 bottom-3 z-40 rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-xl pb-safe sm:hidden"
         >
           <div className={`grid ${NAV.length === 5 ? "grid-cols-5" : "grid-cols-6"}`}>
             {NAV.map((n) => (
@@ -8741,7 +8741,7 @@ export function App() {
                 }`}
               >
                 {n.isNew && <NewBadge id="nav-products" className="absolute right-0.5 top-0.5" />}
-                <span className="text-lg leading-none">{n.icon}</span>
+                <span className={navCurrent(n) ? "rounded-full bg-[var(--accent)] px-3 py-1 text-lg leading-none text-white" : "text-lg leading-none"}>{n.icon}</span>
                 <span className="max-w-full truncate px-0.5">{n.label}</span>
               </button>
             ))}
@@ -8752,7 +8752,7 @@ export function App() {
         {layoutDesign !== "menu" && (
         <nav
           aria-label="Desktop navigation"
-          className="scrollbar-none fixed bottom-5 left-1/2 z-40 hidden max-w-[calc(100vw-1.5rem)] -translate-x-1/2 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg sm:flex"
+          className="scrollbar-none fixed bottom-5 left-1/2 z-40 hidden max-w-[calc(100vw-1.5rem)] -translate-x-1/2 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface)] p-1 shadow-xl sm:flex"
         >
           {NAV.map((n) => (
             <button
@@ -8762,7 +8762,7 @@ export function App() {
               aria-current={navCurrent(n) ? "page" : undefined}
               onClick={() => navGo(n)}
               className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold lg:px-4 ${
-                navCurrent(n) ? "bg-[var(--accent)] text-white" : "text-[var(--dim)]"
+                navCurrent(n) ? "bg-[var(--accent)] text-white" : "text-[var(--dim)] hover:bg-[var(--surface-alt)]"
               }`}
             >
               {n.icon} {n.label}
@@ -8776,7 +8776,7 @@ export function App() {
               aria-current={view === "admin" ? "page" : undefined}
               onClick={() => setView("admin")}
               className={`shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold lg:px-4 ${
-                view === "admin" ? "bg-[var(--accent)] text-white" : "text-[var(--dim)]"
+                view === "admin" ? "bg-[var(--accent)] text-white" : "text-[var(--dim)] hover:bg-[var(--surface-alt)]"
               }`}
             >
               ⚙️ {ui.t("nav.admin")}
