@@ -8899,6 +8899,9 @@ export function App() {
   const iconChat = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.6 0-3.1-.4-4.4-1.2L3 20l1.2-5.1A8.5 8.5 0 1 1 21 11.5Z" /><path d="M8 11.5h8" /><path d="M8 8.5h5" /></svg>);
   const iconUser = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></svg>);
   const iconGear = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" /></svg>);
+  // Day/night toggle icons: clean line-art sun/moon (no emoji).
+  const iconSun = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12h2.5M19 12h2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" /></svg>);
+  const iconMoon = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>);
 const NAV: NavItem[] =
     user?.role === "seller"
       ? [
@@ -9096,8 +9099,9 @@ const NAV: NavItem[] =
                   onClick={() => setView("cart")}
                   aria-label={`${ui.t("cart.title")}${cartCount > 0 ? ` (${cartCount})` : ""}`}
                   aria-current={view === "cart" ? "page" : undefined}
-                  className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 ${headerMini ? "min-h-9 py-0.5 text-sm" : "min-h-11 py-0.5 text-lg"}`}
+                  className={`shine-btn relative rounded-full bg-[var(--surface-alt)] px-3.5 leading-none transition-all duration-300 hover:scale-110 ${headerMini ? "min-h-10 py-0.5 text-lg" : "min-h-12 py-0.5 text-[22px]"}`}
                 >
+                  <span aria-hidden className="shine-sweep" />
                   🛒
                   {cartCount > 0 && (
                     <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--gold)] px-1 font-display text-[11px] font-bold text-[var(--gold-ink)]">
@@ -9112,9 +9116,9 @@ const NAV: NavItem[] =
                 aria-label={theme === "dark" ? ui.t("theme.toLight") : ui.t("theme.toDark")}
                 aria-pressed={theme === "dark"}
                 title={theme === "dark" ? ui.t("theme.light") : ui.t("theme.dark")}
-                className={`rounded-full bg-[var(--surface-alt)] px-2.5 font-semibold text-[var(--text)] transition-all duration-300 ${headerMini ? "min-h-9 py-0.5 text-xs" : "min-h-11 py-0.5 text-sm"}`}
+                className={`flex items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] transition-all duration-300 ${headerMini ? "h-10 w-10" : "h-12 w-12"}`}
               >
-                {theme === "dark" ? "☀️" : "🌙"}
+                {theme === "dark" ? iconSun : iconMoon}
               </button>
               {user ? (
                 <button
