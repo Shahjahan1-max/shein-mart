@@ -1030,6 +1030,35 @@ function ShopView({
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [detailProduct]);
+  // Mobile back button: opening a product pushes a history entry, so
+  // the phone's back button walks back through opened products to the
+  // shop grid instead of closing the website (the detail is an
+  // in-page view — without an entry the URL never changes and back
+  // exits the app entirely).
+  function openDetail(p: Product) {
+    try { window.history.pushState({ productDetail: p.id }, ""); } catch { /* history unavailable */ }
+    setDetailProduct(p);
+  }
+  function closeDetail() {
+    try {
+      if (window.history.state && (window.history.state as any).productDetail) window.history.back();
+      else setDetailProduct(null);
+    } catch { setDetailProduct(null); }
+  }
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      const id = (e.state as any)?.productDetail as number | undefined;
+      if (id) {
+        const found = (allProducts.data?.products ?? []).find((p) => p.id === id)
+          ?? (products.data?.products ?? []).find((p) => p.id === id);
+        setDetailProduct(found ?? null);
+      } else {
+        setDetailProduct(null);
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [allProducts.data, products.data]);
   async function handleAddToCartQty(p: Product, qty: number, buyNow: boolean) {
     if (!user) {
       onNeedAuth();
@@ -1076,16 +1105,16 @@ function ShopView({
         key={detailProduct.id}
         product={detailProduct}
         user={user}
-        onBack={() => setDetailProduct(null)}
+        onBack={closeDetail}
         onAddToCartQty={handleAddToCartQty}
         onAddToMyStore={handleAddToMyStore}
         inMyStore={myStoreIds.has(detailProduct.id)}
         myStoreIds={myStoreIds}
         related={related}
-        onOpenProduct={setDetailProduct}
+        onOpenProduct={openDetail}
         onMoreInCategory={() => {
           setCategory(detailProduct.category);
-          setDetailProduct(null);
+          closeDetail();
         }}
       />
     );
@@ -1198,7 +1227,7 @@ function ShopView({
               user={user}
               onAddToCart={handleAddToCart}
               onBuyNow={(p) => handleAddToCartQty(p, 1, true)}
-              onOpen={setDetailProduct}
+              onOpen={openDetail}
               onAddToMyStore={handleAddToMyStore}
               inMyStore={myStoreIds.has(p.id)}
               dense={gridCols === 3}
@@ -1224,7 +1253,7 @@ function ShopView({
                   user={user}
                   onAddToCart={handleAddToCart}
                   onBuyNow={(p) => handleAddToCartQty(p, 1, true)}
-                  onOpen={setDetailProduct}
+                  onOpen={openDetail}
                   onAddToMyStore={handleAddToMyStore}
                   inMyStore={myStoreIds.has(p.id)}
                 />
@@ -3313,6 +3342,7 @@ function AccountView({
   onCurrencyChange,
   storeName,
   externalError,
+  headerLogoUrl,
 }: {
   user: User;
   onAuth: (u: NonNullable<User>) => void;
@@ -3325,6 +3355,7 @@ function AccountView({
   onCurrencyChange: (c: Currency) => void;
   storeName: string;
   externalError?: string | null;
+  headerLogoUrl?: string;
 }) {
   const { t, lang, currency, enabledLangs, enabledCurrencies } = useUi();
   // Google sign-in availability comes from the backend (env-configured);
@@ -3656,9 +3687,13 @@ function AccountView({
           completed registration returns here with a notice. */}
       {/* Branded auth header: logo mark + store name above the form. */}
       <div className="flex flex-col items-center pt-2 text-center">
-        <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent)] font-display text-3xl font-extrabold text-white shadow-md">
-          S<span className="text-[var(--gold)]">.</span>
-        </span>
+        {headerLogoUrl ? (
+          <img src={headerLogoUrl} alt="" className="h-14 w-14 rounded-2xl object-contain shadow-md" />
+        ) : (
+          <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent)] font-display text-3xl font-extrabold text-white shadow-md">
+            S<span className="text-[var(--gold)]">.</span>
+          </span>
+        )}
         <p className="mt-3 font-display text-xl font-extrabold tracking-tight text-[var(--text)]">
           {storeName}<span className="text-[var(--gold)]">.</span>
         </p>
@@ -5968,6 +6003,39 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
     },
     onError: (e) => { setDesignErr(String(e)); setDesignOk(null); },
   });
+  // Header logo (Admin → Theme & Design): an uploaded image or a
+  // pasted image URL, shown in the header (and the sign-in brand
+  // header) for every visitor. Uploaded image wins over a URL;
+  // removing restores the built-in text brand.
+  const [logoUrlDraft, setLogoUrlDraft] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoMsg, setLogoMsg] = useState<string | null>(null);
+  const [logoErr, setLogoErr] = useState<string | null>(null);
+  const saveLogo = useMutation({
+    mutationFn: (v: { mode: "upload" | "url" | "remove"; dataBase64?: string; fileName?: string; contentType?: string; imageUrl?: string }) =>
+      api.adminSetHeaderLogo({ adminId: user.id, ...v }),
+    onSuccess: (r, v) => {
+      if (!r.ok) { setLogoErr(r.error ?? t("theme.logoFailed")); setLogoMsg(null); return; }
+      setLogoErr(null);
+      setLogoMsg(t(v.mode === "remove" ? "theme.logoRemoved" : "theme.logoSaved"));
+      setLogoUrlDraft("");
+      setLogoFile(null);
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: () => { setLogoErr(t("theme.logoFailed")); setLogoMsg(null); },
+  });
+  async function uploadLogoFile() {
+    if (!logoFile) return;
+    const okTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
+    if (!okTypes.includes(logoFile.type)) { setLogoErr(t("theme.logoTypeErr")); return; }
+    if (logoFile.size === 0) { setLogoErr(t("theme.logoEmptyErr")); return; }
+    if (logoFile.size > 3 * 1024 * 1024) { setLogoErr(t("theme.logoSizeErr")); return; }
+    setLogoErr(null); setLogoMsg(null);
+    try {
+      const enc = await fileToBase64(logoFile);
+      saveLogo.mutate({ mode: "upload", dataBase64: enc.dataBase64, fileName: logoFile.name, contentType: enc.mimeType || logoFile.type });
+    } catch { setLogoErr(t("theme.logoReadErr")); }
+  }
   const saveSettings = useMutation({ mutationFn: () => api.updateSettings({ userId: user!.id, storeName: sform.storeName, supportWhatsapp: sform.supportWhatsapp, supportEmail: sform.supportEmail, defaultProfitPercent: parseInt(sform.defaultProfitPercent, 10) || 20 }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings"] }) });
   const saveDepositSettings = useMutation({
     // An untouched (or cleared) Local Deposit Note is saved as "" so the
@@ -6760,6 +6828,31 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
           <button type="button" aria-label="Apply theme and design to the whole store" disabled={!dirty || saveDesign.isPending} onClick={() => saveDesign.mutate()} className={goldBtn + " mt-4"}>
             {saveDesign.isPending ? t("theme.applying") : `✓ ${t("adm.saveSettings")}`}
           </button>
+        </section>
+        <section aria-label={t("theme.logoTitle")} className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <h4 className="font-display text-base font-bold text-[var(--text)]">🖼️ {t("theme.logoTitle")}</h4>
+          <p className="mt-1 text-sm text-[var(--dim)]">{t("theme.logoSub")}</p>
+          {settings?.headerLogoUrl ? (
+            <div className="mt-3 flex items-center gap-3">
+              <img src={settings.headerLogoUrl} alt="" className="h-14 w-14 rounded-xl border border-[var(--border)] object-contain" />
+              <span className="text-sm font-semibold text-[var(--text)]">{t("theme.logoCurrent")}</span>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-[var(--dim)]">{t("theme.logoNone")}</p>
+          )}
+          <div className="mt-3 flex flex-col gap-2">
+            <label className="text-sm font-semibold text-[var(--text)]">{t("theme.logoUpload")}</label>
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml" onChange={(e) => { setLogoFile(e.target.files?.[0] ?? null); setLogoErr(null); setLogoMsg(null); }} className="text-sm text-[var(--text)]" />
+            <button type="button" disabled={!logoFile || saveLogo.isPending} onClick={() => void uploadLogoFile()} className={primaryBtn + " w-fit px-4 py-2 text-sm"}>{saveLogo.isPending ? t("theme.logoSaving") : t("theme.logoUploadBtn")}</button>
+            <label className="mt-2 text-sm font-semibold text-[var(--text)]">{t("theme.logoUrlLabel")}</label>
+            <input type="url" value={logoUrlDraft} onChange={(e) => { setLogoUrlDraft(e.target.value); setLogoErr(null); setLogoMsg(null); }} placeholder={t("theme.logoUrlPh")} className={inputCls} />
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={saveLogo.isPending} onClick={() => { if (!logoUrlDraft.trim()) { setLogoErr(t("theme.logoUrlEmpty")); return; } saveLogo.mutate({ mode: "url", imageUrl: logoUrlDraft.trim() }); }} className={primaryBtn + " px-4 py-2 text-sm"}>{t("theme.logoSaveUrl")}</button>
+              {settings?.headerLogoUrl && <button type="button" disabled={saveLogo.isPending} onClick={() => saveLogo.mutate({ mode: "remove" })} className={ghostBtn + " px-4 py-2 text-sm"}>{t("theme.logoRemove")}</button>}
+            </div>
+          </div>
+          {logoErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {logoErr}</p>}
+          {logoMsg && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {logoMsg}</p>}
         </section>
       </div>
     );
@@ -8736,29 +8829,14 @@ export function App() {
   const [supportStartInChat, setSupportStartInChat] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  // Slim auto-shrinking header: `headerMini` collapses the bar while the
-  // user scrolls down and restores it on scroll-up; `headerH` is the
-  // measured header height so sticky bars below offset exactly.
-  const [headerMini, setHeaderMini] = useState(false);
+  // Professional fixed header: one constant height at all times — the
+  // bar never shrinks or grows while scrolling, so it never jitters,
+  // jumps or drags the sticky category bar with it. (The old
+  // scroll-shrink animation was the "ajeeb movement" on mobile.)
+  // `headerH` is the measured header height so sticky bars below
+  // offset exactly.
   const [headerH, setHeaderH] = useState(44);
   const headerRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    let lastY = window.scrollY;
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const y = window.scrollY;
-        if (y > 140 && y - lastY > 6) setHeaderMini(true);
-        else if (lastY - y > 6 || y < 60) setHeaderMini(false);
-        lastY = y;
-        ticking = false;
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
@@ -8817,6 +8895,9 @@ export function App() {
     if (view !== "admin") void refetchSettings();
   }, [view, refetchSettings]);
   const storeName = settings.data?.storeName ?? "sheinstore";
+  // Admin-set header logo (Admin → Theme & Design → Header Logo):
+  // an uploaded image or a pasted image URL; empty = text brand.
+  const headerLogoUrl = settings.data?.headerLogoUrl ?? "";
   // Admin-chosen store design (settings): colour scheme recolours the
   // whole store for everyone; layout design rearranges the chrome.
   const colorScheme = settings.data?.colorScheme ?? "navy";
@@ -8893,6 +8974,7 @@ export function App() {
       return;
     }
     if (code) {
+      setGoogleSigningIn(true);
       api.completeGoogleLogin({ code }).then((r: any) => {
         if (r?.ok && r.user) handleAuth(r.user);
         else {
@@ -8902,10 +8984,22 @@ export function App() {
       }).catch(() => {
         setGoogleError(ui.t("auth.googleFailed"));
         setView("account");
-      });
+      }).finally(() => setGoogleSigningIn(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Back-button rescue: the shop unmounts when the visitor leaves it
+  // (cart, sign-in prompt) while a product-detail history entry is
+  // still on the stack. A back press then returns to the shop grid
+  // instead of leaving the visitor stuck on the other view. ShopView
+  // itself owns detail open/close while the shop is shown.
+  useEffect(() => {
+    if (view === "shop") return;
+    const onPop = () => { setView("shop"); };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [view]);
 
   const seed = useMutation({
     mutationFn: () => api.seedCatalog({}),
@@ -9027,6 +9121,10 @@ const NAV: NavItem[] =
   }
 
   const [googleError, setGoogleError] = useState<string | null>(null);
+  // Visible "signing in" state while the one-time Google code is
+  // exchanged: without it a slow backend (cold start) looks like a
+  // stuck blank page, which is exactly what was reported.
+  const [googleSigningIn, setGoogleSigningIn] = useState(false);
   function handleAuth(u: NonNullable<User>) {
     setUser(u);
     localStorage.setItem(SESSION_KEY, JSON.stringify(u));
@@ -9088,14 +9186,21 @@ const NAV: NavItem[] =
   return (
     <UiContext.Provider value={ui}>
       <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+        {googleSigningIn && (
+          <div role="status" className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-[var(--bg)] px-6 text-center">
+            <div aria-hidden className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--accent)] border-t-transparent" />
+            <p className="text-base font-bold text-[var(--text)]">{ui.t("auth.googleSigningIn")}</p>
+            <p className="text-sm text-[var(--dim)]">{ui.t("auth.googleSigningInSub")}</p>
+          </div>
+        )}
         <header ref={headerRef} className="sticky top-0 z-40 border-b-2 border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
-          <div className={`mx-auto flex ${containerW} flex-wrap items-center gap-x-1.5 px-3 transition-all duration-300 sm:px-4 ${headerMini ? "gap-y-0 py-1" : "gap-y-1 py-2.5"}`}>
+          <div className={`mx-auto flex ${containerW} flex-wrap items-center gap-x-1.5 px-3 transition-all duration-300 sm:px-4 gap-y-1 py-2.5`}>
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label={ui.t("menu.open")}
               aria-expanded={drawerOpen}
-              className={`rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] transition-all duration-300 ${headerMini ? "min-h-9 py-0.5 text-sm" : "min-h-11 py-0.5 text-lg"}`}
+              className={`rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] transition-all duration-300 min-h-11 py-0.5 text-lg`}
             >
               ☰
             </button>
@@ -9103,12 +9208,15 @@ const NAV: NavItem[] =
               type="button"
               onClick={() => (user?.role === "seller" ? goSellerTab("home") : setView("shop"))}
               aria-label={`${storeName} home`}
-              className={`min-w-0 max-w-[34vw] truncate text-left font-display font-extrabold tracking-tight text-[var(--accent)] transition-all duration-300 ${headerMini ? "text-base" : "text-2xl"}`}
+              className={`flex min-w-0 max-w-[34vw] items-center text-left font-display font-extrabold tracking-tight text-[var(--accent)] transition-all duration-300 text-2xl`}
             >
-              {storeName}
-              <span className="text-[var(--gold)]">.</span>
+              {headerLogoUrl ? (
+                <img src={headerLogoUrl} alt="" className="mr-1.5 h-10 w-10 shrink-0 rounded-xl object-contain" />
+              ) : null}
+              <span className="truncate">{storeName}</span>
+              {headerLogoUrl ? null : <span className="text-[var(--gold)]">.</span>}
             </button>
-            <span className={headerMini ? "hidden" : "hidden text-xs font-medium text-[var(--dim)] lg:block"}>
+            <span className={"hidden text-xs font-medium text-[var(--dim)] lg:block"}>
               {ui.t("header.tagline")}
             </span>
             <div className="ml-auto flex flex-wrap items-center gap-1.5">
@@ -9120,7 +9228,7 @@ const NAV: NavItem[] =
                     onClick={() => { const next = !notifOpen; setNotifOpen(next); if (next && sellerUnread > 0) { /* keep unread until panel viewed */ } }}
                     aria-label={`${ui.t("notif.bell")}${sellerUnread > 0 ? `, ${sellerUnread} unread` : ""}`}
                     aria-expanded={notifOpen}
-                    className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 ${headerMini ? "min-h-9 py-0.5 text-sm" : "min-h-11 py-0.5 text-lg"}`}
+                    className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 min-h-11 py-0.5 text-lg`}
                   >
                     🔔
                     {sellerUnread > 0 && (
@@ -9177,7 +9285,7 @@ const NAV: NavItem[] =
                   onClick={() => setView("cart")}
                   aria-label={`${ui.t("cart.title")}${cartCount > 0 ? ` (${cartCount})` : ""}`}
                   aria-current={view === "cart" ? "page" : undefined}
-                  className={`shine-btn relative rounded-full bg-[var(--surface-alt)] px-3.5 leading-none transition-all duration-300 hover:scale-110 ${headerMini ? "min-h-10 py-0.5 text-lg" : "min-h-12 py-0.5 text-[22px]"}`}
+                  className={`shine-btn relative rounded-full bg-[var(--surface-alt)] px-3.5 leading-none transition-all duration-300 hover:scale-110 min-h-12 py-0.5 text-[22px]`}
                 >
                   <span aria-hidden className="shine-sweep" />
                   🛒
@@ -9194,7 +9302,7 @@ const NAV: NavItem[] =
                 aria-label={theme === "dark" ? ui.t("theme.toLight") : ui.t("theme.toDark")}
                 aria-pressed={theme === "dark"}
                 title={theme === "dark" ? ui.t("theme.light") : ui.t("theme.dark")}
-                className={`flex items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] transition-all duration-300 ${headerMini ? "h-10 w-10" : "h-12 w-12"}`}
+                className={`flex items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] transition-all duration-300 h-12 w-12`}
               >
                 {theme === "dark" ? iconSun : iconMoon}
               </button>
@@ -9203,7 +9311,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="My account"
-                  className={`max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-white transition-all duration-300 ${headerMini ? "min-h-10 py-0.5 text-[13px]" : "min-h-11 py-0.5 text-sm"}`}
+                  className={`max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-white transition-all duration-300 min-h-11 py-0.5 text-sm`}
                 >
                   {user.name.split(" ")[0]}
                 </button>
@@ -9212,7 +9320,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="Sign in or register"
-                  className={`flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-white shadow-sm transition-all duration-300 hover:brightness-110 ${headerMini ? "min-h-10 px-4 text-sm" : "min-h-11 px-5 text-[15px]"}`}
+                  className={`flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-white shadow-sm transition-all duration-300 hover:brightness-110 min-h-11 px-5 text-[15px]`}
                 >
                   {iconUser}
                   {ui.t("header.signIn")}
@@ -9473,6 +9581,7 @@ const NAV: NavItem[] =
               onCurrencyChange={changeCurrency}
               storeName={storeName}
               externalError={googleError}
+              headerLogoUrl={headerLogoUrl}
             />
           )}
           {view === "seller" && (

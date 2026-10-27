@@ -30,6 +30,11 @@
     }
     </script>
     <script src="/src/main.tsx" type="module"></script>
+      <!-- Start every visit at the top: set manual scroll restoration
+         before the bundle loads, so the browser never reopens the site
+         halfway down the page (reload / restored tab). The app also
+         scrolls to top on every view change. -->
+    <script>try{history.scrollRestoration="manual";}catch(e){}</script>
   </head>
   <body>
     <div
