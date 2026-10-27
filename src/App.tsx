@@ -2651,22 +2651,28 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
   const steps = [t("sa.step1"), t("sa.step2"), t("sa.step3")];
 
   return (
-    <div ref={topRef} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+    <div ref={topRef} className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-md">
+      <div aria-hidden className="-mx-5 -mt-5 mb-4 h-1.5 bg-gradient-to-r from-[var(--accent)] via-[var(--gold)] to-[var(--accent)]" />
       <h3 className="font-display text-xl font-bold text-[var(--text)]">{t("sa.title")}</h3>
       <p className="mt-1 text-sm text-[var(--dim)]">{t("sa.sub")}</p>
       <ol className="mt-4 flex gap-2" aria-label="Application steps">
         {steps.map((label, i) => (
-          <li
-            key={label}
-            className={`flex-1 rounded-lg px-2 py-1.5 text-center text-xs font-bold ${
-              step === i + 1
-                ? "bg-[var(--accent)] text-white"
-                : step > i + 1
-                  ? "bg-[var(--surface-alt)] text-[var(--accent)]"
-                  : "bg-[var(--surface-alt)] text-[var(--dim)]"
-            }`}
-          >
-            {i + 1}. {label}
+          <li key={label} className="flex-1">
+            <button
+              type="button"
+              aria-label={`Go to step ${i + 1}: ${label}`}
+              aria-current={step === i + 1 ? "step" : undefined}
+              onClick={() => { setStep(i + 1); setTouched(false); setError(null); window.scrollTo(0, 0); }}
+              className={`w-full rounded-lg px-2 py-1.5 text-center text-xs font-bold ${
+                step === i + 1
+                  ? "bg-[var(--accent)] text-white shadow"
+                  : step > i + 1
+                    ? "bg-[var(--surface-alt)] text-[var(--accent)]"
+                    : "bg-[var(--surface-alt)] text-[var(--dim)]"
+              }`}
+            >
+              {step > i + 1 ? "✓ " : `${i + 1}. `}{label}
+            </button>
           </li>
         ))}
       </ol>
@@ -2837,7 +2843,7 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
       {error && <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30">{error}</p>}
       <div className="mt-4 flex gap-2">
         {step > 1 && (
-          <button type="button" onClick={() => { setStep(step - 1); setTouched(false); setError(null); }} className={ghostBtn}>
+          <button type="button" onClick={() => { setStep(step - 1); setTouched(false); setError(null); window.scrollTo(0, 0); }} className={ghostBtn}>
             {t("sa.back")}
           </button>
         )}
@@ -2856,6 +2862,7 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
               setTouched(false);
               setError(null);
               setStep(step + 1);
+              window.scrollTo(0, 0);
             }}
           >
             {t("sa.continue")}
@@ -3993,16 +4000,18 @@ function AccountView({
           </button>
         </p>
       )}
-      <div className="mt-4">
-        <PrefsCard
-          lang={lang}
-          currency={currency}
-          enabledLangs={enabledLangs}
-          enabledCurrencies={enabledCurrencies}
-          onLangChange={onLangChange}
-          onCurrencyChange={onCurrencyChange}
-        />
-      </div>
+      {!(mode === "register" && role === "seller") && (
+        <div className="mt-4">
+          <PrefsCard
+            lang={lang}
+            currency={currency}
+            enabledLangs={enabledLangs}
+            enabledCurrencies={enabledCurrencies}
+            onLangChange={onLangChange}
+            onCurrencyChange={onCurrencyChange}
+          />
+        </div>
+      )}
     </div>
   );
 }
