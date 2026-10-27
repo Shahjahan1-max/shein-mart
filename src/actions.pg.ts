@@ -2283,8 +2283,8 @@ export const Actions = {
   updateStoreDesign: defineAction({
     request: z.object({
       adminId: z.number(),
-      colorScheme: z.enum(["navy", "emerald", "royal", "charcoal", "teal"]),
-      layoutDesign: z.enum(["classic", "menu", "topsearch"]),
+      colorScheme: z.enum(["navy", "emerald", "royal", "charcoal", "teal", "crimson", "sunset", "rose"]),
+      layoutDesign: z.enum(["classic", "menu", "topsearch", "minimal", "wide"]),
     }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
