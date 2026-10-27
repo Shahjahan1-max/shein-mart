@@ -469,6 +469,10 @@ export const STR = {
   // Account / auth
   "acc.signIn": { en: "Sign In", hi: "साइन इन" , ar: "تسجيل الدخول"},
   "acc.register": { en: "Register", hi: "रजिस्टर" , ar: "التسجيل"},
+  "acc.noAccount": { en: "Don't have an account?", hi: "खाता नहीं है?", ar: "ليس لديك حساب؟" },
+  "acc.haveAccount": { en: "Already have an account?", hi: "पहले से खाता है?", ar: "لديك حساب بالفعل؟" },
+  "acc.registeredOk": { en: "Account created ✓ — please sign in with your new account.", hi: "खाता बन गया ✓ — कृपया अपने नए खाते से साइन इन करें।", ar: "تم إنشاء الحساب ✓ — يرجى تسجيل الدخول بحسابك الجديد." },
+  "acc.sellerAppliedOk": { en: "Application submitted ✓ — sign in to your account. Your seller account stays pending until Customer Service verifies it.", hi: "आवेदन जमा हो गया ✓ — अपने खाते से साइन इन करें। आपका सेलर खाता कस्टमर सर्विस के वेरिफाई करने तक पेंडिंग रहेगा।", ar: "تم تقديم الطلب ✓ — سجّل الدخول إلى حسابك. سيبقى حساب البائع معلقًا حتى تتحقق منه خدمة العملاء." },
   "acc.createAdmin": { en: "Create Admin (Owner)", hi: "एडमिन बनाएँ (मालिक)" , ar: "إنشاء مسؤول (المالك)"},
   "acc.welcome": { en: "Welcome back", hi: "फिर से स्वागत है" , ar: "مرحبًا بعودتك"},
   "acc.createBuyer": { en: "Create a buyer account", hi: "खरीदार खाता बनाएँ" , ar: "إنشاء حساب مشترٍ"},

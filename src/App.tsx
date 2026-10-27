@@ -3259,6 +3259,10 @@ function AccountView({
   const [error, setError] = useState<string | null>(null);
   const [authTouched, setAuthTouched] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
+  // Notice shown on the sign-in page after a registration completes
+  // (buyer register, or a seller application) — the account is NOT
+  // auto-logged-in; the customer signs in from here instead.
+  const [authNote, setAuthNote] = useState<string | null>(null);
   const [forgotId, setForgotId] = useState("");
   const [forgotStore, setForgotStore] = useState("");
   const [forgotErr, setForgotErr] = useState<string | null>(null);
@@ -3348,7 +3352,13 @@ function AccountView({
       }),
     onSuccess: (r) => {
       if (!r.ok || !r.user) setError(r.error ?? "Registration failed.");
-      else onAuth(r.user);
+      else {
+        setAuthNote(t("acc.registeredOk"));
+        setForm((f) => ({ ...f, password: "" }));
+        setError(null);
+        setAuthTouched(false);
+        setMode("login");
+      }
     },
     onError: (e) => setError(String(e)),
   });
@@ -3520,19 +3530,14 @@ function AccountView({
 
   return (
     <div className="mx-auto max-w-md">
-      <div className="flex gap-2" role="group" aria-label="Account form mode">
-        <Chip active={mode === "login"} onClick={() => { setMode("login"); setAuthTouched(false); setError(null); }} label="Show sign in form">
-          {t("acc.signIn")}
-        </Chip>
-        <Chip active={mode === "register"} onClick={() => { setMode("register"); setAuthTouched(false); setError(null); }} label="Show register form">
-          {t("acc.register")}
-        </Chip>
-        {hasAdmin.data && !hasAdmin.data.hasAdmin && (
-          <Chip active={mode === "admin"} onClick={() => { setMode("admin"); setAuthTouched(false); setError(null); }} label="Show create admin form">
-            {t("acc.createAdmin")}
-          </Chip>
-        )}
-      </div>
+      {/* Sign-in first: guests land on the sign-in form only. The
+          register page opens from the link under the form, and a
+          completed registration returns here with a notice. */}
+      {authNote && (
+        <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+          {authNote}
+        </p>
+      )}
 
       {mode !== "admin" && !(mode === "register" && role === "seller") && (
         <div className="mt-4 grid grid-cols-2 gap-2" role="group" aria-label="Continue with Gmail or mobile number">
@@ -3570,11 +3575,16 @@ function AccountView({
 
       {mode === "register" && role === "seller" ? (
         <div className="mt-4">
-          <SellerApplicationForm onDone={() => setMode("login")} />
+          <SellerApplicationForm
+            onDone={() => {
+              setAuthNote(t("acc.sellerAppliedOk"));
+              setMode("login");
+            }}
+          />
         </div>
       ) : (
         <form
-          className="mt-4 flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5"
+          className="mt-4 flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)]"
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
@@ -3721,7 +3731,7 @@ function AccountView({
           <button
             type="submit"
             disabled={login.isPending || register.isPending || createAdmin.isPending}
-            className={primaryBtn}
+            className={primaryBtn + " w-full"}
           >
             {mode === "login"
               ? t("acc.signIn")
@@ -3730,6 +3740,70 @@ function AccountView({
                 : t("acc.createAdminBtn")}
           </button>
         </form>
+      )}
+      {mode === "login" && (
+        <p className="mt-4 text-center text-sm text-[var(--dim)]">
+          {t("acc.noAccount")}{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setMode("register");
+              setAuthTouched(false);
+              setError(null);
+              setAuthNote(null);
+            }}
+            className="font-bold text-[var(--accent)] underline underline-offset-2"
+          >
+            {t("acc.register")}
+          </button>
+        </p>
+      )}
+      {mode === "register" && (
+        <p className="mt-4 text-center text-sm text-[var(--dim)]">
+          {t("acc.haveAccount")}{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setMode("login");
+              setAuthTouched(false);
+              setError(null);
+              setAuthNote(null);
+            }}
+            className="font-bold text-[var(--accent)] underline underline-offset-2"
+          >
+            {t("acc.signIn")}
+          </button>
+        </p>
+      )}
+      {mode === "admin" && (
+        <p className="mt-4 text-center text-sm text-[var(--dim)]">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("login");
+              setAuthTouched(false);
+              setError(null);
+            }}
+            className="font-bold text-[var(--accent)] underline underline-offset-2"
+          >
+            {t("acc.signIn")}
+          </button>
+        </p>
+      )}
+      {mode === "login" && hasAdmin.data && !hasAdmin.data.hasAdmin && (
+        <p className="mt-2 text-center text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("admin");
+              setAuthTouched(false);
+              setError(null);
+            }}
+            className="font-bold text-[var(--dim)] underline underline-offset-2"
+          >
+            {t("acc.createAdmin")}
+          </button>
+        </p>
       )}
     </div>
   );
@@ -8974,8 +9048,9 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="Sign in or register"
-                  className={`rounded-lg bg-[var(--accent)] px-2 font-semibold text-white transition-all duration-300 ${headerMini ? "min-h-8 py-0.5 text-[11px]" : "min-h-9 py-0.5 text-xs"}`}
+                  className={`flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-white shadow-sm transition-all duration-300 hover:brightness-110 ${headerMini ? "min-h-9 px-3.5 text-[13px]" : "min-h-10 px-4 text-sm"}`}
                 >
+                  {iconUser}
                   {ui.t("header.signIn")}
                 </button>
               )}
