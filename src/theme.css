@@ -262,3 +262,23 @@ h1, h2, h3, h4, h5, h6, p, li, dt, dd {
     scroll-behavior: auto !important;
   }
 }
+
+/* Product hover: gentle zoom-in plus a golden shine sweep across the photo. */
+.product-card .product-media img {
+  transition: transform 0.5s ease;
+}
+.product-card:hover .product-media img {
+  transform: scale(1.07);
+}
+.product-card .product-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255, 223, 150, 0.45) 50%, rgba(255, 255, 255, 0.35) 54%, transparent 62%);
+  transform: translateX(-130%);
+  transition: transform 0.9s ease;
+  pointer-events: none;
+}
+.product-card:hover .product-media::after {
+  transform: translateX(130%);
+}

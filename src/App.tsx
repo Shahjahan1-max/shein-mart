@@ -597,8 +597,8 @@ function ProductCard({
     ? Math.round((1 - product.buyerPrice / product.oldPrice) * 100)
     : 0;
   return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-shadow hover:shadow-lg">
-      <div className="relative aspect-square overflow-hidden">
+    <article className="product-card flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm transition-shadow hover:shadow-lg">
+      <div className="product-media relative aspect-square overflow-hidden">
         <ProductImage product={product} />
         {discount > 0 && (
           <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold text-white">
@@ -8054,6 +8054,13 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.scheme = colorScheme;
   }, [colorScheme]);
+  // Every navigation (and the first load) starts at the top of the page.
+  // As a single-page app, view switches used to keep the previous scroll
+  // position, so a newly opened view could start halfway down the page.
+  useEffect(() => {
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+  }, [view, sellerTab]);
   const [shopSearch, setShopSearch] = useState("");
 
   // Language & Prices switches (Admin → Settings): pickers show only
@@ -8152,7 +8159,7 @@ export function App() {
   type NavItem = {
     key: string;
     label: string;
-    icon: string;
+    icon: ReactNode;
     view?: View;
     sellerTab?: SellerTab;
     isNew?: boolean;
@@ -8162,23 +8169,31 @@ export function App() {
   // same order buyers/visitors see. Shop is where sellers browse the
   // catalog and add products to their own store; the Products tab
   // shows only the seller's added products, with Remove.
-  const NAV: NavItem[] =
+    const navIconCls = "h-5 w-5 shrink-0";
+  const iconShop = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /><path d="M9 21v-6h6v6" /></svg>);
+  const iconProducts = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></svg>);
+  const iconWallet = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><rect x="3" y="6" width="18" height="14" rx="2" /><path d="M3 10h18" /><path d="M16 15h2" /></svg>);
+  const iconStore = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M4 8 5.5 3h13L20 8" /><path d="M4 8v12h16V8" /><path d="M9 20v-5h6v5" /></svg>);
+  const iconChat = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.6 0-3.1-.4-4.4-1.2L3 20l1.2-5.1A8.5 8.5 0 1 1 21 11.5Z" /><path d="M8 11.5h8" /><path d="M8 8.5h5" /></svg>);
+  const iconUser = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></svg>);
+  const iconGear = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" /></svg>);
+const NAV: NavItem[] =
     user?.role === "seller"
       ? [
-          { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: "🛍️" },
-          { key: "products", sellerTab: "products", label: ui.t("nav.products"), icon: "🛍️", isNew: true },
-          { key: "wallet", sellerTab: "wallet", label: ui.t("nav.wallet"), icon: "👛" },
-          { key: "seller", sellerTab: "home", label: ui.t("nav.seller"), icon: "🏪" },
-          { key: "support", view: "support", label: ui.t("nav.support"), icon: "💬" },
-          { key: "account", view: "account", label: ui.t("nav.account"), icon: "👤" },
+          { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
+          { key: "products", sellerTab: "products", label: ui.t("nav.products"), icon: iconProducts, isNew: true },
+          { key: "wallet", sellerTab: "wallet", label: ui.t("nav.wallet"), icon: iconWallet },
+          { key: "seller", sellerTab: "home", label: ui.t("nav.seller"), icon: iconStore },
+          { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
+          { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
         ]
       : [
-          { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: "🛍️" },
-          { key: "products", sellerTab: "products", label: ui.t("nav.products"), icon: "🛍️", isNew: true },
-          { key: "wallet", sellerTab: "wallet", label: ui.t("nav.wallet"), icon: "👛" },
-          { key: "seller", sellerTab: "home", label: ui.t("nav.seller"), icon: "🏪" },
-          { key: "support", view: "support", label: ui.t("nav.support"), icon: "💬" },
-          { key: "account", view: "account", label: ui.t("nav.account"), icon: "👤" },
+          { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
+          { key: "products", sellerTab: "products", label: ui.t("nav.products"), icon: iconProducts, isNew: true },
+          { key: "wallet", sellerTab: "wallet", label: ui.t("nav.wallet"), icon: iconWallet },
+          { key: "seller", sellerTab: "home", label: ui.t("nav.seller"), icon: iconStore },
+          { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
+          { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
         ];
   // General Support / Customer Service entry: land on the Customer
   // Support overview page first — Live Chat card, WhatsApp, Email,
@@ -8742,7 +8757,7 @@ export function App() {
               >
                 {navCurrent(n) && <span aria-hidden className="absolute left-1/2 top-0 h-[3px] w-8 -translate-x-1/2 rounded-full bg-[var(--accent)]" />}
                 {n.isNew && <NewBadge id="nav-products" className="absolute right-0.5 top-0.5" />}
-                <span className="text-[22px] leading-none">{n.icon}</span>
+                <span className="flex leading-none">{n.icon}</span>
                 <span className="max-w-full truncate px-0.5">{n.label}</span>
               </button>
             ))}
@@ -8780,7 +8795,7 @@ export function App() {
                 view === "admin" ? "bg-[var(--accent)] text-white" : "text-[var(--dim)] hover:bg-[var(--surface-alt)]"
               }`}
             >
-              ⚙️ {ui.t("nav.admin")}
+              {iconGear} {ui.t("nav.admin")}
             </button>
           )}
         </nav>
