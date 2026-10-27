@@ -171,6 +171,11 @@ export const orders = pgTable("orders", {
   status: text("status")
     .notNull()
     .default("Pending"),
+  // Cash on Delivery confirmation (WhatsApp-first, roadmap P0): 1 once
+  // the fulfilling seller (or the Admin) has confirmed the COD order
+  // with the customer before dispatch; 0 while it still awaits it.
+  codConfirmed: integer("cod_confirmed").notNull().default(0),
+  codConfirmedAt: timestamp("cod_confirmed_at", { precision: 3, withTimezone: true, mode: "date" }),
   createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -471,6 +476,33 @@ export const deletedAccounts = pgTable("deleted_accounts", {
 // Uploaded file bytes for the standalone backend (replaces the hosted
 // runtime's blob storage). Handlers keep fileName/size metadata in their
 // own rows; only the key, content type and base64 bytes live here.
+// Product reviews (roadmap P0, verified purchase only): one row per
+// (order, product), written only by the buyer of a Delivered order that
+// contains the product. visible = 0 hides the review from the public
+// product page (Admin moderation); it is never deleted.
+export const productReviews = pgTable(
+  "product_reviews",
+  {
+    id: serial("id").primaryKey(),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id),
+    buyerId: integer("buyer_id")
+      .notNull()
+      .references(() => users.id),
+    orderId: integer("order_id")
+      .notNull()
+      .references(() => orders.id),
+    rating: integer("rating").notNull(),
+    comment: text("comment").notNull().default(""),
+    visible: integer("visible").notNull().default(1),
+    createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [uniqueIndex("product_reviews_order_product_unique").on(t.orderId, t.productId)],
+);
+
 export const blobs = pgTable("blobs", {
   key: text("key").primaryKey(),
   contentType: text("content_type").notNull(),

@@ -888,6 +888,8 @@ const orderOut = z.object({
   placedBy: z.string(),
   total: z.number(),
   status: z.string(),
+  codConfirmed: z.number(),
+  codConfirmedAt: z.string().nullable(),
   createdAt: z.string(),
   items: z.array(
     z.object({
@@ -948,6 +950,8 @@ async function toOrderOut(db: Db, o: OrderRow) {
     placedBy: o.placedBy ?? "customer",
     total: o.total,
     status: o.status,
+    codConfirmed: o.codConfirmed ?? 0,
+    codConfirmedAt: o.codConfirmedAt ? o.codConfirmedAt.toISOString() : null,
     createdAt: o.createdAt.toISOString(),
     items: withNames,
   };
@@ -3533,6 +3537,132 @@ export const Actions = {
       const orders = [];
       for (const o of rows) orders.push(await toOrderOut(db, o));
       return { orders };
+    },
+  }),
+
+  // ---- Product reviews (verified purchase only) ----
+  // A buyer can review a product only from a Delivered order that
+  // contains it — one review per (order, product). Reviews show on the
+  // product detail page with the buyer's first name and a "Verified
+  // purchase" mark; hidden reviews (visible = 0) never render publicly.
+  submitReview: defineAction({
+    request: z.object({
+      buyerId: z.number(),
+      orderId: z.number(),
+      productId: z.number(),
+      rating: z.number().int().min(1).max(5),
+      comment: z.string().max(500),
+    }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable(), id: z.number().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const fail = (error: string) => ({ ok: false, error, id: null as number | null });
+      const order = await db.select().from(schema.orders).where(eq(schema.orders.id, args.orderId)).limit(1);
+      if (!order[0] || order[0].buyerId !== args.buyerId) return fail("This order was not found on your account.");
+      if (order[0].status !== "Delivered") return fail("You can review a product only after its order is Delivered.");
+      const item = await db.select().from(schema.orderItems).where(and(eq(schema.orderItems.orderId, args.orderId), eq(schema.orderItems.productId, args.productId))).limit(1);
+      if (!item[0]) return fail("This product is not part of that order.");
+      const existing = await db.select().from(schema.productReviews).where(and(eq(schema.productReviews.orderId, args.orderId), eq(schema.productReviews.productId, args.productId))).limit(1);
+      if (existing[0]) return fail("You have already reviewed this product for this order.");
+      const comment = (args.comment ?? "").trim();
+      const inserted = await db.insert(schema.productReviews).values({ productId: args.productId, buyerId: args.buyerId, orderId: args.orderId, rating: args.rating, comment, visible: 1 }).returning({ id: schema.productReviews.id });
+      ctx.invalidateQueries();
+      return { ok: true, error: null, id: inserted[0]?.id ?? null };
+    },
+  }),
+
+  listProductReviews: defineAction({
+    request: z.object({ productId: z.number() }),
+    response: z.object({
+      reviews: z.array(z.object({ id: z.number(), rating: z.number(), comment: z.string(), buyerName: z.string(), createdAt: z.string() })),
+      avgRating: z.number(),
+      count: z.number(),
+    }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const rows = await db.select().from(schema.productReviews).where(and(eq(schema.productReviews.productId, args.productId), eq(schema.productReviews.visible, 1))).orderBy(desc(schema.productReviews.id));
+      const reviews = [];
+      for (const r of rows) {
+        const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
+        const first = (u[0]?.name ?? "").trim().split(/\s+/)[0] ?? "";
+        reviews.push({ id: r.id, rating: r.rating, comment: r.comment, buyerName: first || "Buyer", createdAt: r.createdAt.toISOString() });
+      }
+      const count = rows.length;
+      const avgRating = count === 0 ? 0 : Math.round((rows.reduce((s, r) => s + r.rating, 0) / count) * 10) / 10;
+      return { reviews, avgRating, count };
+    },
+  }),
+
+  listMyReviews: defineAction({
+    request: z.object({ buyerId: z.number() }),
+    response: z.object({ reviewed: z.array(z.object({ orderId: z.number(), productId: z.number() })) }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const rows = await db.select().from(schema.productReviews).where(eq(schema.productReviews.buyerId, args.buyerId));
+      return { reviewed: rows.map((r) => ({ orderId: r.orderId, productId: r.productId })) };
+    },
+  }),
+
+  listAllReviews: defineAction({
+    request: z.object({ adminId: z.number() }),
+    response: z.object({ reviews: z.array(z.object({ id: z.number(), productId: z.number(), productName: z.string(), buyerName: z.string(), orderId: z.number(), rating: z.number(), comment: z.string(), visible: z.number(), createdAt: z.string() })) }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { reviews: [] };
+      const rows = await db.select().from(schema.productReviews).orderBy(desc(schema.productReviews.id));
+      const out = [];
+      for (const r of rows) {
+        const p = await db.select({ name: schema.products.name }).from(schema.products).where(eq(schema.products.id, r.productId)).limit(1);
+        const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
+        out.push({ id: r.id, productId: r.productId, productName: p[0]?.name ?? "Product", buyerName: u[0]?.name ?? "", orderId: r.orderId, rating: r.rating, comment: r.comment, visible: r.visible, createdAt: r.createdAt.toISOString() });
+      }
+      return { reviews: out };
+    },
+  }),
+
+  adminSetReviewVisible: defineAction({
+    request: z.object({ adminId: z.number(), reviewId: z.number(), visible: z.number().int().min(0).max(1) }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the admin can moderate reviews." };
+      await db.update(schema.productReviews).set({ visible: args.visible }).where(eq(schema.productReviews.id, args.reviewId));
+      ctx.invalidateQueries();
+      return { ok: true, error: null };
+    },
+  }),
+
+  // ---- Cash on Delivery confirmation (WhatsApp-first) ----
+  // Before dispatch, the fulfilling seller (or the Admin) confirms the
+  // COD order with the customer on WhatsApp, then marks it confirmed.
+  // The flag shows on every order surface (buyer, seller, Admin) so
+  // nobody dispatches an unconfirmed COD order by mistake.
+  markCodConfirmed: defineAction({
+    request: z.object({ actorRole: z.enum(["seller", "admin"]), actorId: z.number(), orderId: z.number() }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const fail = (error: string) => ({ ok: false, error });
+      const order = await db.select().from(schema.orders).where(eq(schema.orders.id, args.orderId)).limit(1);
+      if (!order[0]) return fail("This order was not found.");
+      const o = order[0];
+      if (o.paymentMethod !== "Cash on Delivery") return fail("Only Cash on Delivery orders need COD confirmation.");
+      if (o.status !== "Pending" && o.status !== "Confirmed" && o.status !== "Shipped") return fail(`Order #${o.id} is ${o.status} — COD confirmation no longer applies.`);
+      if (o.codConfirmed) return fail(`Order #${o.id} is already COD confirmed.`);
+      if (args.actorRole === "admin") {
+        const me = await db.select().from(schema.users).where(eq(schema.users.id, args.actorId)).limit(1);
+        if (!me[0] || me[0].role !== "admin") return fail("Only the admin can mark COD confirmation.");
+      } else {
+        const me = await db.select().from(schema.users).where(eq(schema.users.id, args.actorId)).limit(1);
+        if (!me[0] || me[0].role !== "seller") return fail("Only the fulfilling seller can mark COD confirmation.");
+        const snap = await db.select().from(schema.orderSellerItems).where(and(eq(schema.orderSellerItems.orderId, args.orderId), eq(schema.orderSellerItems.sellerId, args.actorId))).limit(1);
+        if (o.sellerId !== args.actorId && !snap[0]) return fail("This order is not attributed to your store.");
+      }
+      await db.update(schema.orders).set({ codConfirmed: 1, codConfirmedAt: new Date() }).where(eq(schema.orders.id, args.orderId));
+      ctx.invalidateQueries();
+      return { ok: true, error: null };
     },
   }),
 

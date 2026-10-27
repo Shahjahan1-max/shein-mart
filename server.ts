@@ -160,6 +160,25 @@ CREATE TABLE IF NOT EXISTS deleted_accounts (
 CREATE TABLE IF NOT EXISTS blobs (
   key TEXT PRIMARY KEY, content_type TEXT NOT NULL, size INTEGER NOT NULL, data_base64 TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS product_reviews (
+  id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id),
+  buyer_id INTEGER NOT NULL REFERENCES users(id), order_id INTEGER NOT NULL REFERENCES orders(id),
+  rating INTEGER NOT NULL, comment TEXT NOT NULL DEFAULT '', visible INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT product_reviews_order_product_unique UNIQUE (order_id, product_id)
+);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cod_confirmed INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cod_confirmed_at TIMESTAMPTZ;
+CREATE OR REPLACE FUNCTION guard_wallet_ledger() RETURNS trigger AS $$
+BEGIN
+  IF OLD.amount IS DISTINCT FROM NEW.amount OR OLD.type IS DISTINCT FROM NEW.type OR OLD.seller_id IS DISTINCT FROM NEW.seller_id THEN
+    RAISE EXCEPTION 'wallet ledger rows are append-only: amount, type and seller cannot be changed';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS wallet_ledger_guard ON wallet_transactions;
+CREATE TRIGGER wallet_ledger_guard BEFORE UPDATE OF amount, type, seller_id ON wallet_transactions FOR EACH ROW EXECUTE FUNCTION guard_wallet_ledger();
 `;
 
 // FK-safe insert order for /seed (parents before children).
