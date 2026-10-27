@@ -578,11 +578,13 @@ function ProductCard({
   inMyStore,
   dense,
   onOpen,
+  onBuyNow,
 }: {
   product: Product;
   user: User;
   onAddToCart: (p: Product) => void;
   onOpen?: (p: Product) => void;
+  onBuyNow?: (p: Product) => void;
   // Shop is where sellers add products to their own store (restored):
   // a seller tapping "Add to My Store" here adds the product directly,
   // and it then shows only in the seller's Products tab. Buyers keep
@@ -650,6 +652,7 @@ function ProductCard({
         </div>
         <div className="mt-2 flex flex-col gap-1.5">
           {(!user || user.role === "buyer") && (
+            <>
             <button
               type="button"
               aria-label={`Add ${product.name} to cart`}
@@ -659,6 +662,18 @@ function ProductCard({
             >
               {t("shop.addToCart")}
             </button>
+            {onBuyNow && (
+              <button
+                type="button"
+                aria-label={`Buy ${product.name} now`}
+                disabled={product.stock <= 0}
+                onClick={() => onBuyNow(product)}
+                className={primaryBtn + (dense ? " w-full px-0.5 py-2 text-xs leading-tight" : " w-full py-2")}
+              >
+                {t("shop.buyNow")}
+              </button>
+            )}
+            </>
           )}
           {user?.role === "seller" &&
             (inMyStore ? (
@@ -856,6 +871,7 @@ function ProductDetail({
                 product={p}
                 user={user}
                 onAddToCart={(pp) => onAddToCartQty(pp, 1, false)}
+                onBuyNow={(pp) => onAddToCartQty(pp, 1, true)}
                 onAddToMyStore={onAddToMyStore}
                 inMyStore={myStoreIds.has(p.id)}
                 onOpen={onOpenProduct}
@@ -1170,6 +1186,7 @@ function ShopView({
               product={p}
               user={user}
               onAddToCart={handleAddToCart}
+              onBuyNow={(p) => handleAddToCartQty(p, 1, true)}
               onOpen={setDetailProduct}
               onAddToMyStore={handleAddToMyStore}
               inMyStore={myStoreIds.has(p.id)}
@@ -1195,6 +1212,7 @@ function ShopView({
                   product={p}
                   user={user}
                   onAddToCart={handleAddToCart}
+                  onBuyNow={(p) => handleAddToCartQty(p, 1, true)}
                   onOpen={setDetailProduct}
                   onAddToMyStore={handleAddToMyStore}
                   inMyStore={myStoreIds.has(p.id)}
