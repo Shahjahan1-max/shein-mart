@@ -274,9 +274,9 @@ h1, h2, h3, h4, h5, h6, p, li, dt, dd {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(105deg, transparent 40%, rgba(255, 223, 150, 0.45) 50%, rgba(255, 255, 255, 0.35) 54%, transparent 62%);
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 215, 120, 0.65) 48%, rgba(255, 255, 255, 0.5) 53%, rgba(255, 215, 120, 0.65) 58%, transparent 68%);
   transform: translateX(-130%);
-  transition: transform 0.9s ease;
+  transition: transform 1.4s ease;
   pointer-events: none;
 }
 .product-card:hover .product-media::after {
