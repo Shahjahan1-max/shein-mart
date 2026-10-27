@@ -786,6 +786,15 @@ function ProductDetail({
             ) : (
               <p className="text-sm font-semibold text-rose-600">{t("shop.outOfStock")}</p>
             )}
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] p-3 text-sm leading-relaxed text-[var(--text)]">
+              <p className="font-display font-bold">{t("shop.deliveryTitle")}</p>
+              <ul className="mt-1.5 flex flex-col gap-1 text-[13px]">
+                <li>&#10003; {t("shop.codLine")}</li>
+                <li>&#10003; {t("shop.prepaidLine")}</li>
+                <li>&#10003; {t("shop.trackLine")}</li>
+                <li>&#10003; {t("shop.returnLine")}</li>
+              </ul>
+            </div>
             {product.description ? (
               <p className="mt-1 text-sm leading-relaxed text-[var(--text)]">{product.description}</p>
             ) : null}
@@ -1888,6 +1897,50 @@ function OrderCard({ order, hideItems, proofViewerId }: { order: Order; hideItem
           {new Date(order.createdAt).toLocaleString()}
         </span>
       </div>
+      {order.status !== "Cancelled" && (
+        <div className="mt-3">
+          <div className="relative mx-3">
+            <div className="absolute left-3 right-3 top-3 h-0.5 bg-[var(--border)]" />
+            <div
+              className="absolute left-3 top-3 h-0.5 bg-emerald-600"
+              style={{
+                width:
+                  order.status === "Delivered"
+                    ? "calc(100% - 24px)"
+                    : order.status === "Shipped"
+                      ? "calc(50% - 12px)"
+                      : "0%",
+              }}
+            />
+            <div className="relative flex justify-between">
+              {[
+                { key: "placed", label: t("track.placed"), done: true },
+                {
+                  key: "shipped",
+                  label: t("track.shipped"),
+                  done: order.status === "Shipped" || order.status === "Delivered",
+                },
+                { key: "delivered", label: t("track.delivered"), done: order.status === "Delivered" },
+              ].map((s, idx) => (
+                <div key={s.key} className="flex flex-col items-center gap-1">
+                  <span
+                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                      s.done ? "bg-emerald-600 text-white" : "bg-[var(--surface-alt)] text-[var(--dim)]"
+                    }`}
+                  >
+                    {s.done ? "✓" : idx + 1}
+                  </span>
+                  <span
+                    className={`text-[11px] font-semibold ${s.done ? "text-[var(--text)]" : "text-[var(--dim)]"}`}
+                  >
+                    {s.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {/* The products strip (the row of ordered products) is shown for
           buyers and Admin, but NOT in the seller's order area: there it
           only cluttered the order details. Product viewing and removal
