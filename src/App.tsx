@@ -9638,13 +9638,13 @@ const NAV: NavItem[] =
           </div>
         )}
         <header ref={headerRef} className="site-header sticky top-0 z-40 border-b-2 border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
-          <div className={`hdr-row mx-auto flex ${containerW} items-center gap-x-1.5 px-3 sm:px-4 flex-wrap gap-y-1 py-2.5`}>
+          <div className={`hdr-row mx-auto flex ${containerW} flex-nowrap items-center gap-x-1.5 px-3 sm:px-4 py-2.5`}>
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label={ui.t("menu.open")}
               aria-expanded={drawerOpen}
-              className="hdr-drawer rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] min-h-11 py-0.5 text-lg"
+              className="hdr-drawer shrink-0 rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] min-h-11 py-0.5 text-lg"
             >
               ☰
             </button>
@@ -9652,10 +9652,10 @@ const NAV: NavItem[] =
               type="button"
               onClick={() => (user?.role === "seller" ? goSellerTab("home") : setView("shop"))}
               aria-label={`${storeName} home`}
-              className="hdr-brand flex min-w-0 max-w-[34vw] items-center text-left font-display font-extrabold tracking-tight text-[var(--accent)] text-2xl"
+              className="hdr-brand flex min-w-0 flex-1 items-center text-left font-display font-extrabold tracking-tight text-[var(--accent)] text-xl sm:text-2xl"
             >
               {headerLogoUrl ? (
-                <img src={headerLogoUrl} alt="" className="hdr-logo mr-1.5 h-10 w-10 shrink-0 rounded-xl object-contain" />
+                <img src={headerLogoUrl} alt="" className="hdr-logo mr-1.5 h-9 w-9 shrink-0 rounded-xl object-contain sm:h-10 sm:w-10" />
               ) : null}
               <span className="truncate">{storeName}</span>
               {headerLogoUrl ? null : <span className="text-[var(--gold)]">.</span>}
@@ -9663,10 +9663,10 @@ const NAV: NavItem[] =
             <span className="hdr-tagline hidden text-xs font-medium text-[var(--dim)] lg:block">
               {ui.t("header.tagline")}
             </span>
-            <div className="hdr-actions ml-auto flex items-center gap-1.5 flex-wrap">
+            <div className="hdr-actions ml-auto flex shrink-0 items-center gap-1.5">
               
               {user?.role === "seller" && (
-                <div className="relative">
+                <div className="relative shrink-0">
                   <button
                     type="button"
                     onClick={() => { const next = !notifOpen; setNotifOpen(next); if (next && sellerUnread > 0) { /* keep unread until panel viewed */ } }}
@@ -9731,7 +9731,7 @@ const NAV: NavItem[] =
                 aria-label={theme === "dark" ? ui.t("theme.toLight") : ui.t("theme.toDark")}
                 aria-pressed={theme === "dark"}
                 title={theme === "dark" ? ui.t("theme.light") : ui.t("theme.dark")}
-                className="hdr-toggle flex items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] h-12 w-12"
+                className="hdr-toggle flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] sm:h-12 sm:w-12"
               >
                 {theme === "dark" ? iconSun : iconMoon}
               </button>
@@ -9740,7 +9740,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="My account"
-                  className="hdr-user max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-[var(--accent-ink)] min-h-11 py-0.5 text-sm"
+                  className="hdr-user max-w-[26vw] shrink-0 truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-[var(--accent-ink)] min-h-11 py-0.5 text-sm"
                 >
                   {user.name.split(" ")[0]}
                 </button>
@@ -9749,7 +9749,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="Sign in or register"
-                  className="hdr-signin flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-[var(--accent-ink)] shadow-sm hover:brightness-110 min-h-11 px-5 text-[15px]"
+                  className="hdr-signin flex min-h-10 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3.5 text-sm font-bold text-[var(--accent-ink)] shadow-sm hover:brightness-110 sm:min-h-11 sm:px-5 sm:text-[15px]"
                 >
                   {iconUser}
                   {ui.t("header.signIn")}
