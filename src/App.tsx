@@ -1043,12 +1043,31 @@ function ShopView({
       scroll();
     }
   }
+  // Scroll the product list back to its top when the category changes.
+  // The #catalog bar is sticky, so scrollIntoView on it is unreliable:
+  // a stuck bar is already "visible" at the top, so the browser may not
+  // move the page at all and the visitor stays at the bottom of the new
+  // list. Instead scroll the window to the bar's flow position in the
+  // document (offsetTop is unaffected by the sticky paint offset),
+  // just below the sticky header — the same gap as its scroll-mt.
+  // Runs after a tick so the category change has re-rendered first:
+  // switching away from All unmounts the hero/collection/featured
+  // sections above the bar, which moves its flow position up.
+  function scrollCatalogToTop() {
+    const el = document.getElementById("catalog");
+    if (!el) return;
+    let top = 0;
+    let node: HTMLElement | null = el;
+    while (node) {
+      top += node.offsetTop;
+      node = node.offsetParent as HTMLElement | null;
+    }
+    const headerH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 56;
+    window.scrollTo({ top: Math.max(0, top - headerH - 16), behavior: "smooth" });
+  }
   function goCategory(cat: string) {
     setCategory(cat);
-    window.setTimeout(
-      () => document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      60,
-    );
+    window.setTimeout(scrollCatalogToTop, 60);
   }
 
   const sellerPicks = useQuery({
@@ -1366,7 +1385,7 @@ function ShopView({
             <Chip
               key={c}
               active={category === c}
-              onClick={() => setCategory(c)}
+              onClick={() => goCategory(c)}
               label={`Category ${c}`}
             >
               {trCategory(lang, c)}
