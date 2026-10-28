@@ -6036,6 +6036,11 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   const [ordersShopKey, setOrdersShopKey] = useState<string | null>(null);
   const [ordersSearch, setOrdersSearch] = useState("");
   const [ordersShowAll, setOrdersShowAll] = useState(false);
+  // Stat-card filter (Admin → Orders): clicking a top card shows only
+  // that bucket's orders across all shops. null = no card filter (the
+  // default by-shop list). Cleared by shop clicks, View all, and the
+  // filtered view's own Back button, so the views can never stack.
+  const [ordersCardFilter, setOrdersCardFilter] = useState<null | "pending" | "shipment" | "completed">(null);
   // Seller detail → Orders → Quick Send: one quantity box + one Send
   // Order button per product row. No customer form at all.
   const [quickQty, setQuickQty] = useState<Record<number, string>>({});
@@ -7350,6 +7355,14 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
     shipped: ov.orders.filter((o) => o.status === "Shipped").length,
     cancelled: ov.orders.filter((o) => o.status === "Cancelled").length,
   };
+  // The same buckets as lists, for the stat-card filter — predicates
+  // deliberately identical to ordCounts, so a card's number always
+  // equals the number of orders its click shows.
+  const ordersByCard = {
+    pending: ov.orders.filter((o) => o.status === "Pending" || o.status === "Confirmed"),
+    shipment: ov.orders.filter((o) => o.status === "Shipped"),
+    completed: ov.orders.filter((o) => o.status === "Delivered"),
+  };
   const sellerInfoByOrder = new Map((ov.orderSellerInfo ?? []).map((x) => [x.orderId, x]));
   const deletedByOrder = new Map((ov.orderDeletedInfo ?? []).map((x) => [x.orderId, x]));
   const buyerStatById = new Map((ov.buyerStats ?? []).map((x) => [x.userId, x]));
@@ -8228,25 +8241,47 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           {section === "orders" && (<div>
             <h3 className="mt-6 font-display text-lg font-bold text-[var(--text)]">{t("adm.orders")} ({ov.orders.length}){actCounts.orders > 0 && <span className="ml-2 rounded-full bg-[var(--alert)] px-2 py-0.5 text-xs font-bold text-[var(--alert-ink)]">{actCounts.orders} {t("act.newCount")}</span>}</h3>
             <div className="mt-3 grid grid-cols-2 gap-2 min-[560px]:grid-cols-4" role="group" aria-label={t("adm.orders")}>
-              {[
-                { label: t("adm.totalOrders"), value: ordCounts.total, alert: false },
-                { label: t("adm.completedOrders"), value: ordCounts.completed, alert: false },
-                { label: t("adm.pendingOrders"), value: ordCounts.pending, alert: ordCounts.pending > 0 },
-                { label: t("adm.shippedOrders"), value: ordCounts.shipped, alert: false },
-              ].map((c) => (
-                <div key={c.label} className={`rounded-xl border p-3 text-center ${c.alert ? "border-[var(--alert)] bg-[var(--alert-bg)]" : "border-[var(--border)] bg-[var(--surface)]"}`}>
-                  <p className="font-display text-xl font-extrabold text-[var(--text)]">{c.value}</p>
-                  <p className={`mt-0.5 text-xs font-semibold ${c.alert ? "text-[var(--alert)]" : "text-[var(--dim)]"}`}>{c.label}</p>
-                </div>
-              ))}
+              {([
+                { id: "all" as const, label: t("adm.totalOrders"), value: ordCounts.total, alert: false },
+                { id: "completed" as const, label: t("adm.completedOrders"), value: ordCounts.completed, alert: false },
+                { id: "pending" as const, label: t("adm.pendingOrders"), value: ordCounts.pending, alert: ordCounts.pending > 0 },
+                { id: "shipment" as const, label: t("adm.shippedOrders"), value: ordCounts.shipped, alert: false },
+              ]).map((c) => {
+                // Total opens the flat all-orders list; a bucket opens
+                // only that bucket's orders across all shops. The active
+                // card gets an accent ring so the open filter is visible.
+                const active = c.id === "all" ? ordersShowAll && !ordersCardFilter : ordersCardFilter === c.id;
+                return (
+                  <button key={c.id} type="button" aria-label={`${c.label}: ${c.value}`} aria-pressed={active} onClick={() => {
+                    setOrdersShopKey(null);
+                    if (c.id === "all") { setOrdersCardFilter(null); setOrdersShowAll(true); }
+                    else { setOrdersShowAll(false); setOrdersCardFilter(c.id); }
+                  }} className={`rounded-xl border p-3 text-center transition-shadow hover:shadow-md ${active ? "border-[var(--accent)] ring-2 ring-[var(--accent)]" : c.alert ? "border-[var(--alert)]" : "border-[var(--border)]"} ${c.alert ? "bg-[var(--alert-bg)]" : "bg-[var(--surface)]"}`}>
+                    <span className="block font-display text-xl font-extrabold text-[var(--text)]">{c.value}</span>
+                    <span className={`mt-0.5 block text-xs font-semibold ${c.alert ? "text-[var(--alert)]" : "text-[var(--dim)]"}`}>{c.label}</span>
+                  </button>
+                );
+              })}
             </div>
             <p className="mt-2 text-xs leading-snug text-[var(--dim)]">{t("act.noDeleteNote")}</p>
             {reviewErr && <p role="alert" className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">⚠ {reviewErr}</p>}
             {ordersByShop.length === 0 ? (
               <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noOrders")}</p>
+            ) : ordersCardFilter ? (
+              <div className="mt-3">
+                <button type="button" aria-label={t("aord.backToShops")} onClick={() => setOrdersCardFilter(null)} className={ghostBtn + " px-3 py-2 text-xs"}>{t("aord.backToShops")}</button>
+                <h4 className="mt-3 font-display font-bold text-[var(--text)]">
+                  {ordersCardFilter === "pending" ? `📦 ${t("sord.secPending")}` : ordersCardFilter === "shipment" ? `🚚 ${t("sord.secShipment")}` : `✅ ${t("sord.secCompleted")}`} ({ordersByCard[ordersCardFilter].length})
+                </h4>
+                {ordersByCard[ordersCardFilter].length === 0 ? (
+                  <p className="mt-2 text-sm text-[var(--dim)]">{t("sord.sectionEmpty")}</p>
+                ) : (
+                  <div className="mt-3 flex flex-col gap-3">{ordersByCard[ordersCardFilter].map((o) => renderAdminOrderRow(o))}</div>
+                )}
+              </div>
             ) : selectedShopGroup && !ordersShowAll ? (
               <div className="mt-3">
-                <button type="button" aria-label={t("aord.backToShops")} onClick={() => setOrdersShopKey(null)} className={ghostBtn + " px-3 py-2 text-xs"}>{t("aord.backToShops")}</button>
+                <button type="button" aria-label={t("aord.backToShops")} onClick={() => { setOrdersShopKey(null); setOrdersCardFilter(null); }} className={ghostBtn + " px-3 py-2 text-xs"}>{t("aord.backToShops")}</button>
                 {/* Compact shop header — whose orders these are: shop
                     name first, then the seller and their Login ID */}
                 <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -8294,11 +8329,11 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                     )}
                   </div>
                 ))}
-                <button type="button" aria-label={t("aord.viewAll")} onClick={() => setOrdersShowAll(true)} className="mt-5 text-sm font-bold text-[var(--accent)]">{t("aord.viewAll")} ({ov.orders.length}) →</button>
+                <button type="button" aria-label={t("aord.viewAll")} onClick={() => { setOrdersCardFilter(null); setOrdersShowAll(true); }} className="mt-5 text-sm font-bold text-[var(--accent)]">{t("aord.viewAll")} ({ov.orders.length}) →</button>
               </div>
             ) : ordersShowAll ? (
               <div className="mt-3">
-                <button type="button" aria-label={t("aord.backToShops")} onClick={() => setOrdersShowAll(false)} className={ghostBtn + " px-3 py-2 text-xs"}>{t("aord.backToShops")}</button>
+                <button type="button" aria-label={t("aord.backToShops")} onClick={() => { setOrdersShowAll(false); setOrdersCardFilter(null); }} className={ghostBtn + " px-3 py-2 text-xs"}>{t("aord.backToShops")}</button>
                 <h4 className="mt-3 font-display font-bold text-[var(--text)]">{t("aord.allOrdersTitle")} ({ov.orders.length})</h4>
                 <div className="mt-3 flex flex-col gap-3">{ov.orders.map((o) => renderAdminOrderRow(o))}</div>
               </div>
@@ -8316,7 +8351,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                 ) : (
                   <div className="mt-3 flex flex-col gap-2">
                     {filteredShopGroups.map((g) => (
-                      <button key={g.key} type="button" aria-label={`${t("aord.viewOrders")} — ${g.shopName}`} onClick={() => { setOrdersShopKey(g.key); setOrdersShowAll(false); for (const o of g.orders) if (newOrderIdSet.has(o.id)) markSeen.mutate({ kind: "order", refId: o.id }); }} className={`w-full rounded-xl border bg-[var(--surface)] p-3 text-left ${g.newCount > 0 ? "border-[var(--gold)] bg-[var(--amber-bg)] ring-2 ring-[var(--gold)]/60" : g.shipment > 0 ? "border-[var(--gold)]/60" : "border-[var(--border)]"}`}>
+                      <button key={g.key} type="button" aria-label={`${t("aord.viewOrders")} — ${g.shopName}`} onClick={() => { setOrdersCardFilter(null); setOrdersShopKey(g.key); setOrdersShowAll(false); for (const o of g.orders) if (newOrderIdSet.has(o.id)) markSeen.mutate({ kind: "order", refId: o.id }); }} className={`w-full rounded-xl border bg-[var(--surface)] p-3 text-left ${g.newCount > 0 ? "border-[var(--gold)] bg-[var(--amber-bg)] ring-2 ring-[var(--gold)]/60" : g.shipment > 0 ? "border-[var(--gold)]/60" : "border-[var(--border)]"}`}>
                         <span className="flex items-start gap-3">
                           <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] font-display text-base font-extrabold text-[var(--accent)]">{g.shopName.charAt(0).toUpperCase()}</span>
                           <span className="min-w-0 flex-1">
@@ -8351,7 +8386,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                     ))}
                   </div>
                 )}
-                <button type="button" aria-label={t("aord.viewAll")} onClick={() => setOrdersShowAll(true)} className="mt-4 text-sm font-bold text-[var(--accent)]">{t("aord.viewAll")} ({ov.orders.length}) →</button>
+                <button type="button" aria-label={t("aord.viewAll")} onClick={() => { setOrdersCardFilter(null); setOrdersShowAll(true); }} className="mt-4 text-sm font-bold text-[var(--accent)]">{t("aord.viewAll")} ({ov.orders.length}) →</button>
               </div>
             )}
           </div>)}
