@@ -10236,6 +10236,14 @@ const NAV: NavItem[] =
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen]);
 
+  // Categories collapse whenever the drawer closes (X, backdrop,
+  // Escape, or any navigation), so every fresh open starts collapsed
+  // like the first time (user request 2026-10-28). One effect covers
+  // all close paths, so no close call site can forget the reset.
+  useEffect(() => {
+    if (!drawerOpen) setDrawerCatsOpen(false);
+  }, [drawerOpen]);
+
   function goShopCategory(c: string) {
     setShopCategory(c);
     setView("shop");
