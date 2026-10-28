@@ -8838,13 +8838,34 @@ export function App() {
   const [supportStartInChat, setSupportStartInChat] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  // Professional fixed header: one constant height at all times — the
-  // bar never shrinks or grows while scrolling, so it never jitters,
-  // jumps or drags the sticky category bar with it. (The old
-  // scroll-shrink animation was the "ajeeb movement" on mobile.)
-  // `headerH` is the measured header height so sticky bars below
-  // offset exactly.
+  // Professional compact-on-scroll header (user's rule, 2026-10-28):
+  // at the very top the header is full-size; once the visitor scrolls
+  // down past ~140px it compacts to a single slim row so more of the
+  // page is visible. It expands again ONLY when scrolled back to near
+  // the top (<30px) — never on a small upward scroll mid-page (that
+  // immediate re-expand was the old "ajeeb movement"). The wide
+  // hysteresis gap (30–140px) means it toggles at most twice per
+  // scroll journey, so there is no flicker; the 300ms transition
+  // keeps the morph smooth. `headerH` (ResizeObserver below) keeps
+  // tracking the real height so sticky bars below offset exactly.
+  const [headerCompact, setHeaderCompact] = useState(false);
   const [headerH, setHeaderH] = useState(44);
+  useEffect(() => {
+    let compact = false;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        if (!compact && y > 140) { compact = true; setHeaderCompact(true); }
+        else if (compact && y < 30) { compact = false; setHeaderCompact(false); }
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const headerRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const el = headerRef.current;
@@ -9203,13 +9224,13 @@ const NAV: NavItem[] =
           </div>
         )}
         <header ref={headerRef} className="sticky top-0 z-40 border-b-2 border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
-          <div className={`mx-auto flex ${containerW} flex-wrap items-center gap-x-1.5 px-3 transition-all duration-300 sm:px-4 gap-y-1 py-2.5`}>
+          <div className={`mx-auto flex ${containerW} items-center gap-x-1.5 px-3 transition-all duration-300 sm:px-4 ${headerCompact ? "flex-nowrap gap-y-0 py-1" : "flex-wrap gap-y-1 py-2.5"}`}>
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label={ui.t("menu.open")}
               aria-expanded={drawerOpen}
-              className={`rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] transition-all duration-300 min-h-11 py-0.5 text-lg`}
+              className={`rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] transition-all duration-300 ${headerCompact ? "min-h-9 py-0.5 text-sm" : "min-h-11 py-0.5 text-lg"}`}
             >
               ☰
             </button>
@@ -9217,18 +9238,18 @@ const NAV: NavItem[] =
               type="button"
               onClick={() => (user?.role === "seller" ? goSellerTab("home") : setView("shop"))}
               aria-label={`${storeName} home`}
-              className={`flex min-w-0 max-w-[34vw] items-center text-left font-display font-extrabold tracking-tight text-[var(--accent)] transition-all duration-300 text-2xl`}
+              className={`flex min-w-0 max-w-[34vw] items-center text-left font-display font-extrabold tracking-tight text-[var(--accent)] transition-all duration-300 ${headerCompact ? "text-lg" : "text-2xl"}`}
             >
               {headerLogoUrl ? (
-                <img src={headerLogoUrl} alt="" className="mr-1.5 h-10 w-10 shrink-0 rounded-xl object-contain" />
+                <img src={headerLogoUrl} alt="" className={headerCompact ? "mr-1.5 h-8 w-8 shrink-0 rounded-xl object-contain" : "mr-1.5 h-10 w-10 shrink-0 rounded-xl object-contain"} />
               ) : null}
               <span className="truncate">{storeName}</span>
               {headerLogoUrl ? null : <span className="text-[var(--gold)]">.</span>}
             </button>
-            <span className={"hidden text-xs font-medium text-[var(--dim)] lg:block"}>
+            <span className={headerCompact ? "hidden" : "hidden text-xs font-medium text-[var(--dim)] lg:block"}>
               {ui.t("header.tagline")}
             </span>
-            <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            <div className={`ml-auto flex items-center gap-1.5 ${headerCompact ? "flex-nowrap" : "flex-wrap"}`}>
               
               {user?.role === "seller" && (
                 <div className="relative">
@@ -9237,7 +9258,7 @@ const NAV: NavItem[] =
                     onClick={() => { const next = !notifOpen; setNotifOpen(next); if (next && sellerUnread > 0) { /* keep unread until panel viewed */ } }}
                     aria-label={`${ui.t("notif.bell")}${sellerUnread > 0 ? `, ${sellerUnread} unread` : ""}`}
                     aria-expanded={notifOpen}
-                    className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 min-h-11 py-0.5 text-lg`}
+                    className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none transition-all duration-300 ${headerCompact ? "min-h-9 py-0.5 text-sm" : "min-h-11 py-0.5 text-lg"}`}
                   >
                     🔔
                     {sellerUnread > 0 && (
@@ -9294,7 +9315,7 @@ const NAV: NavItem[] =
                   onClick={() => setView("cart")}
                   aria-label={`${ui.t("cart.title")}${cartCount > 0 ? ` (${cartCount})` : ""}`}
                   aria-current={view === "cart" ? "page" : undefined}
-                  className={`shine-btn relative rounded-full bg-[var(--surface-alt)] px-3.5 leading-none transition-all duration-300 hover:scale-110 min-h-12 py-0.5 text-[22px]`}
+                  className={`shine-btn relative rounded-full bg-[var(--surface-alt)] px-3.5 leading-none transition-all duration-300 hover:scale-110 ${headerCompact ? "min-h-10 py-0.5 text-lg" : "min-h-12 py-0.5 text-[22px]"}`}
                 >
                   <span aria-hidden className="shine-sweep" />
                   🛒
@@ -9311,7 +9332,7 @@ const NAV: NavItem[] =
                 aria-label={theme === "dark" ? ui.t("theme.toLight") : ui.t("theme.toDark")}
                 aria-pressed={theme === "dark"}
                 title={theme === "dark" ? ui.t("theme.light") : ui.t("theme.dark")}
-                className={`flex items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] transition-all duration-300 h-12 w-12`}
+                className={`flex items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] transition-all duration-300 ${headerCompact ? "h-10 w-10" : "h-12 w-12"}`}
               >
                 {theme === "dark" ? iconSun : iconMoon}
               </button>
@@ -9320,7 +9341,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="My account"
-                  className={`max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-white transition-all duration-300 min-h-11 py-0.5 text-sm`}
+                  className={`max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-white transition-all duration-300 ${headerCompact ? "min-h-10 py-0.5 text-[13px]" : "min-h-11 py-0.5 text-sm"}`}
                 >
                   {user.name.split(" ")[0]}
                 </button>
@@ -9329,7 +9350,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="Sign in or register"
-                  className={`flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-white shadow-sm transition-all duration-300 hover:brightness-110 min-h-11 px-5 text-[15px]`}
+                  className={`flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-white shadow-sm transition-all duration-300 hover:brightness-110 ${headerCompact ? "min-h-10 px-4 text-sm" : "min-h-11 px-5 text-[15px]"}`}
                 >
                   {iconUser}
                   {ui.t("header.signIn")}
