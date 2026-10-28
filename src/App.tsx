@@ -8523,6 +8523,27 @@ function LiveChat({
   });
   const messages = chat.data?.messages ?? [];
 
+  // Opening Live Chat marks admin replies seen, so the Support dot
+  // clears and stays gone after reload (mirrors the Wallet dot).
+  // Fires once per new admin message, including replies that arrive
+  // while the chat is open (the thread polls every 5s).
+  const markChatSeen = useMutation({
+    mutationFn: () => api.markChatSeen({ userId: user!.id }),
+    onSuccess: () => {
+      queryClient.setQueryData(["chat-unread", user?.id], { unreadCount: 0 });
+    },
+  });
+  const lastAdminIdRef = useRef(-1);
+  useEffect(() => {
+    if (!user || user.role === "admin") return;
+    const adminIds = messages.filter((m) => m.sender === "admin").map((m) => m.id);
+    const last = adminIds[adminIds.length - 1];
+    if (last === undefined || last === lastAdminIdRef.current) return;
+    lastAdminIdRef.current = last;
+    markChatSeen.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
   const scrollToLatest = () => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -9170,6 +9191,30 @@ export function App() {
   });
   const walletUnread = walletUnreadQ.data?.unreadCount ?? 0;
 
+  // Seller tab dot: orders awaiting shipment (Pending/Confirmed).
+  // Reuses the SellerView dashboard query key, so both navs agree and
+  // no new backend action exists. Distinct from the bell: the bell is
+  // unread order NEWS (clears on read); this is pending ACTION
+  // (clears when the order ships).
+  const sellerDashQ = useQuery({
+    queryKey: ["seller-dashboard", user?.id],
+    queryFn: () => api.sellerDashboard({ sellerId: user!.id }),
+    enabled: !!user && user.role === "seller",
+    refetchInterval: 30000,
+  });
+  const sellerPending = sellerDashQ.data?.pendingShipment ?? 0;
+
+  // Support tab dot: unread admin replies in Live Chat. Nothing
+  // signals these outside today (the bell is order-only, and buyers
+  // have no bell at all), so this is new signal, not a duplicate.
+  const chatUnreadQ = useQuery({
+    queryKey: ["chat-unread", user?.id],
+    queryFn: () => api.getChatUnread({ userId: user!.id }),
+    enabled: !!user && user.role !== "admin",
+    refetchInterval: 30000,
+  });
+  const chatUnread = chatUnreadQ.data?.unreadCount ?? 0;
+
   // Bottom / desktop navigation: NO Cart and NO Orders here — Cart lives
   // only in the ☰ hamburger drawer, and Orders moved into the drawer too.
   // The Products tab (the seller's Add-to-My-Store section) takes Orders'
@@ -9778,7 +9823,7 @@ const NAV: NavItem[] =
               <button
                 key={n.key}
                 type="button"
-                aria-label={n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.label}
+                aria-label={n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.key === "seller" && sellerPending > 0 ? `${n.label}, ${ui.t("sd.newOrdersToShip")}` : n.key === "support" && chatUnread > 0 ? `${n.label}, ${ui.t("sd.newSupportMessage")}` : n.label}
                 aria-current={navCurrent(n) ? "page" : undefined}
                 onClick={() => navGo(n)}
                 className={`relative flex min-h-[4rem] flex-col items-center justify-center gap-1 pb-2 pt-2.5 text-[10px] font-medium leading-tight tracking-wide ${
@@ -9788,6 +9833,8 @@ const NAV: NavItem[] =
                 {navCurrent(n) && <span aria-hidden className="absolute left-1/2 top-0 h-[3px] w-8 -translate-x-1/2 rounded-full bg-[var(--accent)]" />}
                 {n.isNew && <NewBadge id="nav-products" className="absolute right-0.5 top-0.5" />}
                 {n.key === "wallet" && walletUnread > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
+                {n.key === "seller" && sellerPending > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
+                {n.key === "support" && chatUnread > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
                 <span className="flex leading-none">{n.icon}</span>
                 <span className="max-w-full truncate px-0.5">{n.label}</span>
               </button>
@@ -9805,7 +9852,7 @@ const NAV: NavItem[] =
             <button
               key={n.key}
               type="button"
-              aria-label={n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.label}
+              aria-label={n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.key === "seller" && sellerPending > 0 ? `${n.label}, ${ui.t("sd.newOrdersToShip")}` : n.key === "support" && chatUnread > 0 ? `${n.label}, ${ui.t("sd.newSupportMessage")}` : n.label}
               aria-current={navCurrent(n) ? "page" : undefined}
               onClick={() => navGo(n)}
               className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold lg:px-4 ${
@@ -9815,6 +9862,8 @@ const NAV: NavItem[] =
               {n.icon} {n.label}
               {n.isNew && <NewBadge id="nav-products" />}
               {n.key === "wallet" && walletUnread > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
+              {n.key === "seller" && sellerPending > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
+              {n.key === "support" && chatUnread > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
             </button>
           ))}
           {user?.role === "admin" && (
