@@ -3080,6 +3080,141 @@ export const Actions = {
     },
   }),
 
+  // Buyer → seller shift (user request 2026-10-28): a signed-in buyer
+  // converts their OWN account into a seller account with the same
+  // email/phone and password — no second account, no duplicate
+  // identifier (registerSeller refuses duplicate email/phone, so a
+  // buyer could never register as a seller with the same details).
+  // The frontend collects only the REMAINING info (address, store,
+  // documents); name/email/phone/country come from the account
+  // (country is asked only when the account has none). The converted
+  // account starts verificationStatus "pending": it can sign in and
+  // see the seller dashboard, but cannot add products or sell until
+  // the Admin verifies it from Admin → Seller Accounts — exactly
+  // like a new seller application. The shift is one-way (there is no
+  // seller → buyer conversion); the buyer's old orders and cart rows
+  // stay in the database but the seller views do not show buyer
+  // history. Sessions keep working: the dispatcher loads the role
+  // fresh from the users table on every request, so the same token
+  // carries the new role immediately, no re-login needed.
+  convertBuyerToSeller: defineAction({
+    auth: { arg: "userId" },
+    request: z.object({
+      userId: z.number(),
+      country: z.string().max(60).optional(),
+      address: z.string().min(5).max(300),
+      city: z.string().min(2).max(60),
+      state: z.string().min(2).max(60),
+      pinCode: z.string().min(0).max(10),
+      dateOfBirth: z.string().min(4).max(20),
+      photoFileName: z.string().max(200).optional(),
+      storeName: z.string().min(2).max(80),
+      storeDescription: z.string().min(10).max(500),
+      storeLogoFileName: z.string().max(200).optional(),
+      storeAddress: z.string().min(5).max(300),
+      businessType: z.string().min(2).max(60),
+      gstNumber: z.string().max(20).optional(),
+      docType: z.enum(["Aadhaar Card", "Ration Card", "PAN Card", "Voter ID", "Passport", "National ID Card"]),
+      docNumber: z.string().min(4).max(30),
+      docFrontFileName: z.string().min(1).max(200),
+      docBackFileName: z.string().max(200).optional(),
+      photoBlobKey: z.string().max(500).optional(),
+      photoContentType: z.string().max(100).optional(),
+      photoSize: z.number().int().min(0).max(10000000).optional(),
+      storeLogoBlobKey: z.string().max(500).optional(),
+      storeLogoContentType: z.string().max(100).optional(),
+      storeLogoSize: z.number().int().min(0).max(10000000).optional(),
+      docFrontBlobKey: z.string().max(500).optional(),
+      docFrontContentType: z.string().max(100).optional(),
+      docFrontSize: z.number().int().min(0).max(10000000).optional(),
+      docBackBlobKey: z.string().max(500).optional(),
+      docBackContentType: z.string().max(100).optional(),
+      docBackSize: z.number().int().min(0).max(10000000).optional(),
+    }),
+    response: z.object({
+      ok: z.boolean(),
+      error: z.string().nullable(),
+      user: userOut.nullable(),
+    }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const rows = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, args.userId))
+        .limit(1);
+      const u = rows[0];
+      if (!u) {
+        return { ok: false, error: "Account not found.", user: null };
+      }
+      if (u.role !== "buyer") {
+        return {
+          ok: false,
+          error: "Only a buyer account can be shifted to a seller account.",
+          user: null,
+        };
+      }
+      const accountCountry = (u.country ?? "").trim();
+      const country = accountCountry || (args.country ?? "").trim();
+      if (!country) {
+        return {
+          ok: false,
+          error: "Country is missing — please select your country.",
+          user: null,
+        };
+      }
+      if (!postalValid(country, args.pinCode)) {
+        const len = COUNTRY_POSTAL_LENGTH[country];
+        return {
+          ok: false,
+          error: len
+            ? `Postal code for ${country} is ${len} digits — please check and enter it again.`
+            : "Postal code looks wrong — please check and enter it again.",
+          user: null,
+        };
+      }
+      const updated = await db
+        .update(schema.users)
+        .set({
+          role: "seller",
+          verificationStatus: "pending",
+          country,
+          address: args.address.trim(),
+          city: args.city.trim(),
+          state: args.state.trim(),
+          pinCode: args.pinCode.trim(),
+          dateOfBirth: args.dateOfBirth.trim(),
+          photoFileName: args.photoFileName?.trim() || u.photoFileName,
+          storeName: args.storeName.trim(),
+          storeDescription: args.storeDescription.trim(),
+          storeLogoFileName: args.storeLogoFileName?.trim() || u.storeLogoFileName,
+          storeAddress: args.storeAddress.trim(),
+          businessType: args.businessType.trim(),
+          gstNumber: args.gstNumber?.trim() || null,
+          docType: args.docType,
+          docNumber: args.docNumber.trim(),
+          docFrontFileName: args.docFrontFileName.trim(),
+          docBackFileName: args.docBackFileName?.trim() || null,
+          photoBlobKey: args.photoBlobKey || u.photoBlobKey,
+          photoContentType: args.photoContentType || u.photoContentType,
+          photoSize: args.photoSize ?? u.photoSize,
+          storeLogoBlobKey: args.storeLogoBlobKey || u.storeLogoBlobKey,
+          storeLogoContentType: args.storeLogoContentType || u.storeLogoContentType,
+          storeLogoSize: args.storeLogoSize ?? u.storeLogoSize,
+          docFrontBlobKey: args.docFrontBlobKey || u.docFrontBlobKey,
+          docFrontContentType: args.docFrontContentType || u.docFrontContentType,
+          docFrontSize: args.docFrontSize ?? u.docFrontSize,
+          docBackBlobKey: args.docBackBlobKey || u.docBackBlobKey,
+          docBackContentType: args.docBackContentType || u.docBackContentType,
+          docBackSize: args.docBackSize ?? u.docBackSize,
+        })
+        .where(eq(schema.users.id, args.userId))
+        .returning();
+      ctx.invalidateQueries();
+      return { ok: true, error: null, user: toUserOut(updated[0]!) };
+    },
+  }),
+
   // Sign in with Gmail/email OR mobile number — whichever identifier the
   // account was registered with. `identifier` carries either one; the
   // legacy `email` field is still accepted.
