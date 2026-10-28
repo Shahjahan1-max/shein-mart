@@ -245,7 +245,8 @@ type View =
   | "account"
   | "seller"
   | "admin"
-  | "support";
+  | "support"
+  | "info";
 
 const SESSION_KEY = "dropship-session-user";
 const LANG_KEY = "sheinstore-lang";
@@ -8916,11 +8917,175 @@ function SupportView({
   );
 }
 
+/* ------------------------------ Info pages -------------------------------- */
+/* About / Privacy / Terms / Returns. Plain English, factual only: no
+   personal details, no phone numbers, no addresses — contact is always
+   the in-app Live Chat, which is the one support channel every account
+   already has. */
+
+type InfoPageId = "about" | "privacy" | "terms" | "returns";
+
+const INFO_PAGES: Record<InfoPageId, { title: string; sections: { heading: string; body: string[] }[] }> = {
+  about: {
+    title: "About sheinmart",
+    sections: [
+      {
+        heading: "What is sheinmart?",
+        body: [
+          "sheinmart is an independent online shopping marketplace. Buyers browse products from many sellers in one place, and sellers run their own store inside the marketplace.",
+        ],
+      },
+      {
+        heading: "How it works",
+        body: [
+          "The store owner runs one main store. Sellers open a seller account, add products from the main store to their own store, and earn a set profit percentage on every sale.",
+          "Buyers order from the seller's store. Prices shown already include the seller's profit on top of the base price.",
+        ],
+      },
+      {
+        heading: "Ordering and payment",
+        body: [
+          "Buyers can pay Cash on Delivery, or pay first using UPI, bank transfer or USDT where enabled. Prepaid orders are checked by the store admin before they are handed to the seller, so sellers only see verified orders.",
+        ],
+      },
+      {
+        heading: "Verified sellers",
+        body: [
+          "A new seller account stays Pending Verification until the store admin checks the application. Only verified sellers can add products and sell.",
+          "sheinmart is not affiliated with Amazon or SHEIN.",
+        ],
+      },
+    ],
+  },
+  privacy: {
+    title: "Privacy Policy",
+    sections: [
+      {
+        heading: "What we collect",
+        body: [
+          "Account details you give us when you register: your name, email address or mobile number, and country.",
+          "Order details: delivery name, phone number, address and city, needed to deliver your order.",
+          "Messages you send to Customer Service through Live Chat.",
+          "If you apply as a seller: the store details and documents you submit for verification.",
+        ],
+      },
+      {
+        heading: "How it is used",
+        body: [
+          "To run your account, process and deliver orders, show your orders and wallet, and answer your support messages.",
+          "Seller documents are used only to verify the seller account and are visible only to the store admin.",
+        ],
+      },
+      {
+        heading: "Passwords",
+        body: [
+          "Passwords are stored in hashed form and are never shown to anyone, including the store admin. If you forget your password, use the Forgot Password flow, which contacts Customer Service through Live Chat.",
+        ],
+      },
+      {
+        heading: "What we do not do",
+        body: [
+          "We do not sell your personal details to third parties.",
+          "You can update your account details from your Account page. If you want your account removed, contact Customer Service through Live Chat.",
+        ],
+      },
+    ],
+  },
+  terms: {
+    title: "Terms of Use",
+    sections: [
+      {
+        heading: "Using sheinmart",
+        body: [
+          "By using sheinmart you agree to these terms. The current version of this page applies.",
+        ],
+      },
+      {
+        heading: "Buyers",
+        body: [
+          "Please give accurate delivery details. Cash on Delivery orders are paid when the order arrives.",
+          "Prepaid orders stay under verification until the store admin confirms the payment. Only then is the order handed to the seller.",
+        ],
+      },
+      {
+        heading: "Sellers",
+        body: [
+          "Seller accounts must be verified by the store admin before selling. Sellers must ship the orders they accept.",
+          "Wallet earnings follow the store's wallet rules: the order cost is held while an order is shipped, and the full order value is credited to the seller's available balance when the admin completes the order.",
+        ],
+      },
+      {
+        heading: "Accounts and listings",
+        body: [
+          "You are responsible for keeping your login details safe. The store admin may remove accounts that misuse the platform or submit false information.",
+          "Some product photos are representative photos from the same category.",
+        ],
+      },
+    ],
+  },
+  returns: {
+    title: "Returns & Refunds",
+    sections: [
+      {
+        heading: "Cancelling an order",
+        body: [
+          "You can cancel an order from My Orders where the cancel option is available. Cancelled orders return the items to stock.",
+        ],
+      },
+      {
+        heading: "Prepaid orders",
+        body: [
+          "If a prepaid payment is not verified, the order is cancelled, the items return to stock, and you are notified in My Orders and Live Chat.",
+          "If you already sent a payment for a cancelled prepaid order, contact Customer Service through Live Chat so the payment can be resolved.",
+        ],
+      },
+      {
+        heading: "Cash on Delivery",
+        body: [
+          "You pay when the order arrives. If there is a problem with a delivered order, contact Customer Service through Live Chat with your order number.",
+        ],
+      },
+      {
+        heading: "Reviews",
+        body: [
+          "After an order is delivered, buyers can leave a verified-purchase review on the products they received.",
+        ],
+      },
+    ],
+  },
+};
+
+function InfoPage({ page, onBack, onGoSupport }: { page: InfoPageId; onBack: () => void; onGoSupport: () => void }) {
+  const info = INFO_PAGES[page];
+  return (
+    <div className="mx-auto max-w-2xl px-1 py-2">
+      <button type="button" onClick={onBack} className="font-semibold text-[var(--accent)]">← Back to shop</button>
+      <h1 className="mt-3 text-xl font-bold text-[var(--text)]">{info.title}</h1>
+      <div className="mt-4 space-y-4">
+        {info.sections.map((s) => (
+          <section key={s.heading} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <h2 className="font-bold text-[var(--text)]">{s.heading}</h2>
+            {s.body.map((p) => (
+              <p key={p} className="mt-2 text-sm leading-relaxed text-[var(--dim)]">{p}</p>
+            ))}
+          </section>
+        ))}
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <h2 className="font-bold text-[var(--text)]">Questions?</h2>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--dim)]">Contact Customer Service through Live Chat in the app.</p>
+          <button type="button" onClick={onGoSupport} className="mt-3 rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-[var(--accent-ink)]">Open Live Chat</button>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------------------------- App ----------------------------------- */
 
 export function App() {
   const queryClient = useQueryClient();
   const [view, setView] = useState<View>("shop");
+  const [infoPage, setInfoPage] = useState<InfoPageId>("about");
   // Bumped ONLY by goSupportChat() — the entry points whose explicit
   // purpose is opening the chat itself (Forgot Password "Open Live
   // Chat", the deposit-page and verification "Contact Customer Service"
@@ -9270,6 +9435,10 @@ const NAV: NavItem[] =
     setSupportVisit((v) => v + 1);
     setView("support");
     setDrawerOpen(false);
+  }
+  function goInfo(page: InfoPageId) {
+    setInfoPage(page);
+    setView("info");
   }
   // Explicit chat entry points (a button whose purpose IS the chat):
   // these still open the dedicated chat view directly.
@@ -9795,6 +9964,9 @@ const NAV: NavItem[] =
           {view === "support" && (
             <SupportView key={supportVisit} user={user} settings={settings.data} onNeedAuth={() => setView("account")} focusSignal={chatFocusSignal} startInChat={supportStartInChat} />
           )}
+          {view === "info" && (
+            <InfoPage page={infoPage} onBack={() => setView("shop")} onGoSupport={goSupportChat} />
+          )}
         </main>
 
         <footer className={`mx-auto ${containerW} px-3 min-[400px]:px-4 ${(layoutDesign === "menu" || layoutDesign === "minimal") ? "pb-8" : "pb-28 sm:pb-20"}`}>
@@ -9810,6 +9982,12 @@ const NAV: NavItem[] =
             >
               {ui.t("foot.support")}
             </button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-[var(--border)] pt-3 text-sm">
+            <button type="button" onClick={() => goInfo("about")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.about")}</button>
+            <button type="button" onClick={() => goInfo("privacy")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.privacy")}</button>
+            <button type="button" onClick={() => goInfo("terms")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.terms")}</button>
+            <button type="button" onClick={() => goInfo("returns")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.returns")}</button>
           </div>
         </footer>
 

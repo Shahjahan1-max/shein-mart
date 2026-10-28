@@ -896,9 +896,13 @@ export const STR = {
 
   // Footer
   "foot.text": {
-    en: "— sellers add products from the main store and earn profit on every sale; buyers order with Cash on Delivery across India.",
-    hi: "— विक्रेता मुख्य स्टोर से प्रोडक्ट जोड़कर हर बिक्री पर मुनाफ़ा कमाते हैं; खरीदार पूरे भारत में कैश ऑन डिलीवरी पर ऑर्डर करते हैं।", ar: "— يضيف البائعون منتجات من المتجر الرئيسي ويربحون ربحًا على كل عملية بيع؛ يطلب المشترون مع الدفع عند الاستلام في جميع أنحاء الهند."},
+    en: "— sellers add products from the main store and earn profit on every sale; buyers order with Cash on Delivery or prepaid payment in India and Pakistan.",
+    hi: "— विक्रेता मुख्य स्टोर से प्रोडक्ट जोड़कर हर बिक्री पर मुनाफ़ा कमाते हैं; खरीदार भारत और पाकिस्तान में कैश ऑन डिलीवरी या प्रीपेड भुगतान पर ऑर्डर करते हैं।", ar: "— يضيف البائعون منتجات من المتجر الرئيسي ويربحون ربحًا على كل عملية بيع؛ يطلب المشترون مع الدفع عند الاستلام أو الدفع المسبق في الهند وباكستان."},
   "foot.support": { en: "Customer Support →", hi: "ग्राहक सहायता →" , ar: "دعم العملاء ←"},
+  "foot.about": { en: "About", hi: "हमारे बारे में" , ar: "من نحن"},
+  "foot.privacy": { en: "Privacy Policy", hi: "गोपनीयता नीति" , ar: "سياسة الخصوصية"},
+  "foot.terms": { en: "Terms of Use", hi: "उपयोग की शर्तें" , ar: "شروط الاستخدام"},
+  "foot.returns": { en: "Returns & Refunds", hi: "वापसी और रिफंड" , ar: "الإرجاع والاسترداد"},
 
   "adm.sec.overview": { en: "Dashboard Overview", hi: "डैशबोर्ड अवलोकन" , ar: "نظرة عامة على لوحة التحكم"},
   "adm.sec.sellers": { en: "Seller Accounts", hi: "विक्रेता खाते" , ar: "حسابات البائعين"},
