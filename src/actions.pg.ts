@@ -2245,6 +2245,7 @@ export const Actions = {
       googleSignInEnabled: z.boolean(),
       headerLogoUrl: z.string(),
       headerBrandMode: z.string(),
+      storefrontTheme: z.string(),
       sessionsEnabled: z.boolean(),
     }),
     async handler(ctx) {
@@ -2276,6 +2277,7 @@ export const Actions = {
         googleSignInEnabled: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
         headerLogoUrl: s.headerLogoBlobKey ? await ctx.blobs.getUrl(s.headerLogoBlobKey) : (s.headerLogoUrl ?? ""),
         headerBrandMode: (s as { headerBrandMode?: string }).headerBrandMode ?? "both",
+        storefrontTheme: (s as { storefrontTheme?: string }).storefrontTheme ?? "premium",
         sessionsEnabled: true,
       };
     },
@@ -2478,6 +2480,30 @@ export const Actions = {
       if (!me[0] || me[0].role !== "admin") return { ok: false, error: "You do not have permission to do this." };
       await getSettingsRow(db);
       await db.update(schema.settings).set({ colorScheme: args.colorScheme, layoutDesign: args.layoutDesign, headerBrandMode: args.headerBrandMode }).where(eq(schema.settings.id, 1));
+      ctx.invalidateQueries();
+      return { ok: true, error: null };
+    },
+  }),
+
+  // Admin → Theme & Design: one-click storefront theme activation
+  // ("premium" = the existing theme, "fresh" = Fresh Market). Only the
+  // theme column changes — colour scheme, layout, logo and every
+  // business table are untouched, so switching back restores Premium
+  // exactly. Deliberately separate from updateStoreDesign so the
+  // scheme/layout save can never clobber the theme (and vice versa).
+  adminSetStorefrontTheme: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({
+      adminId: z.number(),
+      theme: z.enum(["premium", "fresh"]),
+    }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "You do not have permission to do this." };
+      await getSettingsRow(db);
+      await db.update(schema.settings).set({ storefrontTheme: args.theme }).where(eq(schema.settings.id, 1));
       ctx.invalidateQueries();
       return { ok: true, error: null };
     },

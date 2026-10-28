@@ -409,6 +409,12 @@ export const settings = pgTable("settings", {
   // the default), "logo" (logo only; the name shows until a logo is
   // uploaded), or "text" (name only).
   headerBrandMode: text("header_brand_mode").notNull().default("both"),
+  // Storefront theme (Admin → Theme & Design): "premium" (the existing
+  // theme, the default) or "fresh" (Fresh Market). Only the storefront
+  // look changes; products, orders, users, wallet and all business
+  // data are untouched, and the colour scheme / layout settings stay
+  // saved alongside so Premium restores exactly.
+  storefrontTheme: text("storefront_theme").notNull().default("premium"),
 });
 
 // External products sold on OTHER platforms ("Shop from Other
