@@ -405,6 +405,10 @@ export const settings = pgTable("settings", {
   headerLogoContentType: text("header_logo_content_type"),
   headerLogoSize: integer("header_logo_size"),
   headerLogoUrl: text("header_logo_url").notNull().default(""),
+  // Header brand display (Admin → Theme & Design): "both" (logo + name,
+  // the default), "logo" (logo only; the name shows until a logo is
+  // uploaded), or "text" (name only).
+  headerBrandMode: text("header_brand_mode").notNull().default("both"),
 });
 
 // External products sold on OTHER platforms ("Shop from Other
