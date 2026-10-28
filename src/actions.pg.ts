@@ -2473,6 +2473,25 @@ export const Actions = {
       // No maximum: any positive count is accepted. Only zero /
       // negative / already-reached targets are refused (above).
 
+      // Photo fix: bulk products used to be inserted with imageAsset null,
+      // so they showed letter tiles. Reuse a real photo from the same
+      // category (an existing product's imageAsset), round-robin.
+      const donors = new Map<string, string[]>();
+      for (const p of existing) {
+        if (p.imageAsset) {
+          const list = donors.get(p.category) ?? [];
+          list.push(p.imageAsset);
+          donors.set(p.category, list);
+        }
+      }
+      const donorIdx = new Map<string, number>();
+      const donorFor = (category: string): string | null => {
+        const list = donors.get(category);
+        if (!list || list.length === 0) return null;
+        const idx = donorIdx.get(category) ?? 0;
+        donorIdx.set(category, idx + 1);
+        return list[idx % list.length]!;
+      };
       const PARTS: Record<string, { brands: string[]; types: string[]; styles: string[]; specs: string[] }> = {
         "Electronics": { brands: ["SoundWave", "VoltEdge", "TechNest", "Aurora", "NexLine", "PowerHub", "EchoBeat", "Zentro"], types: ["Wireless Bluetooth Speaker", "True Wireless Earbuds", "Fast Charger", "Power Bank 20000mAh", "LED Desk Lamp", "USB-C Charging Cable", "Bluetooth Neckband", "Smart LED Strip Light", "Mini Table Fan", "Wireless Mouse"], styles: ["Pro", "Plus", "Max", "Lite", "Ultra", "Classic", "Sport", "Studio"], specs: ["with Mic", "Type-C", "with Carry Case", "2026 Edition", "with Fast Pairing", "with LED Display"] },
         "Mobiles": { brands: ["Galaxy", "Redmi", "Realme", "Vivo", "Oppo", "Poco", "Infinix", "Moto"], types: ["5G Smartphone", "5G Smartphone", "5G Smartphone", "4G Smartphone"], styles: ["", "", "Plus", "Pro"], specs: ["6GB RAM, 128GB", "8GB RAM, 128GB", "8GB RAM, 256GB", "12GB RAM, 256GB"] },
@@ -2546,7 +2565,7 @@ export const Actions = {
           oldPrice: oldPrice > basePrice ? oldPrice : null,
           profitPercent,
           stock: 10 + Math.floor(Math.random() * 290),
-          imageAsset: null,
+          imageAsset: donorFor(category),
           imageSourceUrl: null,
           catalogSource: "bulk",
         });
@@ -2565,6 +2584,38 @@ export const Actions = {
         totalNow,
         perCategory: categories.map((c) => ({ category: c, added: perCatCount.get(c) ?? 0 })).filter((x) => x.added > 0),
       };
+    },
+  }),
+
+  // One-time repair: give every photo-less base product a real photo
+  // from its own category (same donor rule as bulk-generate). Admin-only.
+  adminBackfillProductImages: defineAction({
+    request: z.object({ adminId: z.number() }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable(), fixed: z.number(), remaining: z.number() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the Admin can repair product photos.", fixed: 0, remaining: 0 };
+      const all = await db.select().from(schema.products);
+      const donors = new Map<string, string[]>();
+      for (const p of all) {
+        if (p.imageAsset) {
+          const list = donors.get(p.category) ?? [];
+          list.push(p.imageAsset);
+          donors.set(p.category, list);
+        }
+      }
+      let fixed = 0;
+      let remaining = 0;
+      for (const p of all) {
+        if (p.imageAsset) continue;
+        const list = donors.get(p.category);
+        if (!list || list.length === 0) { remaining++; continue; }
+        await db.update(schema.products).set({ imageAsset: list[p.id % list.length]! }).where(eq(schema.products.id, p.id));
+        fixed++;
+      }
+      ctx.invalidateQueries();
+      return { ok: true, error: null, fixed, remaining };
     },
   }),
 
