@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS seller_notifications (
 CREATE TABLE IF NOT EXISTS settings (
   id INTEGER PRIMARY KEY, store_name TEXT NOT NULL DEFAULT 'sheinstore',
   support_whatsapp TEXT NOT NULL DEFAULT '', support_email TEXT NOT NULL DEFAULT '',
-  support_telegram TEXT NOT NULL DEFAULT '','
+  support_telegram TEXT NOT NULL DEFAULT '',
   default_profit_percent INTEGER NOT NULL DEFAULT 20, color_scheme TEXT NOT NULL DEFAULT 'navy',
   layout_design TEXT NOT NULL DEFAULT 'classic', usdt_deposit_address TEXT NOT NULL DEFAULT '',
   deposit_network TEXT NOT NULL DEFAULT 'BEP20 (BNB Smart Chain)',
