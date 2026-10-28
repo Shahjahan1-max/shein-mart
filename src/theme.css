@@ -475,3 +475,33 @@ h1, h2, h3, h4, h5, h6, p, li, dt, dd {
 /* Collection cards: squarer, lighter tiles like the preview. */
 .theme-fresh .coll-card { border-radius: 1.25rem; }
 .theme-fresh .coll-card span[class*="aspect-"] { aspect-ratio: 1 / 1; }
+
+/* Pressed-button feel (user request 2026-10-28): every button visibly
+   depresses while held — a small shrink plus a slight dim — so a tap
+   or click always reads as a press. Element-level specificity keeps
+   Tailwind transition utilities (which outrank it) intact: buttons
+   without their own transition get a smooth 0.12s press, buttons with
+   one still depress, just instantly. The rounded-link selector covers
+   the few link-styled buttons (WhatsApp / download / external links,
+   which use the shared ghost button classes); plain text links are
+   untouched. Disabled buttons never depress. touch-action:
+   manipulation removes the mobile tap delay so the press feels
+   immediate, and the tap highlight is cleared so it does not double
+   up with the press effect. */
+button,
+a.rounded-lg,
+a.rounded-xl {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+button:active,
+a.rounded-lg:active,
+a.rounded-xl:active {
+  transform: scale(0.97);
+  filter: brightness(0.96);
+}
+button:disabled:active {
+  transform: none;
+  filter: none;
+}
