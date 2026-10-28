@@ -252,6 +252,10 @@ const SESSION_KEY = "dropship-session-user";
 const LANG_KEY = "sheinstore-lang";
 const CURRENCY_KEY = "sheinstore-currency";
 const THEME_KEY = "sheinstore-theme";
+// Storefront-theme preview override (Admin → Theme & Design → Preview):
+// lives only in this browser's localStorage, so previewing Fresh Market
+// never changes the public site. Value "fresh" or absent.
+const PREVIEW_KEY = "sheinstore-theme-preview";
 
 type ThemeMode = "light" | "dark";
 
@@ -1253,7 +1257,7 @@ function ShopView({
     <div>
       {/* Premium editorial hero: large real product photo on one side,
           serif headline + Explore button on the other; stacks on mobile. */}
-      <section aria-label={t("hero.title")} className="grid items-center gap-6 py-6 sm:py-10 md:grid-cols-2 md:gap-10">
+      <section aria-label={t("hero.title")} className="hero-panel grid items-center gap-6 py-6 sm:py-10 md:grid-cols-2 md:gap-10">
         <div className="order-2 md:order-1">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--gold)]">
             {t("daily.badge")}
@@ -1276,7 +1280,7 @@ function ShopView({
               <button
                 type="button"
                 onClick={onGoSeller}
-                className="px-2 py-2 text-sm font-bold text-[var(--accent)]"
+                className="hero-seller-link px-2 py-2 text-sm font-bold text-[var(--accent)]"
               >
                 {t("hero.sellerCta")}
               </button>
@@ -1326,7 +1330,7 @@ function ShopView({
                 type="button"
                 onClick={() => goCategory(c.category)}
                 aria-label={`${trCategory(lang, c.category)}, ${c.count} ${t("coll.count")}`}
-                className="group overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] text-left shadow-sm transition-shadow hover:shadow-lg"
+                className="coll-card group overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] text-left shadow-sm transition-shadow hover:shadow-lg"
               >
                 <span className="block aspect-[4/3] overflow-hidden">
                   <img
@@ -5927,7 +5931,7 @@ function PayWithdrawPanel({
   );
 }
 
-function AdminView({ user, settings, onUserUpdated, onBackToStore }: { user: User; settings: ApiResponse<typeof api, "getSettings"> | undefined; onUserUpdated?: (u: NonNullable<User>) => void; onBackToStore?: () => void }) {
+function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme, onPreviewTheme }: { user: User; settings: ApiResponse<typeof api, "getSettings"> | undefined; onUserUpdated?: (u: NonNullable<User>) => void; onBackToStore?: () => void; previewTheme?: string | null; onPreviewTheme?: (t: string | null) => void }) {
   const { t, fmt, currency, lang } = useUi();
   const queryClient = useQueryClient();
   const [section, setSection] = useState<AdminSection>("overview");
@@ -6057,6 +6061,20 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore }: { user: Use
   const [brandModeDraft, setBrandModeDraft] = useState<string | null>(null);
   const [designOk, setDesignOk] = useState<string | null>(null);
   const [designErr, setDesignErr] = useState<string | null>(null);
+  // Storefront theme activation (Admin → Theme & Design cards below):
+  // one click sets ONLY the theme column (scheme/layout/logo untouched).
+  const [themeMsg, setThemeMsg] = useState<string | null>(null);
+  const [themeErr, setThemeErr] = useState<string | null>(null);
+  const activateTheme = useMutation({
+    mutationFn: (theme: string) => api.adminSetStorefrontTheme({ adminId: user!.id, theme }),
+    onSuccess: (r) => {
+      if (!r.ok) { setThemeErr(r.error ?? "Failed."); setThemeMsg(null); return; }
+      setThemeErr(null);
+      setThemeMsg(t("theme.activatedOk"));
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onError: (e) => { setThemeErr(String(e)); setThemeMsg(null); },
+  });
   const viewerDoc = useQuery({ queryKey: ["admin-doc-view", user?.id, viewer?.sellerId, viewer?.kind], queryFn: () => api.adminGetDocumentUrl({ adminId: user!.id, sellerId: viewer!.sellerId, kind: viewer!.kind }), enabled: !!viewer && !!user && user.role === "admin" });
   const bulkHistory = useQuery({ queryKey: ["bulk-profit-history", user?.id], queryFn: () => api.getBulkProfitHistory({ adminId: user!.id }), enabled: !!user && user.role === "admin" });
   // Seller Products list (every product sellers added to their stores)
@@ -7072,9 +7090,68 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore }: { user: Use
       { id: "wide", label: "theme.layout.wide", desc: "theme.layout.wideD" },
     ];
     const dirty = scheme !== (settings?.colorScheme ?? "navy") || layoutD !== (settings?.layoutDesign ?? "classic") || brandMode !== (settings?.headerBrandMode ?? "both");
+    const liveTheme = settings?.storefrontTheme ?? "premium";
     return (
       <div>
-        <section aria-label={t("theme.title")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <section aria-label={t("theme.storeTitle")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <h4 className="font-display text-base font-bold text-[var(--text)]">🏪 {t("theme.storeTitle")}</h4>
+          <p className="mt-1 text-sm text-[var(--dim)]">{t("theme.storeSub")}</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className={`overflow-hidden rounded-xl border ${liveTheme === "premium" ? "border-[var(--accent)] ring-2 ring-[var(--accent)]" : "border-[var(--border)]"}`}>
+              <div className="p-3" style={{ backgroundColor: "#FAF6EF" }}>
+                <div className="flex items-center gap-1 rounded-md px-2 py-1.5" style={{ backgroundColor: "#232323" }}>
+                  <span className="font-display text-xs font-extrabold text-white">sheinmart</span>
+                  <span className="ml-auto h-2 w-2 rounded-full" style={{ backgroundColor: "#A67C2E" }} />
+                </div>
+                <div className="mt-2 rounded-md bg-white p-2 shadow-sm">
+                  <div className="h-8 rounded" style={{ backgroundColor: "#EFE9D8" }} />
+                  <div className="mt-1.5 text-[10px] font-bold text-[#292524]">Every category, honest prices</div>
+                </div>
+              </div>
+              <div className="p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong className="text-sm text-[var(--text)]">{t("theme.premiumName")}</strong>
+                  {liveTheme === "premium" && <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[11px] font-bold text-[var(--accent-ink)]">{t("theme.active")}</span>}
+                </div>
+                <p className="mt-1 text-sm text-[var(--dim)]">{t("theme.premiumDesc")}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {liveTheme !== "premium" && <button type="button" disabled={activateTheme.isPending} onClick={() => activateTheme.mutate("premium")} className={primaryBtn + " px-4 py-2 text-sm"}>{activateTheme.isPending ? t("theme.applying") : t("theme.activateBtn")}</button>}
+                  {previewTheme === "fresh" && <button type="button" onClick={() => onPreviewTheme?.(null)} className={ghostBtn + " px-4 py-2 text-sm"}>{t("theme.previewExit")}</button>}
+                </div>
+              </div>
+            </div>
+            <div className={`overflow-hidden rounded-xl border ${liveTheme === "fresh" ? "border-[var(--accent)] ring-2 ring-[var(--accent)]" : "border-[var(--border)]"}`}>
+              <div className="p-3" style={{ backgroundColor: "#F4FAFA" }}>
+                <div className="flex items-center gap-1 rounded-md bg-white px-2 py-1.5 shadow-sm">
+                  <span className="text-xs font-extrabold" style={{ color: "#0E6E6E" }}>sheinmart</span>
+                  <span className="ml-auto h-3 flex-1 max-w-16 rounded-full" style={{ backgroundColor: "#E9F4F4" }} />
+                </div>
+                <div className="mt-1.5 rounded px-2 py-1" style={{ backgroundColor: "#0E6E6E" }}>
+                  <span className="text-[9px] font-bold text-white">Shop · Categories · Become a Seller</span>
+                </div>
+                <div className="mt-2 flex items-center gap-2 rounded-md p-2" style={{ backgroundColor: "#0E6E6E" }}>
+                  <span className="text-[10px] font-bold leading-tight text-white">Find your everyday favorites</span>
+                  <span className="ml-auto h-3 w-8 shrink-0 rounded-full" style={{ backgroundColor: "#FF6A4D" }} />
+                </div>
+              </div>
+              <div className="p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong className="text-sm text-[var(--text)]">{t("theme.freshName")}</strong>
+                  {liveTheme === "fresh" && <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[11px] font-bold text-[var(--accent-ink)]">{t("theme.active")}</span>}
+                  {previewTheme === "fresh" && liveTheme !== "fresh" && <span className="rounded-full bg-[var(--gold)] px-2 py-0.5 text-[11px] font-bold text-[var(--gold-ink)]">{t("theme.previewing")}</span>}
+                </div>
+                <p className="mt-1 text-sm text-[var(--dim)]">{t("theme.freshDesc")}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {liveTheme !== "fresh" && <button type="button" onClick={() => { onPreviewTheme?.("fresh"); onBackToStore?.(); }} className={ghostBtn + " px-4 py-2 text-sm"}>{t("theme.previewBtn")}</button>}
+                  {liveTheme !== "fresh" && <button type="button" disabled={activateTheme.isPending} onClick={() => activateTheme.mutate("fresh")} className={primaryBtn + " px-4 py-2 text-sm"}>{activateTheme.isPending ? t("theme.applying") : t("theme.activateBtn")}</button>}
+                </div>
+              </div>
+            </div>
+          </div>
+          {themeErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {themeErr}</p>}
+          {themeMsg && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {themeMsg}</p>}
+        </section>
+        <section aria-label={t("theme.title")} className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <h4 className="flex flex-wrap items-center gap-2 font-display text-base font-bold text-[var(--text)]">🎨 {t("theme.title")} <NewBadge id="theme-design" /></h4>
           <p className="mt-1 text-sm text-[var(--dim)]">{t("theme.sub")}</p>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" role="radiogroup" aria-label={t("theme.title")}>
@@ -9619,6 +9696,25 @@ export function App() {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
   }, [theme]);
+  // Storefront-theme preview override (Admin → Theme & Design →
+  // Preview): this browser only (localStorage), so previewing Fresh
+  // Market never changes the public site. "fresh" or null.
+  const [themePreview, setThemePreview] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(PREVIEW_KEY);
+    } catch {
+      return null;
+    }
+  });
+  const applyThemePreview = (t: string | null) => {
+    setThemePreview(t);
+    try {
+      if (t) localStorage.setItem(PREVIEW_KEY, t);
+      else localStorage.removeItem(PREVIEW_KEY);
+    } catch {
+      /* private mode — preview still works for this session */
+    }
+  };
 
   const settings = useQuery({
     queryKey: ["settings"],
@@ -9657,6 +9753,13 @@ export function App() {
   const headerBrandMode = settings.data?.headerBrandMode ?? "both";
   const headerLogoShown = headerBrandMode !== "text" && headerLogoUrl !== "";
   const headerNameShown = headerBrandMode !== "logo" || headerLogoUrl === "";
+  // Storefront theme: live setting (Admin → Theme & Design, default
+  // "premium"), with the admin's preview override winning in this
+  // browser only. Unknown values fall back to Premium. The fresh class
+  // is kept off the Admin Panel itself, so its appearance never changes.
+  const liveTheme = settings.data?.storefrontTheme ?? "premium";
+  const effectiveTheme = themePreview ?? liveTheme;
+  const storefrontThemeClass = effectiveTheme === "fresh" && view !== "admin" ? " theme-fresh" : "";
   // Admin-chosen store design (settings): colour scheme recolours the
   // whole store for everyone; layout design rearranges the chrome.
   const colorScheme = settings.data?.colorScheme ?? "navy";
@@ -10041,7 +10144,18 @@ const NAV: NavItem[] =
 
   return (
     <UiContext.Provider value={ui}>
-      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+      <div className={`min-h-screen bg-[var(--bg)] text-[var(--text)]${storefrontThemeClass}`}>
+        {themePreview === "fresh" && liveTheme !== "fresh" && view !== "admin" && (
+          <div className="flex flex-wrap items-center justify-center gap-2 bg-[var(--accent)] px-3 py-2 text-center text-sm font-semibold text-[var(--accent-ink)]">
+            <span>{ui.t("theme.previewBanner")}</span>
+            <button type="button" onClick={() => applyThemePreview(null)} className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-bold text-[var(--text)]">
+              {ui.t("theme.previewExit")}
+            </button>
+            <button type="button" onClick={() => setView("admin")} className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs font-bold text-[var(--text)]">
+              {ui.t("theme.storeBtn")}
+            </button>
+          </div>
+        )}
         {googleSigningIn && (
           <div role="status" className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-[var(--bg)] px-6 text-center">
             <div aria-hidden className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--accent)] border-t-transparent" />
@@ -10464,7 +10578,7 @@ const NAV: NavItem[] =
               onGoSupport={goSupportChat}
             />
           )}
-          {view === "admin" && <AdminView user={user} settings={settings.data} onUserUpdated={handleUserUpdated} onBackToStore={() => setView("shop")} />}
+          {view === "admin" && <AdminView user={user} settings={settings.data} onUserUpdated={handleUserUpdated} onBackToStore={() => setView("shop")} previewTheme={themePreview} onPreviewTheme={applyThemePreview} />}
           {view === "support" && (
             <SupportView key={supportVisit} user={user} settings={settings.data} onNeedAuth={() => setView("account")} focusSignal={chatFocusSignal} startInChat={supportStartInChat} />
           )}

@@ -393,3 +393,85 @@ h1, h2, h3, h4, h5, h6, p, li, dt, dd {
 /* The desktop nav row stays visible while scrolling (it used to hide
    in compact mode, which made the header feel unset on scroll). The
    row itself keeps its normal height; only the brand row slims down. */
+
+/* ------------------------------------------------------------------ */
+/* Fresh Market storefront theme (.theme-fresh on the app root, only   */
+/* for non-admin views, so the Admin Panel keeps its own look).        */
+/* It wins over the colour-scheme blocks by file order (same           */
+/* specificity, later rules win) and remaps the same variables, so    */
+/* every page that uses vars follows automatically: deep teal accent, */
+/* soft sky tints, white surfaces, coral highlights, sans headlines.  */
+/* ------------------------------------------------------------------ */
+:root .theme-fresh {
+  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --bg: #F4FAFA;
+  --surface: #FFFFFF;
+  --surface-alt: #E9F4F4;
+  --text: #123C40;
+  --dim: #5A7579;
+  --border: #D7E7E8;
+  --accent: #0E6E6E;
+  --accent-strong: #0A5255;
+  --accent-soft: #E2F1F2;
+  --accent-ink: #FFFFFF;
+  --gold: #FF6A4D;
+  --gold-ink: #FFFFFF;
+  --space-surface: var(--surface);
+  --space-surface-alt: var(--surface-alt);
+  --space-muted: var(--dim);
+  --space-border: var(--border);
+  --space-accent: var(--accent);
+}
+:root[data-theme="dark"] .theme-fresh {
+  --bg: #0B1F22;
+  --surface: #102A2E;
+  --surface-alt: #17393E;
+  --text: #EAF4F4;
+  --dim: #9DB9BC;
+  --border: #23484D;
+  --accent: #2FA8A0;
+  --accent-strong: #7FD1CB;
+  --accent-soft: #17393E;
+  --accent-ink: #0B1F22;
+  --gold: #FF7A5C;
+  --gold-ink: #FFFFFF;
+}
+/* Header: white bar + full-bleed teal category row (preview direction).
+   The row is contained by default, so full width needs max-width off. */
+.theme-fresh .site-header {
+  background-color: var(--surface);
+  border-bottom-color: var(--border);
+  box-shadow: 0 1px 12px rgba(14, 110, 110, 0.08);
+}
+.theme-fresh .topnav-row {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  background-color: var(--accent);
+}
+.theme-fresh .topnav-row button { color: #FFFFFF; }
+.theme-fresh .topnav-row button:hover { background-color: rgba(255, 255, 255, 0.14); }
+.theme-fresh .topnav-row button[aria-current="page"] { background-color: rgba(255, 255, 255, 0.18); }
+.theme-fresh .topnav-row label {
+  background-color: #FFFFFF;
+  border-color: transparent;
+}
+.theme-fresh .topnav-row label input { color: #123C40; }
+.theme-fresh .topnav-row label input::placeholder { color: #6B8A8D; }
+.theme-fresh .topnav-row label svg { color: #5A7579; }
+/* Hero: deep teal panel with white headline and sky-tinted subtext; the
+   coral Explore button comes from --gold automatically. */
+.theme-fresh .hero-panel {
+  background: linear-gradient(120deg, #0A5255 0%, #0E6E6E 55%, #2FA8A0 130%);
+  border-radius: 1.5rem;
+  padding: 1.75rem;
+  margin-top: 1rem;
+}
+.theme-fresh .hero-panel h2 { color: #FFFFFF; }
+.theme-fresh .hero-panel p.uppercase { color: #A8DCDC; }
+.theme-fresh .hero-panel p.max-w-xl { color: #D8ECEC; }
+.theme-fresh .hero-panel .hero-seller-link { color: #EAF4F4; }
+.theme-fresh .hero-panel span.rounded-3xl { background-color: #FFFFFF; }
+/* Collection cards: squarer, lighter tiles like the preview. */
+.theme-fresh .coll-card { border-radius: 1.25rem; }
+.theme-fresh .coll-card span[class*="aspect-"] { aspect-ratio: 1 / 1; }
