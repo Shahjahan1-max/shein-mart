@@ -328,6 +328,21 @@ export const sellerWalletEvents = pgTable("seller_wallet_events", {
 });
 ;
 
+// Login sessions: one row per login. Only the SHA-256 hash of the token
+// is stored — a database leak never yields a usable session. The raw
+// token is returned to the client exactly once, at login, and is never
+// logged or stored anywhere else.
+export const userSessions = pgTable("user_sessions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  tokenHash: text("token_hash").notNull().unique(),
+  createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // Single-row editable store settings (store name, support contacts,
 // default profit %). Edited from the Admin panel. Also carries the
 // store-wide Theme & Design choice (colour scheme + layout design, set

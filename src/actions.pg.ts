@@ -8,8 +8,9 @@
 // otherwise the profit stays with the main store.
 
 import { defineAction, z, type ActionsModule, type Ctx } from "./space-shim";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 import * as schema from "./schema.pg";
+import { createHash, randomBytes } from "node:crypto";
 
 type Db = ReturnType<Ctx["db"]>;
 // --- Password storage: secure hash ONLY, never plain text, never shown ---
@@ -51,6 +52,30 @@ async function verifyPassword(plain: string, stored: string): Promise<boolean> {
   // the owner can still sign in once; ensurePasswordHashes / login upgrade
   // it to a hash immediately, after which no plain value remains stored.
   return stored === plain;
+}
+
+// Login sessions: only the SHA-256 hash of a token is ever stored, so
+// a database leak yields no usable session. The raw token is returned
+// to the client exactly once, at login.
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+async function issueSessionToken(db: Db, userId: number): Promise<string> {
+  const token = randomBytes(32).toString("hex");
+  await db.insert(schema.userSessions).values({ userId, tokenHash: hashToken(token) });
+  return token;
+}
+
+// Delete a user's sessions. exceptTokenHash keeps one session alive —
+// used by password changes so the device that made the change stays
+// signed in while every other device is signed out.
+async function invalidateUserSessions(db: Db, userId: number, exceptTokenHash: string | null = null): Promise<void> {
+  if (exceptTokenHash) {
+    await db.delete(schema.userSessions).where(and(eq(schema.userSessions.userId, userId), ne(schema.userSessions.tokenHash, exceptTokenHash)));
+  } else {
+    await db.delete(schema.userSessions).where(eq(schema.userSessions.userId, userId));
+  }
 }
 
 async function getSettingsRow(db: Db) {
@@ -2057,6 +2082,7 @@ function validateExternalProduct(a: {
 
 export const Actions = {
   seedCatalog: defineAction({
+    auth: "public",
     request: z.object({}),
     response: z.object({ seeded: z.boolean(), count: z.number() }),
     async handler(ctx) {
@@ -2089,6 +2115,7 @@ export const Actions = {
   // INR values, missing ones are inserted. Products the admin added or
   // renamed are left untouched, and re-running changes nothing further.
   ensureIndiaCatalog: defineAction({
+    auth: "public",
     request: z.object({}),
     response: z.object({
       ok: z.literal(true),
@@ -2149,6 +2176,7 @@ export const Actions = {
   }),
 
   getSettings: defineAction({
+    auth: "public",
     request: z.object({}),
     response: z.object({
       storeName: z.string(),
@@ -2175,6 +2203,7 @@ export const Actions = {
       lastPriceSyncNote: z.string(),
       googleSignInEnabled: z.boolean(),
       headerLogoUrl: z.string(),
+      sessionsEnabled: z.boolean(),
     }),
     async handler(ctx) {
       const db = ctx.db<typeof schema>();
@@ -2204,6 +2233,7 @@ export const Actions = {
         lastPriceSyncNote: s.lastPriceSyncNote ?? "",
         googleSignInEnabled: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
         headerLogoUrl: s.headerLogoBlobKey ? await ctx.blobs.getUrl(s.headerLogoBlobKey) : (s.headerLogoUrl ?? ""),
+        sessionsEnabled: true,
       };
     },
   }),
@@ -2213,6 +2243,7 @@ export const Actions = {
   // or paste an image URL; remove restores the text brand. Only the
   // admin may change it; the resolved URL is public via getSettings.
   adminSetHeaderLogo: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       mode: z.enum(["upload", "url", "remove"]),
@@ -2262,6 +2293,7 @@ export const Actions = {
   // mismatch for the chosen network is a written WARNING (the save still
   // succeeds) because the network field governs what "correct" means.
   updateDepositSettings: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       usdtDepositAddress: z.string().max(200),
@@ -2303,6 +2335,7 @@ export const Actions = {
   // blocks new deposit requests (requestDeposit checks the same flag);
   // balances, past deposits and withdrawals are untouched.
   setDepositsEnabled: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), enabled: z.boolean() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable(), depositsEnabled: z.boolean() }),
     async handler(ctx, args) {
@@ -2324,6 +2357,7 @@ export const Actions = {
   // unavailable" note). Existing requests, balances and history are
   // never touched. Admin-only, like every other settings save.
   updatePaymentMethods: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       upiEnabled: z.boolean(),
@@ -2352,6 +2386,7 @@ export const Actions = {
   // prices could not be shown at all — so an all-OFF currency set is
   // refused with a written error and nothing is saved.
   updateLanguagePriceSettings: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       langHindiEnabled: z.boolean(),
@@ -2386,6 +2421,7 @@ export const Actions = {
   // changes for every visitor at once. The light/dark toggle stays a
   // per-visitor choice on top of this.
   updateStoreDesign: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       colorScheme: z.enum(["navy", "emerald", "royal", "charcoal", "teal", "crimson", "sunset", "rose"]),
@@ -2412,6 +2448,7 @@ export const Actions = {
   // Admin added or renamed are not in the price list and keep their
   // price. Records when the refresh ran in settings.
   refreshCatalogPrices: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({
       ok: z.boolean(),
@@ -2455,6 +2492,7 @@ export const Actions = {
   }),
 
   updateSettings: defineAction({
+    auth: { arg: "userId", role: "admin" },
     request: z.object({
       userId: z.number(),
       storeName: z.string().min(1).max(80),
@@ -2502,6 +2540,7 @@ export const Actions = {
   // as they type in one run; generation and inserts run in internal
   // batches so a very large run still completes reliably.
   adminBulkGenerateProducts: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       mode: z.enum(["add", "target"]),
@@ -2642,6 +2681,7 @@ export const Actions = {
   // One-time repair: give every photo-less base product a real photo
   // from its own category (same donor rule as bulk-generate). Admin-only.
   adminBackfillProductImages: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable(), fixed: z.number(), remaining: z.number() }),
     async handler(ctx, args) {
@@ -2672,6 +2712,7 @@ export const Actions = {
   }),
 
   listProducts: defineAction({
+    auth: "public",
     request: z.object({
       category: z.string().optional(),
       search: z.string().optional(),
@@ -2702,6 +2743,7 @@ export const Actions = {
   // chosen, the other field is optional. At least one identifier (a valid
   // Gmail/email or a 10-digit Indian mobile number) is required.
   register: defineAction({
+    auth: "public",
     request: z.object({
       name: z.string().min(2).max(80),
       email: z.string().max(120).optional(),
@@ -2816,6 +2858,7 @@ export const Actions = {
   // Admin verifies the account from Admin → Seller Accounts (reviewSeller).
   // Sellers approved earlier keep their "approved" status untouched.
   registerSeller: defineAction({
+    auth: "public",
     request: z.object({
       // Step 1 — personal details
       name: z.string().min(2).max(80),
@@ -2971,6 +3014,7 @@ export const Actions = {
   // account was registered with. `identifier` carries either one; the
   // legacy `email` field is still accepted.
   login: defineAction({
+    auth: "public",
     request: z.object({
       identifier: z.string().max(120).optional(),
       email: z.string().max(120).optional(),
@@ -2980,6 +3024,7 @@ export const Actions = {
       ok: z.boolean(),
       error: z.string().nullable(),
       user: userOut.nullable(),
+      token: z.string().nullable().optional(),
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
@@ -3035,7 +3080,8 @@ export const Actions = {
       }
       // Seller verification is decided by the Admin only (reviewSeller):
       // signing in never changes a pending/rejected status.
-      return { ok: true, error: null, user: toUserOut(u) };
+      const token = await issueSessionToken(db, u.id);
+      return { ok: true, error: null, user: toUserOut(u), token };
     },
   }),
 
@@ -3045,11 +3091,13 @@ export const Actions = {
   // Existing accounts match by email (any role); new Google users were
   // already created as buyers by the callback.
   completeGoogleLogin: defineAction({
+    auth: "public",
     request: z.object({ code: z.string().min(10).max(128) }),
     response: z.object({
       ok: z.boolean(),
       error: z.string().nullable(),
       user: userOut.nullable(),
+      token: z.string().nullable().optional(),
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
@@ -3061,13 +3109,15 @@ export const Actions = {
       if (ageMs > 10 * 60 * 1000) return { ok: false, error: "Google sign-in session expired. Please try again.", user: null };
       const users = await db.select().from(schema.users).where(eq(schema.users.id, row.userId)).limit(1);
       if (!users[0]) return { ok: false, error: "Account not found. Please register first.", user: null };
-      return { ok: true, error: null, user: toUserOut(users[0]) };
+      const token = await issueSessionToken(db, users[0].id);
+      return { ok: true, error: null, user: toUserOut(users[0]), token };
     },
   }),
 
   // The very first admin account is created explicitly by the store owner
   // from the sign-in screen; after one admin exists this action refuses.
   createAdmin: defineAction({
+    auth: "public",
     request: z.object({
       name: z.string().min(2).max(80),
       email: z.string().email().max(120),
@@ -3077,6 +3127,7 @@ export const Actions = {
       ok: z.boolean(),
       error: z.string().nullable(),
       user: userOut.nullable(),
+      token: z.string().nullable().optional(),
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
@@ -3115,11 +3166,13 @@ export const Actions = {
         })
         .returning();
       ctx.invalidateQueries();
-      return { ok: true, error: null, user: toUserOut(inserted[0]!) };
+      const token = await issueSessionToken(db, inserted[0]!.id);
+      return { ok: true, error: null, user: toUserOut(inserted[0]!), token };
     },
   }),
 
   hasAdmin: defineAction({
+    auth: "public",
     request: z.object({}),
     response: z.object({ hasAdmin: z.boolean() }),
     async handler(ctx) {
@@ -3138,6 +3191,7 @@ export const Actions = {
   // login password working). Idempotent; returns only a count, never any
   // password or hash value.
   ensurePasswordHashes: defineAction({
+    auth: "public",
     request: z.object({}),
     response: z.object({ upgraded: z.number() }),
     async handler(ctx) {
@@ -3156,6 +3210,7 @@ export const Actions = {
   }),
 
   addToMyStore: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number(), productId: z.number() }),
     response: z.object({ ok: z.literal(true), alreadyAdded: z.boolean() }),
     async handler(ctx, args): Promise<{ ok: true; alreadyAdded: boolean }> {
@@ -3199,6 +3254,7 @@ export const Actions = {
   }),
 
   removeFromMyStore: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number(), productId: z.number() }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
@@ -3217,6 +3273,7 @@ export const Actions = {
   }),
 
   listSellerProducts: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number() }),
     response: z.object({ products: z.array(productOut) }),
     async handler(ctx, args) {
@@ -3240,6 +3297,7 @@ export const Actions = {
   }),
 
   getCart: defineAction({
+    auth: { arg: "buyerId" },
     request: z.object({ buyerId: z.number() }),
     response: z.object({
       items: z.array(
@@ -3270,6 +3328,7 @@ export const Actions = {
   }),
 
   addToCart: defineAction({
+    auth: { arg: "buyerId" },
     request: z.object({ buyerId: z.number(), productId: z.number() }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
@@ -3310,6 +3369,7 @@ export const Actions = {
   }),
 
   setCartQty: defineAction({
+    auth: { arg: "buyerId" },
     request: z.object({
       buyerId: z.number(),
       productId: z.number(),
@@ -3344,6 +3404,7 @@ export const Actions = {
   }),
 
   placeOrder: defineAction({
+    auth: { arg: "buyerId" },
     request: z.object({
       buyerId: z.number(),
       customerName: z.string().min(2).max(80),
@@ -3599,6 +3660,7 @@ export const Actions = {
   // Seller notifications: real rows created on order placement, plus a lazy
   // backfill for orders placed before notifications existed.
   listSellerNotifications: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number() }),
     response: z.object({
       notifications: z.array(
@@ -3695,6 +3757,7 @@ export const Actions = {
   }),
 
   markSellerNotificationsSeen: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number() }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
@@ -3713,6 +3776,7 @@ export const Actions = {
   // sellerNotifications and the banner reads sellerNotices, so a
   // credit never highlights anywhere else.
   getWalletUnread: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number() }),
     response: z.object({ unreadCount: z.number() }),
     async handler(ctx, args) {
@@ -3730,6 +3794,7 @@ export const Actions = {
   // Opening the Wallet tab marks its credit events seen, so the dot
   // stays gone after a reload. Mirrors markSellerNotificationsSeen.
   markWalletSeen: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number() }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
@@ -3749,6 +3814,7 @@ export const Actions = {
   // dot is new signal, not a duplicate of any existing one. Tickets
   // have no reply channel, so they are not counted here.
   getChatUnread: defineAction({
+    auth: { arg: "userId" },
     request: z.object({ userId: z.number() }),
     response: z.object({ unreadCount: z.number() }),
     async handler(ctx, args) {
@@ -3766,6 +3832,7 @@ export const Actions = {
   // Opening Live Chat marks its admin replies seen, so the dot stays
   // gone after a reload. Mirrors markWalletSeen.
   markChatSeen: defineAction({
+    auth: { arg: "userId" },
     request: z.object({ userId: z.number() }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
@@ -3780,6 +3847,7 @@ export const Actions = {
   }),
 
   listBuyerOrders: defineAction({
+    auth: { arg: "buyerId" },
     request: z.object({ buyerId: z.number() }),
     response: z.object({ orders: z.array(orderOut) }),
     async handler(ctx, args) {
@@ -3801,6 +3869,7 @@ export const Actions = {
   // product detail page with the buyer's first name and a "Verified
   // purchase" mark; hidden reviews (visible = 0) never render publicly.
   submitReview: defineAction({
+    auth: { arg: "buyerId" },
     request: z.object({
       buyerId: z.number(),
       orderId: z.number(),
@@ -3827,6 +3896,7 @@ export const Actions = {
   }),
 
   listProductReviews: defineAction({
+    auth: "public",
     request: z.object({ productId: z.number() }),
     response: z.object({
       reviews: z.array(z.object({ id: z.number(), rating: z.number(), comment: z.string(), buyerName: z.string(), createdAt: z.string() })),
@@ -3849,6 +3919,7 @@ export const Actions = {
   }),
 
   listMyReviews: defineAction({
+    auth: { arg: "buyerId" },
     request: z.object({ buyerId: z.number() }),
     response: z.object({ reviewed: z.array(z.object({ orderId: z.number(), productId: z.number() })) }),
     async handler(ctx, args) {
@@ -3859,6 +3930,7 @@ export const Actions = {
   }),
 
   listAllReviews: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({ reviews: z.array(z.object({ id: z.number(), productId: z.number(), productName: z.string(), buyerName: z.string(), orderId: z.number(), rating: z.number(), comment: z.string(), visible: z.number(), createdAt: z.string() })) }),
     async handler(ctx, args) {
@@ -3877,6 +3949,7 @@ export const Actions = {
   }),
 
   adminSetReviewVisible: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), reviewId: z.number(), visible: z.number().int().min(0).max(1) }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
@@ -3895,6 +3968,7 @@ export const Actions = {
   // The flag shows on every order surface (buyer, seller, Admin) so
   // nobody dispatches an unconfirmed COD order by mistake.
   markCodConfirmed: defineAction({
+    auth: { arg: "actorId" },
     request: z.object({ actorRole: z.enum(["seller", "admin"]), actorId: z.number(), orderId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
@@ -3922,6 +3996,7 @@ export const Actions = {
   }),
 
   sellerDashboard: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number() }),
     response: z.object({
       myProducts: z.array(productOut),
@@ -4050,6 +4125,7 @@ export const Actions = {
   }),
 
   adminOverview: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({
       ok: z.boolean(),
@@ -4189,6 +4265,7 @@ export const Actions = {
   }),
 
   adminUpsertProduct: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       id: z.number().nullable(),
@@ -4240,6 +4317,7 @@ export const Actions = {
   }),
 
   adminDeleteProduct: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), productId: z.number() }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
@@ -4267,6 +4345,7 @@ export const Actions = {
   }),
 
   updateOrderStatus: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       orderId: z.number(),
@@ -4355,6 +4434,7 @@ export const Actions = {
   // (Delivered everywhere + the seller is notified); "return" sends it
   // back to Pending for the seller to fix and re-ship.
   adminReviewShippedOrder: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       orderId: z.number(),
@@ -4396,6 +4476,7 @@ export const Actions = {
   // COD orders and Admin quick-send orders have paymentStatus "none"
   // and never pass through this gate. Seller flows are untouched.
   adminReviewOrderPayment: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       orderId: z.number(),
@@ -4467,6 +4548,7 @@ export const Actions = {
   // highlight in the seller's Orders → Pending section clears when the
   // seller opens/views that order, and stays cleared.
   markSellerOrderViewed: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number(), orderId: z.number() }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
@@ -4481,6 +4563,7 @@ export const Actions = {
   }),
 
   createTicket: defineAction({
+    auth: { optional: "userId" },
     request: z.object({
       userId: z.number().nullable(),
       name: z.string().min(2).max(80),
@@ -4508,6 +4591,7 @@ export const Actions = {
   }),
 
   listMyTickets: defineAction({
+    auth: { arg: "userId" },
     request: z.object({ userId: z.number() }),
     response: z.object({ tickets: z.array(ticketOut) }),
     async handler(ctx, args) {
@@ -4522,6 +4606,7 @@ export const Actions = {
   }),
 
   replyTicket: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       ticketId: z.number(),
@@ -4550,6 +4635,7 @@ export const Actions = {
   // ---- Seller verification review (Admin) ----
 
   listSellerApplications: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({ applications: z.array(sellerApplicationOut) }),
     async handler(ctx, args) {
@@ -4574,6 +4660,7 @@ export const Actions = {
   }),
 
   reviewSeller: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       sellerId: z.number(),
@@ -4623,27 +4710,40 @@ export const Actions = {
     },
   }),
 
-  // Fresh account STATUS for the polling client (a seller waits for
+  // Fresh account STATUS for the token's owner (a seller waits for
   // verification, so an Admin approval/rejection shows up without the
-  // seller having to sign out and back in). Deliberately status fields
-  // ONLY — never email/phone: this endpoint takes a bare userId, so
-  // returning contact details here would let anyone harvest them by
-  // enumerating ids. The client merges these fields into the account
-  // it already holds (see SellerView's sessionRefresh effect).
+  // seller having to sign out and back in). No id arg anymore: the
+  // token IS the identity, so this endpoint cannot be used to look up
+  // other accounts. The client merges these fields into the account it
+  // already holds (see SellerView's sessionRefresh effect).
   refreshMySession: defineAction({
-    request: z.object({ userId: z.number() }),
+    auth: { any: true },
+    request: z.object({}),
     response: z.object({ user: z.object({ id: z.number(), verificationStatus: z.string(), mustChangePassword: z.boolean() }).nullable() }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
-      const rows = await db.select().from(schema.users).where(eq(schema.users.id, args.userId)).limit(1);
+      const rows = await db.select().from(schema.users).where(eq(schema.users.id, ctx.auth!.userId)).limit(1);
       if (!rows[0] || rows[0].email === "deleted-placeholder@system.local") return { user: null };
       return { user: { id: rows[0].id, verificationStatus: rows[0].verificationStatus, mustChangePassword: rows[0].mustChangePassword === 1 } };
     },
   }),
 
+  // Sign out: delete the caller's session row. Best-effort from the
+  // client (local state is cleared regardless).
+  logout: defineAction({
+    auth: { any: true },
+    request: z.object({}),
+    response: z.object({ ok: z.boolean() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      if (ctx.auth) await db.delete(schema.userSessions).where(eq(schema.userSessions.tokenHash, ctx.auth.tokenHash));
+      return { ok: true };
+    },
+  }),
   // ---- Live support chat (customer <-> Admin) ----
 
   sendChatMessage: defineAction({
+    auth: { arg: "userId" },
     request: z.object({
       userId: z.number(),
       message: z.string().max(2000),
@@ -4690,6 +4790,7 @@ export const Actions = {
   // Serves one chat attachment to the thread's own customer or to an
   // Admin — nobody else can fetch another customer's chat files.
   getChatAttachmentUrl: defineAction({
+    auth: { arg: "requesterId" },
     request: z.object({ requesterId: z.number(), messageId: z.number() }),
     response: z.object({ hasFile: z.boolean(), url: z.string().nullable(), fileName: z.string().nullable(), contentType: z.string().nullable(), size: z.number().nullable() }),
     async handler(ctx, args) {
@@ -4709,6 +4810,7 @@ export const Actions = {
   }),
 
   listChatMessages: defineAction({
+    auth: { arg: "userId" },
     request: z.object({ userId: z.number() }),
     response: z.object({ messages: z.array(chatMessageOut) }),
     async handler(ctx, args) {
@@ -4723,6 +4825,7 @@ export const Actions = {
   }),
 
   adminChatThreads: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({
       threads: z.array(
@@ -4781,6 +4884,7 @@ export const Actions = {
   }),
 
   adminReplyChat: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       userId: z.number(),
@@ -4827,6 +4931,7 @@ export const Actions = {
   // ---- Seller wallet (deposit / withdraw requests, Admin approved) ----
 
   getWallet: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number() }),
     response: z.object({
       balance: z.number(),
@@ -4902,6 +5007,7 @@ export const Actions = {
   }),
 
   getSellerFinance: defineAction({
+    auth: { arg: "actorId" },
     request: z.object({ actorId: z.number(), sellerId: z.number() }),
     response: financeOut,
     async handler(ctx, args): Promise<Finance> {
@@ -4914,6 +5020,7 @@ export const Actions = {
   }),
 
   uploadSellerDocument: defineAction({
+    auth: "public",
     request: z.object({
       fileName: z.string().min(1).max(200),
       contentType: z.string().min(1).max(100),
@@ -4936,6 +5043,7 @@ export const Actions = {
   }),
 
   saveDocumentUploads: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({
       sellerId: z.number(),
       photoBlobKey: z.string().max(500).optional(), photoFileName: z.string().max(200).optional(), photoContentType: z.string().max(100).optional(), photoSize: z.number().int().min(0).optional(),
@@ -4969,6 +5077,7 @@ export const Actions = {
   }),
 
   adminGetDocumentUrl: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), sellerId: z.number(), kind: z.enum(["photo", "logo", "docFront", "docBack"]) }),
     response: z.object({ hasFile: z.boolean(), url: z.string().nullable(), fileName: z.string().nullable(), contentType: z.string().nullable(), size: z.number().nullable() }),
     async handler(ctx, args) {
@@ -4992,6 +5101,7 @@ export const Actions = {
   }),
 
   getMyDocumentUrl: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number(), kind: z.enum(["photo", "logo", "docFront", "docBack"]) }),
     response: z.object({ hasFile: z.boolean(), url: z.string().nullable(), fileName: z.string().nullable(), contentType: z.string().nullable(), size: z.number().nullable() }),
     async handler(ctx, args) {
@@ -5016,6 +5126,7 @@ export const Actions = {
   }),
 
   adminCreditSeller: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), sellerId: z.number(), amountInr: z.number().int().min(1).max(100000000), note: z.string().max(300).optional() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable(), id: z.number().nullable(), newBalance: z.number() }),
     async handler(ctx, args) {
@@ -5034,6 +5145,7 @@ export const Actions = {
   }),
 
   requestDeposit: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({
       sellerId: z.number(),
       amountInr: z.number().int().min(1).max(100000000),
@@ -5125,6 +5237,7 @@ export const Actions = {
   }),
 
   requestWithdraw: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({
       sellerId: z.number(),
       amountInr: z.number().int().min(1).max(100000000),
@@ -5248,6 +5361,7 @@ export const Actions = {
   }),
 
   adminWalletRequests: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({
       requests: z.array(
@@ -5334,6 +5448,7 @@ export const Actions = {
   // (The request field keeps its original name; it carries the
   // requester's own account id.)
   getOrderPaymentProofUrl: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), orderId: z.number() }),
     response: z.object({ hasFile: z.boolean(), url: z.string().nullable(), fileName: z.string().nullable(), contentType: z.string().nullable(), size: z.number().nullable() }),
     async handler(ctx, args) {
@@ -5354,6 +5469,7 @@ export const Actions = {
   // Serves the payment screenshot attached to ONE deposit request, to
   // an Admin only, so it can be checked before approving the deposit.
   getDepositScreenshotUrl: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), txId: z.number() }),
     response: z.object({ hasFile: z.boolean(), url: z.string().nullable(), fileName: z.string().nullable(), contentType: z.string().nullable(), size: z.number().nullable() }),
     async handler(ctx, args) {
@@ -5369,6 +5485,7 @@ export const Actions = {
   }),
 
   reviewWalletRequest: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       txId: z.number(),
@@ -5440,6 +5557,7 @@ export const Actions = {
   // paying never deducts twice, and paying an already paid / rejected /
   // completed request is refused in writing and changes nothing.
   adminPayWithdrawal: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       txId: z.number(),
@@ -5505,6 +5623,7 @@ export const Actions = {
   // short note/reason; the amount is deducted once, one ledger line
   // "Admin Withdrawal — <note>" is added, and the customer is notified.
   adminDirectWithdraw: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       sellerId: z.number(),
@@ -5548,6 +5667,7 @@ export const Actions = {
   }),
 
   adminDeleteAccount: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), userId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable(), role: z.string() }),
     async handler(ctx, args) {
@@ -5599,6 +5719,7 @@ export const Actions = {
         await db.delete(schema.users).where(eq(schema.users.id, u.id));
       }
       ctx.invalidateQueries();
+      await invalidateUserSessions(db, u.id);
       return { ok: true, error: null, role: u.role };
     },
   }),
@@ -5615,6 +5736,7 @@ export const Actions = {
   // and remove a regular admin — authorized by the Protected owner account's OWN
   // current password. Regular admins have neither power (backend refuses).
   listAdminAccounts: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({
       viewerCanManageOthers: z.boolean(),
@@ -5654,6 +5776,7 @@ export const Actions = {
   }),
 
   adminChangeOwnEmail: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       newEmail: z.string().max(120),
@@ -5696,6 +5819,7 @@ export const Actions = {
   }),
 
   adminCreateAdditionalAdmin: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       creatorPassword: z.string().max(100),
@@ -5742,6 +5866,7 @@ export const Actions = {
   }),
 
   adminChangeOwnPassword: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       currentPassword: z.string().max(100),
@@ -5772,6 +5897,7 @@ export const Actions = {
         return { ok: false, error: "New Password is the same as the current password. Please choose a different new password." };
       }
       await db.update(schema.users).set({ password: await hashPassword(args.newPassword) }).where(eq(schema.users.id, args.adminId));
+      await invalidateUserSessions(db, args.adminId, ctx.auth?.tokenHash ?? null);
       ctx.invalidateQueries();
       return { ok: true, error: null };
     },
@@ -5782,6 +5908,7 @@ export const Actions = {
   // password. The protected first account itself can never be reset here,
   // and no other admin may use this at all. Messages stay plain.
   adminResetAdminPassword: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       targetAdminId: z.number(),
@@ -5804,6 +5931,7 @@ export const Actions = {
       if (!(await verifyPassword(args.actorPassword, me[0].password))) return { ok: false, error: "Your Current Password is wrong — the password was not reset. Please enter the password for your own admin account." };
       if (!args.newPassword || args.newPassword.length < 4) return { ok: false, error: "New Password is too short — please use at least 4 characters." };
       await db.update(schema.users).set({ password: await hashPassword(args.newPassword) }).where(eq(schema.users.id, args.targetAdminId));
+      await invalidateUserSessions(db, args.targetAdminId);
       ctx.invalidateQueries();
       return { ok: true, error: null };
     },
@@ -5813,6 +5941,7 @@ export const Actions = {
   // only the first-created admin account, authorized by its own current
   // password. That account itself can never be removed by anyone.
   adminRemoveAdmin: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       targetAdminId: z.number(),
@@ -5833,6 +5962,7 @@ export const Actions = {
       if (!args.actorPassword) return { ok: false, error: "Your Current Password is required — please enter your own password to authorize removing this admin." };
       if (!(await verifyPassword(args.actorPassword, me[0].password))) return { ok: false, error: "Your Current Password is wrong — the admin was not removed. Please enter the password for your own admin account." };
       await db.delete(schema.users).where(eq(schema.users.id, args.targetAdminId));
+      await invalidateUserSessions(db, args.targetAdminId);
       ctx.invalidateQueries();
       return { ok: true, error: null };
     },
@@ -5845,6 +5975,7 @@ export const Actions = {
   // is created only when the account actually exists (and no pending
   // request for that account is already open).
   requestPasswordReset: defineAction({
+    auth: "public",
     request: z.object({ identifier: z.string().max(120), storeName: z.string().max(120).optional(), lang: z.enum(["en", "hi", "ar"]).optional() }),
     response: z.object({ ok: z.literal(true) }),
     async handler(ctx, args): Promise<{ ok: true }> {
@@ -5889,6 +6020,7 @@ export const Actions = {
   // Step 2 (Admin): list requests. Name/Gmail/mobile/role/time/status only
   // — never any password data.
   listPasswordResetRequests: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({
       viewerCanManageOthers: z.boolean(),
@@ -5922,6 +6054,7 @@ export const Actions = {
   // do this (backend check); buyer/seller requests may be completed by
   // any signed-in admin.
   adminCompletePasswordReset: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), requestId: z.number(), newPassword: z.string().max(100) }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
@@ -5941,6 +6074,7 @@ export const Actions = {
       const target = await db.select().from(schema.users).where(eq(schema.users.id, reqRows[0].userId)).limit(1);
       if (!target[0]) return { ok: false, error: "Account not found. It may have been removed." };
       await db.update(schema.users).set({ password: await hashPassword(args.newPassword), mustChangePassword: 1 }).where(eq(schema.users.id, reqRows[0].userId));
+      await invalidateUserSessions(db, reqRows[0].userId);
       await db.update(schema.passwordResetRequests).set({ status: "completed", completedByAdminId: args.adminId, completedAt: new Date() }).where(eq(schema.passwordResetRequests.id, args.requestId));
       ctx.invalidateQueries();
       return { ok: true, error: null };
@@ -5951,6 +6085,7 @@ export const Actions = {
   // or admin): the account's OWN current password is required and verified
   // on the backend; the new password is stored hashed only.
   adminSetUserPassword: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), userId: z.number(), newPassword: z.string().max(100), confirmPassword: z.string().max(100) }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable(), accountName: z.string().nullable(), loginId: z.string().nullable() }),
     async handler(ctx, args): Promise<{ ok: boolean; error: string | null; accountName: string | null; loginId: string | null }> {
@@ -5965,6 +6100,7 @@ export const Actions = {
       if (!target) return { ok: false, error: "Account not found.", accountName: null, loginId: null };
       if (target.role === "admin") return { ok: false, error: "Admin passwords are managed from Settings → Admin Accounts.", accountName: null, loginId: null };
       await db.update(schema.users).set({ password: await hashPassword(args.newPassword), mustChangePassword: 1 }).where(eq(schema.users.id, target.id));
+      await invalidateUserSessions(db, target.id);
       await db.update(schema.passwordResetRequests).set({ status: "completed", completedByAdminId: actor.id, completedAt: new Date() }).where(and(eq(schema.passwordResetRequests.userId, target.id), eq(schema.passwordResetRequests.status, "pending")));
       ctx.invalidateQueries();
       return { ok: true, error: null, accountName: target.name, loginId: target.email ?? (target.phone ? phoneDisplay(target.phone, target.country) : "") };
@@ -5972,6 +6108,7 @@ export const Actions = {
   }),
 
   changeMyPassword: defineAction({
+    auth: { arg: "userId" },
     request: z.object({ userId: z.number(), currentPassword: z.string().max(100), newPassword: z.string().max(100) }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
@@ -5984,6 +6121,7 @@ export const Actions = {
       if (!args.newPassword || args.newPassword.length < 4) return { ok: false, error: "New Password is too short — please use at least 4 characters." };
       if (await verifyPassword(args.newPassword, me[0].password)) return { ok: false, error: "New Password is the same as the current password. Please choose a different new password." };
       await db.update(schema.users).set({ password: await hashPassword(args.newPassword), mustChangePassword: 0 }).where(eq(schema.users.id, args.userId));
+      await invalidateUserSessions(db, args.userId, ctx.auth?.tokenHash ?? null);
       ctx.invalidateQueries();
       return { ok: true, error: null };
     },
@@ -5995,6 +6133,7 @@ export const Actions = {
   // that drives shop prices, seller profit and USD conversion). Past orders
   // are untouched — order_items already snapshot profit at order time.
   previewBulkProfit: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: bulkRequestSchema,
     response: bulkPreviewResponse,
     async handler(ctx, args): Promise<z.infer<typeof bulkPreviewResponse>> {
@@ -6022,6 +6161,7 @@ export const Actions = {
   }),
 
   applyBulkProfit: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: bulkRequestSchema,
     response: bulkApplyResponse,
     async handler(ctx, args): Promise<z.infer<typeof bulkApplyResponse>> {
@@ -6051,6 +6191,7 @@ export const Actions = {
   }),
 
   getBulkProfitHistory: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({ history: z.array(bulkHistoryOut) }),
     async handler(ctx, args): Promise<{ history: z.infer<typeof bulkHistoryOut>[] }> {
@@ -6070,6 +6211,7 @@ export const Actions = {
   // product's current price figures, so the Admin sees all of them in one
   // place instead of opening each seller one by one.
   adminListSellerProducts: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({
       ok: z.boolean(),
@@ -6128,6 +6270,7 @@ export const Actions = {
   // marks only records what the Admin has seen/hidden — the underlying
   // records are never changed by seeing or hiding an entry.
   adminActivityFeed: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({
       ok: z.boolean(),
@@ -6244,6 +6387,7 @@ export const Actions = {
 
   // Mark one activity item as seen (highlight/count clears; record stays).
   adminMarkActivitySeen: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), kind: z.string().max(20), refId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
@@ -6269,6 +6413,7 @@ export const Actions = {
   // Hide one entry from the New Activity list. The underlying record
   // (order, wallet request, ticket…) is NOT deleted — only the entry.
   adminDismissActivity: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), kind: z.string().max(20), refId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
@@ -6297,6 +6442,7 @@ export const Actions = {
   // Delete a customer's whole live-chat conversation (both sides see it
   // cleared; the customer can start a new chat afterwards).
   adminDeleteChatThread: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), userId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable(), deletedCount: z.number() }),
     async handler(ctx, args) {
@@ -6319,6 +6465,7 @@ export const Actions = {
 
   // Delete a support ticket (the ticket record itself).
   adminDeleteTicket: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), ticketId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
@@ -6339,6 +6486,7 @@ export const Actions = {
   // the payable product cost, whether they already paid it from their
   // wallet). Admin manages status right here with updateOrderStatus.
   adminGetSellerOrders: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), sellerId: z.number() }),
     response: z.object({
       ok: z.boolean(),
@@ -6389,6 +6537,7 @@ export const Actions = {
   // same price / profit snapshot, stock decrement, seller notification,
   // status flow and wallet maths, with placedBy "admin".
   adminQuickSendSellerOrder: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       sellerId: z.number(),
@@ -6460,6 +6609,7 @@ export const Actions = {
   // the seller's notifications and as an alert banner on their dashboard
   // until that order is completed (or, for a general notice, dismissed).
   adminSendSellerNotice: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       sellerId: z.number(),
@@ -6496,6 +6646,7 @@ export const Actions = {
   // their part; Delivered/Cancelled also clear them); general notices
   // until dismissed.
   listSellerNotices: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number() }),
     response: z.object({
       notices: z.array(z.object({
@@ -6533,6 +6684,7 @@ export const Actions = {
   // Dismiss a general (non-order) Admin notice. Order notices cannot be
   // dismissed — they clear once the seller ships the order.
   dismissSellerNotice: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number(), noticeId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
@@ -6555,6 +6707,7 @@ export const Actions = {
   // same finance computation the wallet shows. Insufficient balance
   // refuses with both amounts and changes nothing.
   sellerPayOrderFromWallet: defineAction({
+    auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number(), orderId: z.number() }),
     response: z.object({
       ok: z.boolean(),
@@ -6620,6 +6773,7 @@ export const Actions = {
   // request the Admin wants off the list). The customer's account and
   // password are not touched.
   adminDeletePasswordResetRequest: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), requestId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
@@ -6638,6 +6792,7 @@ export const Actions = {
   // empty), with the real merchant listings above. Idempotent — later
   // Admin edits/deletes are never overwritten.
   seedExternalProducts: defineAction({
+    auth: "public",
     request: z.object({}),
     response: z.object({ seeded: z.boolean(), count: z.number() }),
     async handler(ctx) {
@@ -6657,6 +6812,7 @@ export const Actions = {
   // Visitor list for "Shop from Other Platforms". When the Admin has
   // switched the section OFF, no products are returned at all.
   listExternalProducts: defineAction({
+    auth: "public",
     request: z.object({}),
     response: z.object({ enabled: z.boolean(), products: z.array(externalProductOut) }),
     async handler(ctx) {
@@ -6672,6 +6828,7 @@ export const Actions = {
   // Admin list: every external product plus the ON/OFF state, even
   // while the section is OFF (so the Admin can manage it).
   adminListExternalProducts: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable(), enabled: z.boolean(), products: z.array(externalProductOut) }),
     async handler(ctx, args) {
@@ -6688,6 +6845,7 @@ export const Actions = {
   // every missing or wrong field; the URL must be a full http(s) link
   // and the price a positive number.
   adminUpsertExternalProduct: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({
       adminId: z.number(),
       id: z.number().nullable(),
@@ -6727,6 +6885,7 @@ export const Actions = {
   }),
 
   adminDeleteExternalProduct: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), productId: z.number() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
     async handler(ctx, args) {
@@ -6744,6 +6903,7 @@ export const Actions = {
   // Admin ON/OFF switch for the whole external section. OFF hides it
   // from visitors entirely; the products themselves are kept.
   setExternalProductsEnabled: defineAction({
+    auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number(), enabled: z.boolean() }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable(), enabled: z.boolean() }),
     async handler(ctx, args) {

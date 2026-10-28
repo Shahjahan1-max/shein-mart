@@ -11,9 +11,11 @@
 // Without DATABASE_URL the service still starts and answers health checks,
 // but /actions returns 503 until the database is configured.
 import { drizzle } from "drizzle-orm/node-postgres";
+import { eq } from "drizzle-orm";
 import { Pool } from "pg";
-import { pbkdf2Sync, randomBytes } from "node:crypto";
+import { pbkdf2Sync, randomBytes, createHash } from "node:crypto";
 import { Actions } from "./src/actions.pg";
+import * as schema from "./src/schema.pg";
 import type { Ctx } from "./src/space-shim";
 
 const corsHeaders = {
@@ -121,6 +123,11 @@ CREATE TABLE IF NOT EXISTS seller_wallet_events (
   kind TEXT NOT NULL, amount INTEGER NOT NULL DEFAULT 0,
   reference TEXT NOT NULL DEFAULT '', order_id INTEGER, tx_id INTEGER,
   is_read INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
+  token_hash TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS settings (
@@ -307,8 +314,48 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
       } catch {
         return json({ ok: false, error: "Invalid request" }, 400);
       }
+      // ---- Login-session enforcement (see space-shim AuthPolicy) ----
+      // Public actions skip this entirely. Every other action needs a
+      // valid token, and arg/role checks run against the TOKEN's user —
+      // never against a caller-passed id. An action without an auth
+      // policy is rejected (fail-closed): every action must be tagged.
+      const policy = (def as any).auth;
+      let auth: { userId: number; role: string; tokenHash: string } | null = null;
+      if (policy !== "public") {
+        const fail = (error: string, status: number) => json({ ok: false, error }, status);
+        if (policy === undefined) return fail("Sign in required.", 401);
+        const optionalField = typeof policy === "object" && policy !== null && "optional" in policy ? (policy as any).optional : null;
+        const optionalValue = optionalField ? parsed?.[optionalField] : undefined;
+        if (!(optionalField && (optionalValue === null || optionalValue === undefined))) {
+          const token = typeof body?.token === "string" ? body.token : null;
+          if (!token) return fail("Sign in required.", 401);
+          const tokenHash = createHash("sha256").update(token).digest("hex");
+          const db = ctx.db();
+          const srow = await db.select().from(schema.userSessions).where(eq(schema.userSessions.tokenHash, tokenHash)).limit(1);
+          const urow = srow[0]
+            ? await db.select().from(schema.users).where(eq(schema.users.id, srow[0].userId)).limit(1)
+            : [];
+          if (!srow[0] || !urow[0]) return fail("Sign in required.", 401);
+          auth = { userId: urow[0].id, role: urow[0].role, tokenHash };
+          if (typeof policy === "object" && policy !== null && "admin" in policy) {
+            if (auth.role !== "admin") return fail("Not allowed.", 403);
+          } else if (typeof policy === "object" && policy !== null && "arg" in policy) {
+            if (parsed?.[(policy as any).arg] !== auth.userId) return fail("Not allowed.", 403);
+            if ((policy as any).role && auth.role !== (policy as any).role) return fail("Not allowed.", 403);
+          } else if (typeof policy === "object" && policy !== null && "any" in policy) {
+            // any valid token suffices
+          } else if (typeof policy === "object" && policy !== null && "optional" in policy) {
+            if (optionalValue !== auth.userId) return fail("Not allowed.", 403);
+          } else {
+            return fail("Sign in required.", 401);
+          }
+        }
+      }
+      // Per-request ctx: handlers share db/blobs via spread, but auth is
+      // this request's own (never mutate the shared ctx across requests).
+      const reqCtx = { ...ctx, auth };
       try {
-        const result = await def.handler(ctx, parsed);
+        const result = await def.handler(reqCtx, parsed);
         return json(result);
       } catch (e) {
         console.error(`action ${body.action} failed`, e);

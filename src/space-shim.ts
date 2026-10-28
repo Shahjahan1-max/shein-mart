@@ -9,10 +9,36 @@ import { z } from "zod";
 
 export { z };
 
+// Login-session policy, enforced by the server dispatcher BEFORE the
+// handler runs (a handler's own role/ownership checks stay as a second
+// layer, they are never the only layer):
+//   "public"            — no token needed (genuinely public reads, account
+//                         creation, login itself, and the idempotent
+//                         setup actions the app calls on every load).
+//   { any: true }       — any valid token (refreshMySession, logout).
+//   { admin: true }     — any valid ADMIN token (no id arg to match).
+//   { arg: "<field>" }  — token's user id must equal args[field]; the
+//                         handler's own checks (role, attribution) still
+//                         apply on top.
+//   { arg: "<field>", role: "<role>" } — as above, plus token user's
+//                         role must equal role (admin actions).
+//   { optional: "<field>" } — if args[field] is null/undefined the call
+//                         is public (guest tickets); otherwise it behaves
+//                         like { arg: "<field>" }.
+// An action WITHOUT an auth field is rejected by the dispatcher
+// (fail-closed): every action must be tagged deliberately.
+export type AuthPolicy =
+  | "public"
+  | { any: true }
+  | { admin: true }
+  | { arg: string; role?: string }
+  | { optional: string };
+
 export type ActionDef = {
   request: any;
   response: any;
   handler: (ctx: Ctx, args: any) => Promise<any>;
+  auth?: AuthPolicy;
 };
 
 export type ActionsModule = Record<string, ActionDef>;
@@ -30,4 +56,7 @@ export type Ctx = {
   db: <T>() => any;
   blobs: BlobStore;
   invalidateQueries: () => void;
+  // Set per request by the dispatcher when a token was validated; null
+  // for public calls. Handlers must never trust id args over this.
+  auth?: { userId: number; role: string; tokenHash: string } | null;
 };
