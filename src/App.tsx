@@ -1044,30 +1044,33 @@ function ShopView({
     }
   }
   // Scroll the product list back to its top when the category changes.
-  // The #catalog bar is sticky, so scrollIntoView on it is unreliable:
-  // a stuck bar is already "visible" at the top, so the browser may not
-  // move the page at all and the visitor stays at the bottom of the new
-  // list. Instead scroll the window to the bar's flow position in the
-  // document (offsetTop is unaffected by the sticky paint offset),
-  // just below the sticky header — the same gap as its scroll-mt.
-  // Runs after a tick so the category change has re-rendered first:
-  // switching away from All unmounts the hero/collection/featured
-  // sections above the bar, which moves its flow position up.
+  // The #catalog bar itself must NOT be measured while it is stuck: a
+  // stuck sticky bar reports its current stuck position, so scrolling
+  // there moves nothing and the visitor stays at the bottom of the new
+  // list (that was the first attempt's bug, proven by two guest checks).
+  // Measure the first element below the bar instead (notice, loading,
+  // empty message, or product grid): it is not sticky, so its document
+  // position is exact, and the bar's own height is subtracted so the
+  // bar stays fully visible above it. Runs after a tick so the category
+  // change has re-rendered first: switching away from All unmounts the
+  // hero/collection/featured sections above, which moves everything
+  // below up.
   function scrollCatalogToTop() {
-    const el = document.getElementById("catalog");
-    if (!el) return;
+    const bar = document.getElementById("catalog");
+    const anchor = bar?.nextElementSibling as HTMLElement | null;
+    if (!bar || !anchor) return;
     let top = 0;
-    let node: HTMLElement | null = el;
+    let node: HTMLElement | null = anchor;
     while (node) {
       top += node.offsetTop;
       node = node.offsetParent as HTMLElement | null;
     }
     const headerH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 56;
-    window.scrollTo({ top: Math.max(0, top - headerH - 16), behavior: "smooth" });
+    window.scrollTo({ top: Math.max(0, top - headerH - bar.offsetHeight - 16), behavior: "smooth" });
   }
   function goCategory(cat: string) {
     setCategory(cat);
-    window.setTimeout(scrollCatalogToTop, 60);
+    window.setTimeout(scrollCatalogToTop, 120);
   }
 
   const sellerPicks = useQuery({
