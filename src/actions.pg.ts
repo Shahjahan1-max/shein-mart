@@ -697,6 +697,11 @@ function attributedProductIds(
     if (!sellerExistedAtOrder(attr, sellerId, orderId)) return new Set<number>();
     return currentIds;
   }
+  // Explicit order for this seller (orders.seller_id set at placement,
+  // e.g. Admin Quick Send) with no other proof: it IS their order —
+  // this is not guessing from current picks. (Without this, the delete
+  // flow could not snapshot such an order for the Admin history.)
+  if (orderSellerId === sellerId) return currentIds;
   // No order-time proof at all: nobody owns it. (Previously this fell
   // back to current store picks — the ghost-order bug.)
   return new Set<number>();
