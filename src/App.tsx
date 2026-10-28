@@ -6032,6 +6032,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore }: { user: Use
   // Theme & Design drafts (saved to settings on Apply)
   const [schemeDraft, setSchemeDraft] = useState<string | null>(null);
   const [layoutDraft, setLayoutDraft] = useState<string | null>(null);
+  const [brandModeDraft, setBrandModeDraft] = useState<string | null>(null);
   const [designOk, setDesignOk] = useState<string | null>(null);
   const [designErr, setDesignErr] = useState<string | null>(null);
   const viewerDoc = useQuery({ queryKey: ["admin-doc-view", user?.id, viewer?.sellerId, viewer?.kind], queryFn: () => api.adminGetDocumentUrl({ adminId: user!.id, sellerId: viewer!.sellerId, kind: viewer!.kind }), enabled: !!viewer && !!user && user.role === "admin" });
@@ -6280,7 +6281,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore }: { user: Use
     onError: (e, args) => setNoticeResult({ key: args.key, ok: false, text: String(e) }),
   });
   const saveDesign = useMutation({
-    mutationFn: () => api.updateStoreDesign({ adminId: user!.id, colorScheme: (schemeDraft ?? settings?.colorScheme ?? "navy") as "navy" | "emerald" | "royal" | "charcoal" | "teal" | "crimson" | "sunset" | "rose", layoutDesign: (layoutDraft ?? settings?.layoutDesign ?? "classic") as "classic" | "menu" | "topsearch" | "minimal" | "wide" }),
+    mutationFn: () => api.updateStoreDesign({ adminId: user!.id, colorScheme: (schemeDraft ?? settings?.colorScheme ?? "navy") as "navy" | "emerald" | "royal" | "charcoal" | "teal" | "crimson" | "sunset" | "rose", layoutDesign: (layoutDraft ?? settings?.layoutDesign ?? "classic") as "classic" | "menu" | "topsearch" | "minimal" | "wide", headerBrandMode: (brandModeDraft ?? settings?.headerBrandMode ?? "both") as "both" | "logo" | "text" }),
     onSuccess: (r) => {
       if (!r.ok) { setDesignErr(r.error ?? "Failed."); setDesignOk(null); return; }
       setDesignErr(null);
@@ -7030,6 +7031,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore }: { user: Use
   function renderThemeDesign() {
     const scheme = schemeDraft ?? settings?.colorScheme ?? "navy";
     const layoutD = layoutDraft ?? settings?.layoutDesign ?? "classic";
+    const brandMode = brandModeDraft ?? settings?.headerBrandMode ?? "both";
     const schemes: Array<{ id: string; label: StrKey; pal: { accent: string; strong: string; soft: string; gold: string; bg: string } }> = [
       { id: "navy", label: "theme.scheme.navy", pal: { accent: "#1a365d", strong: "#122847", soft: "#e8eef6", gold: "#d97706", bg: "#f6f7f9" } },
       { id: "emerald", label: "theme.scheme.emerald", pal: { accent: "#047857", strong: "#065f46", soft: "#d1fae5", gold: "#b45309", bg: "#f4f8f5" } },
@@ -7047,7 +7049,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore }: { user: Use
       { id: "minimal", label: "theme.layout.minimal", desc: "theme.layout.minimalD" },
       { id: "wide", label: "theme.layout.wide", desc: "theme.layout.wideD" },
     ];
-    const dirty = scheme !== (settings?.colorScheme ?? "navy") || layoutD !== (settings?.layoutDesign ?? "classic");
+    const dirty = scheme !== (settings?.colorScheme ?? "navy") || layoutD !== (settings?.layoutDesign ?? "classic") || brandMode !== (settings?.headerBrandMode ?? "both");
     return (
       <div>
         <section aria-label={t("theme.title")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -7136,6 +7138,29 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore }: { user: Use
               <button type="button" disabled={saveLogo.isPending} onClick={() => { if (!logoUrlDraft.trim()) { setLogoErr(t("theme.logoUrlEmpty")); return; } saveLogo.mutate({ mode: "url", imageUrl: logoUrlDraft.trim() }); }} className={primaryBtn + " px-4 py-2 text-sm"}>{t("theme.logoSaveUrl")}</button>
               {settings?.headerLogoUrl && <button type="button" disabled={saveLogo.isPending} onClick={() => saveLogo.mutate({ mode: "remove" })} className={ghostBtn + " px-4 py-2 text-sm"}>{t("theme.logoRemove")}</button>}
             </div>
+          </div>
+          <div className="mt-4 border-t border-[var(--border)] pt-3">
+            <span className="text-sm font-semibold text-[var(--text)]">{t("theme.brandTitle")}</span>
+            <p className="mt-1 text-sm text-[var(--dim)]">{t("theme.brandSub")}</p>
+            <div className="mt-2 flex flex-col gap-2" role="radiogroup" aria-label={t("theme.brandTitle")}>
+              {([
+                ["both", "theme.brandBoth"],
+                ["logo", "theme.brandLogo"],
+                ["text", "theme.brandText"],
+              ] as const).map(([id, label]) => (
+                <button key={id} type="button" role="radio" aria-checked={brandMode === id} onClick={() => { setBrandModeDraft(id); setDesignOk(null); }} className={`rounded-xl border px-4 py-2.5 text-left text-sm font-semibold ${brandMode === id ? "border-[var(--accent)] bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]" : "border-[var(--border)] bg-[var(--surface)]"}`}>
+                  {brandMode === id ? "● " : "○ "}{t(label)}
+                </button>
+              ))}
+            </div>
+            {brandMode === "logo" && !settings?.headerLogoUrl && (
+              <p className="mt-2 text-sm text-[var(--dim)]">{t("theme.brandLogoNote")}</p>
+            )}
+            <button type="button" disabled={saveDesign.isPending} onClick={() => saveDesign.mutate()} className={goldBtn + " mt-3"}>
+              {saveDesign.isPending ? t("theme.applying") : `✓ ${t("adm.saveSettings")}`}
+            </button>
+            {designErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {designErr}</p>}
+            {designOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {designOk}</p>}
           </div>
           {logoErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {logoErr}</p>}
           {logoMsg && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {logoMsg}</p>}
@@ -7445,7 +7470,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore }: { user: Use
               <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#A67C2E] font-display text-2xl font-extrabold text-white">S</span>
             )}
             <span className="min-w-0">
-              <span className="block truncate font-display text-xl font-extrabold leading-none text-white">sheinmart</span>
+              <span className="block truncate font-display text-xl font-extrabold leading-none text-white">{settings?.storeName ?? "sheinmart"}</span>
               <span className="mt-1 block text-[11px] font-bold uppercase tracking-[0.25em] text-[#C9A86A]">Admin</span>
             </span>
             <button type="button" aria-label={t("menu.close")} onClick={() => setAdminNavOpen(false)} className="ml-auto rounded-lg px-2 py-1 text-lg text-[#A8A29A] lg:hidden">×</button>
@@ -9604,6 +9629,12 @@ export function App() {
   // Admin-set header logo (Admin → Theme & Design → Header Logo):
   // an uploaded image or a pasted image URL; empty = text brand.
   const headerLogoUrl = settings.data?.headerLogoUrl ?? "";
+  // Header brand display mode (Admin → Theme & Design): "both" (logo +
+  // name, the default), "logo" (logo only; the name shows until a logo
+  // is uploaded), "text" (name only).
+  const headerBrandMode = settings.data?.headerBrandMode ?? "both";
+  const headerLogoShown = headerBrandMode !== "text" && headerLogoUrl !== "";
+  const headerNameShown = headerBrandMode !== "logo" || headerLogoUrl === "";
   // Admin-chosen store design (settings): colour scheme recolours the
   // whole store for everyone; layout design rearranges the chrome.
   const colorScheme = settings.data?.colorScheme ?? "navy";
@@ -10013,11 +10044,11 @@ const NAV: NavItem[] =
               aria-label={`${storeName} home`}
               className="hdr-brand flex min-w-0 flex-1 items-center text-left font-display font-extrabold tracking-tight text-[var(--accent)] text-xl sm:text-2xl"
             >
-              {headerLogoUrl ? (
+              {headerLogoShown ? (
                 <img src={headerLogoUrl} alt="" className="hdr-logo mr-1.5 h-9 w-9 shrink-0 rounded-xl object-contain sm:h-10 sm:w-10" />
               ) : null}
-              <span className="truncate">{storeName}</span>
-              {headerLogoUrl ? null : <span className="text-[var(--gold)]">.</span>}
+              {headerNameShown && <span className="truncate">{storeName}</span>}
+              {headerNameShown && !headerLogoShown ? <span className="text-[var(--gold)]">.</span> : null}
             </button>
             <span className="hdr-tagline hidden text-xs font-medium text-[var(--dim)] lg:block">
               {ui.t("header.tagline")}
