@@ -9088,6 +9088,30 @@ function InfoPage({ page, onBack, onGoSupport }: { page: InfoPageId; onBack: () 
 export function App() {
   const queryClient = useQueryClient();
   const [view, setView] = useState<View>("shop");
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  // Cart back guard: while the Cart tab is open, a browser/system back
+  // press must land on the home page (Shop), not navigate away from
+  // the site. Entering Cart pushes a history marker; popping it (the
+  // back press) switches the view home instead of leaving.
+  useEffect(() => {
+    if (view !== "cart") return;
+    window.history.pushState({ cartGuard: true }, "");
+    let poppedByBack = false;
+    const onPop = () => {
+      if (viewRef.current === "cart") {
+        poppedByBack = true;
+        setView("shop");
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      // Left Cart through the UI (not via back): consume the marker
+      // we pushed, so a later back press is not swallowed by it.
+      if (!poppedByBack) window.history.back();
+    };
+  }, [view]);
   const [infoPage, setInfoPage] = useState<InfoPageId>("about");
   // Bumped ONLY by goSupportChat() — the entry points whose explicit
   // purpose is opening the chat itself (Forgot Password "Open Live
@@ -9103,6 +9127,8 @@ export function App() {
   const [supportVisit, setSupportVisit] = useState(0);
   const [supportStartInChat, setSupportStartInChat] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Drawer Categories section: collapsed by default, expands on tap.
+  const [drawerCatsOpen, setDrawerCatsOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   // Professional compact-on-scroll header (user's rule, 2026-10-28):
   // At the very top the header is full-size; once the visitor scrolls
@@ -9396,10 +9422,10 @@ export function App() {
   });
   const chatUnread = chatUnreadQ.data?.unreadCount ?? 0;
 
-  // Bottom / desktop navigation: NO Cart and NO Orders here — Cart lives
-  // only in the ☰ hamburger drawer, and Orders moved into the drawer too.
-  // The Products tab (the seller's Add-to-My-Store section) takes Orders'
-  // place in this bar; buyers/visitors get the Become-a-Seller shell there.
+  // Bottom / desktop navigation: Products / Wallet / Seller are
+  // seller-only. Buyers get a Cart tab here instead (Cart moved out of
+  // the header and the drawer); guests and admins see Shop, Support,
+  // Account only. Orders live in the drawer.
   type NavItem = {
     key: string;
     label: string;
@@ -9409,10 +9435,10 @@ export function App() {
     isNew?: boolean;
   };
   // Seller navigation order (owner's settled choice): Shop first,
-  // then Products, then Wallet / Seller / Support / Account — the
-  // same order buyers/visitors see. Shop is where sellers browse the
-  // catalog and add products to their own store; the Products tab
-  // shows only the seller's added products, with Remove.
+  // then Products, then Wallet / Seller / Support / Account. Shop is
+  // where sellers browse the catalog and add products to their own
+  // store; the Products tab shows only the seller's added products,
+  // with Remove. Buyers instead see Shop, Cart, Support, Account.
     const navIconCls = "h-5 w-5 shrink-0";
   const iconShop = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /><path d="M9 21v-6h6v6" /></svg>);
   const iconProducts = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></svg>);
@@ -9421,6 +9447,8 @@ export function App() {
   const iconChat = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.6 0-3.1-.4-4.4-1.2L3 20l1.2-5.1A8.5 8.5 0 1 1 21 11.5Z" /><path d="M8 11.5h8" /><path d="M8 8.5h5" /></svg>);
   const iconUser = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></svg>);
   const iconGear = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" /></svg>);
+  // New footer Cart icon: a shopping bag (replaces the old 🛒 emoji).
+  const iconBag = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M5.5 8h13l-1.1 12.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8L5.5 8Z" /><path d="M8.5 10.5V6.8a3.5 3.5 0 0 1 7 0v3.7" /></svg>);
   // Day/night toggle icons: clean line-art sun/moon (no emoji).
   const iconSun = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12h2.5M19 12h2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" /></svg>);
   const iconMoon = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>);
@@ -9434,14 +9462,22 @@ const NAV: NavItem[] =
           { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
           { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
         ]
-      : [
-          // Products / Wallet / Seller are seller-only tabs: buyers,
-          // guests and admins never see them (seller signup still
-          // lives on the Account page: Register → "Apply as seller").
-          { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
-          { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
-          { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
-        ];
+      : user?.role === "buyer"
+        ? [
+            // Buyers: Cart lives in the footer (moved out of the
+            // header and the drawer); seller signup still lives on
+            // the Account page: Register → "Apply as seller".
+            { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
+            { key: "cart", view: "cart", label: ui.t("nav.cart"), icon: iconBag },
+            { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
+            { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
+          ]
+        : [
+            // Guests and admins: no Products / Wallet / Seller / Cart.
+            { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
+            { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
+            { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
+          ];
   // General Support / Customer Service entry: land on the Customer
   // Support overview page first — Live Chat card, WhatsApp, Email,
   // FAQ and ticket — so every service is visible. The chat itself
@@ -9668,23 +9704,8 @@ const NAV: NavItem[] =
                   )}
                 </div>
               )}
-              {user?.role === "buyer" && (
-                <button
-                  type="button"
-                  onClick={() => setView("cart")}
-                  aria-label={`${ui.t("cart.title")}${cartCount > 0 ? ` (${cartCount})` : ""}`}
-                  aria-current={view === "cart" ? "page" : undefined}
-                  className="hdr-cart shine-btn relative rounded-full bg-[var(--surface-alt)] px-3.5 leading-none hover:scale-110 min-h-12 py-0.5 text-[22px]"
-                >
-                  <span aria-hidden className="shine-sweep" />
-                  🛒
-                  {cartCount > 0 && (
-                    <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--gold)] px-1 font-display text-[11px] font-bold text-[var(--gold-ink)]">
-                      {cartCount > 99 ? "99+" : cartCount}
-                    </span>
-                  )}
-                </button>
-              )}
+              {/* Header Cart removed: buyers reach the cart from the
+                  footer Cart tab (new bag icon) instead. */}
               <button
                 type="button"
                 onClick={() => changeTheme(theme === "dark" ? "light" : "dark")}
@@ -9799,10 +9820,19 @@ const NAV: NavItem[] =
                     kept so it can be restored later. */}
                 {user?.role !== "seller" && (
                   <>
-                    <p className="px-3 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-[var(--dim)]">
-                      {ui.t("menu.categories")}
-                    </p>
-                    {CATEGORIES.filter((c) => c !== "All").map((c) => (
+                    {/* Categories header: collapsed by default, expands
+                        on tap. Bolder, slightly larger, serif style so
+                        the main tab stands out from the list below. */}
+                    <button
+                      type="button"
+                      onClick={() => setDrawerCatsOpen((o) => !o)}
+                      aria-expanded={drawerCatsOpen}
+                      className="mt-1 flex w-full items-center gap-2 rounded-lg bg-[var(--surface-alt)] px-3 py-2.5 text-left font-['Georgia','Times_New_Roman',serif] text-[15px] font-extrabold tracking-wide text-[var(--text)]"
+                    >
+                      <span className="flex-1">{ui.t("menu.categories")}</span>
+                      <span aria-hidden className={`text-sm leading-none transition-transform ${drawerCatsOpen ? "rotate-180" : ""}`}>⌄</span>
+                    </button>
+                    {drawerCatsOpen && CATEGORIES.filter((c) => c !== "All").map((c) => (
                       <button
                         key={c}
                         type="button"
@@ -9816,17 +9846,8 @@ const NAV: NavItem[] =
                   </>
                 )}
                 <div className="my-2 border-t border-[var(--border)]" />
-                <button
-                  type="button"
-                  onClick={() => goView("cart")}
-                  aria-label={`Cart, ${cartCount} items`}
-                  className="rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]"
-                >
-                  🛒 {ui.t("menu.cart")}
-                  {cartCount > 0 && (
-                    <span className="ml-1 text-sm font-medium text-[var(--dim)]">({cartCount})</span>
-                  )}
-                </button>
+                {/* Drawer Cart removed: buyers reach the cart from the
+                    footer Cart tab instead. */}
                 <button
                   type="button"
                   onClick={() => (user?.role === "seller" ? goSellerTab("orders") : goView("orders"))}
@@ -9846,9 +9867,11 @@ const NAV: NavItem[] =
                     🏪 {ui.t("menu.becomeSeller")}
                   </button>
                 )}
-                <button type="button" onClick={() => goSellerTab("wallet")} className="rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
-                  👛 {ui.t("menu.wallet")}
-                </button>
+                {user?.role === "seller" && (
+                  <button type="button" onClick={() => goSellerTab("wallet")} className="rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
+                    👛 {ui.t("menu.wallet")}
+                  </button>
+                )}
                 <button type="button" onClick={() => goView("support")} className="rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
                   💬 {ui.t("menu.support")}
                 </button>
@@ -10021,12 +10044,12 @@ const NAV: NavItem[] =
           aria-label="Main navigation"
           className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] shadow-[0_-6px_20px_rgba(15,23,42,0.08)] pb-safe sm:hidden"
         >
-          <div className={`grid ${NAV.length === 5 ? "grid-cols-5" : "grid-cols-6"}`}>
+          <div className="grid" style={{ gridTemplateColumns: `repeat(${NAV.length}, minmax(0, 1fr))` }}>
             {NAV.map((n) => (
               <button
                 key={n.key}
                 type="button"
-                aria-label={n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.key === "seller" && sellerPending > 0 ? `${n.label}, ${ui.t("sd.newOrdersToShip")}` : n.key === "support" && chatUnread > 0 ? `${n.label}, ${ui.t("sd.newSupportMessage")}` : n.label}
+                aria-label={n.key === "cart" && cartCount > 0 ? `${n.label} (${cartCount})` : n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.key === "seller" && sellerPending > 0 ? `${n.label}, ${ui.t("sd.newOrdersToShip")}` : n.key === "support" && chatUnread > 0 ? `${n.label}, ${ui.t("sd.newSupportMessage")}` : n.label}
                 aria-current={navCurrent(n) ? "page" : undefined}
                 onClick={() => navGo(n)}
                 className={`relative flex min-h-[4rem] flex-col items-center justify-center gap-1 pb-2 pt-2.5 text-[10px] font-medium leading-tight tracking-wide ${
@@ -10038,6 +10061,7 @@ const NAV: NavItem[] =
                 {n.key === "wallet" && walletUnread > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
                 {n.key === "seller" && sellerPending > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
                 {n.key === "support" && chatUnread > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
+                {n.key === "cart" && cartCount > 0 && <span aria-hidden className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[10px] font-bold text-[var(--gold-ink)]">{cartCount > 99 ? "99+" : cartCount}</span>}
                 <span className="flex leading-none">{n.icon}</span>
                 <span className="max-w-full truncate px-0.5">{n.label}</span>
               </button>
@@ -10055,7 +10079,7 @@ const NAV: NavItem[] =
             <button
               key={n.key}
               type="button"
-              aria-label={n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.key === "seller" && sellerPending > 0 ? `${n.label}, ${ui.t("sd.newOrdersToShip")}` : n.key === "support" && chatUnread > 0 ? `${n.label}, ${ui.t("sd.newSupportMessage")}` : n.label}
+              aria-label={n.key === "cart" && cartCount > 0 ? `${n.label} (${cartCount})` : n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.key === "seller" && sellerPending > 0 ? `${n.label}, ${ui.t("sd.newOrdersToShip")}` : n.key === "support" && chatUnread > 0 ? `${n.label}, ${ui.t("sd.newSupportMessage")}` : n.label}
               aria-current={navCurrent(n) ? "page" : undefined}
               onClick={() => navGo(n)}
               className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold lg:px-4 ${
@@ -10067,6 +10091,7 @@ const NAV: NavItem[] =
               {n.key === "wallet" && walletUnread > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
               {n.key === "seller" && sellerPending > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
               {n.key === "support" && chatUnread > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
+              {n.key === "cart" && cartCount > 0 && <span aria-hidden className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[11px] font-bold text-[var(--gold-ink)]">{cartCount > 99 ? "99+" : cartCount}</span>}
             </button>
           ))}
           {user?.role === "admin" && (
