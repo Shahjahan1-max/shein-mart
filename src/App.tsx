@@ -268,6 +268,34 @@ function loadSession(): User {
   }
 }
 
+// Refresh keeps the tab: the last footer tab is saved on every switch
+// and restored on the next load. A stored tab is only honoured when
+// the restored account may actually use it (admin tab for admins,
+// seller tab for sellers, cart/orders for buyers), so a signed-out
+// visitor never lands on a members-only tab.
+const VIEW_KEY = "sheinstore-view";
+const RESTORABLE_VIEWS: View[] = ["shop", "cart", "orders", "account", "seller", "support", "admin"];
+const SELLER_TABS: SellerTab[] = ["home", "products", "orders", "wallet", "my"];
+function readStoredTab(): { view: View; sellerTab: SellerTab } | null {
+  try {
+    const raw = localStorage.getItem(VIEW_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { view?: unknown; sellerTab?: unknown };
+    if (typeof parsed.view !== "string" || !(RESTORABLE_VIEWS as string[]).includes(parsed.view)) return null;
+    const view = parsed.view as View;
+    const role = loadSession()?.role;
+    if (view === "admin" && role !== "admin") return null;
+    if (view === "seller" && role !== "seller") return null;
+    if ((view === "cart" || view === "orders") && role !== "buyer") return null;
+    const sellerTab = typeof parsed.sellerTab === "string" && (SELLER_TABS as string[]).includes(parsed.sellerTab)
+      ? (parsed.sellerTab as SellerTab)
+      : "home";
+    return { view, sellerTab };
+  } catch {
+    return null;
+  }
+}
+
 /* ------------------------- UI prefs (lang + currency) ---------------------- */
 
 type Ui = {
@@ -9620,7 +9648,10 @@ function InfoPage({ page, onBack, onGoSupport }: { page: InfoPageId; onBack: () 
 
 export function App() {
   const queryClient = useQueryClient();
-  const [view, setView] = useState<View>("shop");
+  // Restored tab from the last visit (see readStoredTab): a refresh
+  // lands back on the same footer tab instead of the home page.
+  const [storedTab] = useState(readStoredTab);
+  const [view, setView] = useState<View>(storedTab?.view ?? "shop");
   const viewRef = useRef(view);
   viewRef.current = view;
   // Back guard (all pages): while the visitor is on ANY page other
@@ -9720,7 +9751,23 @@ export function App() {
     return () => ro.disconnect();
   }, []);
   const [shopCategory, setShopCategory] = useState("All");
-  const [sellerTab, setSellerTab] = useState<SellerTab>("home");
+  const [sellerTab, setSellerTab] = useState<SellerTab>(storedTab?.sellerTab ?? "home");
+  // Save the tab on every switch so a refresh restores it. Checkout
+  // saves as Cart (the cart itself survives server-side); info and
+  // external pages leave the last tab untouched, so a refresh from
+  // one of those returns to the tab the visitor came from. (Placed
+  // after the sellerTab declaration on purpose: the dependency array
+  // reads sellerTab, which must already be declared.)
+  useEffect(() => {
+    try {
+      if (view === "checkout") localStorage.setItem(VIEW_KEY, JSON.stringify({ view: "cart" }));
+      else if ((RESTORABLE_VIEWS as string[]).includes(view)) {
+        localStorage.setItem(VIEW_KEY, JSON.stringify({ view, sellerTab: view === "seller" ? sellerTab : undefined }));
+      }
+    } catch {
+      /* private mode — the tab just won't survive a refresh */
+    }
+  }, [view, sellerTab]);
   const [sellerKey, setSellerKey] = useState(0);
   const [user, setUser] = useState<User>(() => loadSession());
   const [lang, setLang] = useState<Lang>(() => {
@@ -10130,6 +10177,9 @@ const NAV: NavItem[] =
     clearSessionToken();
     setUser(null);
     localStorage.removeItem(SESSION_KEY);
+    // Forget the saved tab too, so a signed-out refresh lands on the
+    // home page instead of a members-only tab's sign-in prompt.
+    localStorage.removeItem(VIEW_KEY);
     queryClient.invalidateQueries();
     setView("shop");
   }
