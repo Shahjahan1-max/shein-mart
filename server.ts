@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS seller_notifications (
 CREATE TABLE IF NOT EXISTS settings (
   id INTEGER PRIMARY KEY, store_name TEXT NOT NULL DEFAULT 'sheinstore',
   support_whatsapp TEXT NOT NULL DEFAULT '', support_email TEXT NOT NULL DEFAULT '',
+  support_telegram TEXT NOT NULL DEFAULT '','
   default_profit_percent INTEGER NOT NULL DEFAULT 20, color_scheme TEXT NOT NULL DEFAULT 'navy',
   layout_design TEXT NOT NULL DEFAULT 'classic', usdt_deposit_address TEXT NOT NULL DEFAULT '',
   deposit_network TEXT NOT NULL DEFAULT 'BEP20 (BNB Smart Chain)',
@@ -127,6 +128,7 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_logo_blob_key TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_logo_content_type TEXT;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_logo_size INTEGER;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_logo_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS support_telegram TEXT NOT NULL DEFAULT '';
 CREATE TABLE IF NOT EXISTS external_products (
   id SERIAL PRIMARY KEY, name TEXT NOT NULL, brand TEXT NOT NULL DEFAULT '',
   category TEXT NOT NULL, price_inr INTEGER NOT NULL, merchant TEXT NOT NULL,

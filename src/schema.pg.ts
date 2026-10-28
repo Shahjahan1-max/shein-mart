@@ -312,6 +312,10 @@ export const settings = pgTable("settings", {
   storeName: text("store_name").notNull().default("sheinstore"),
   supportWhatsapp: text("support_whatsapp").notNull().default(""),
   supportEmail: text("support_email").notNull().default(""),
+  // Telegram contact for Customer Service (Admin → Settings): a
+  // username (with or without @) or a full t.me link; the frontend
+  // resolves it to a t.me URL for the support page button.
+  supportTelegram: text("support_telegram").notNull().default(""),
   defaultProfitPercent: integer("default_profit_percent").notNull().default(20),
   colorScheme: text("color_scheme").notNull().default("navy"),
   layoutDesign: text("layout_design").notNull().default("classic"),

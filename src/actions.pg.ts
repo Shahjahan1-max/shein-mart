@@ -2102,6 +2102,7 @@ export const Actions = {
       storeName: z.string(),
       supportWhatsapp: z.string(),
       supportEmail: z.string(),
+      supportTelegram: z.string(),
       defaultProfitPercent: z.number(),
       colorScheme: z.string(),
       layoutDesign: z.string(),
@@ -2130,6 +2131,7 @@ export const Actions = {
         storeName: s.storeName,
         supportWhatsapp: s.supportWhatsapp,
         supportEmail: s.supportEmail,
+        supportTelegram: s.supportTelegram ?? "",
         defaultProfitPercent: s.defaultProfitPercent,
         colorScheme: s.colorScheme ?? "navy",
         layoutDesign: s.layoutDesign ?? "classic",
@@ -2406,6 +2408,7 @@ export const Actions = {
       storeName: z.string().min(1).max(80),
       supportWhatsapp: z.string().max(30),
       supportEmail: z.string().max(120),
+      supportTelegram: z.string().max(120).optional(),
       defaultProfitPercent: z.number().int().min(0).max(200),
     }),
     response: z.object({ ok: z.literal(true) }),
@@ -2426,6 +2429,7 @@ export const Actions = {
           storeName: args.storeName,
           supportWhatsapp: args.supportWhatsapp,
           supportEmail: args.supportEmail,
+          ...(args.supportTelegram !== undefined ? { supportTelegram: args.supportTelegram } : {}),
           defaultProfitPercent: args.defaultProfitPercent,
         })
         .where(eq(schema.settings.id, 1));
