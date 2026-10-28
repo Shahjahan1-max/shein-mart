@@ -68,9 +68,13 @@ async function callAction(action: string, args: unknown): Promise<any> {
     /* non-JSON error page */
   }
   if (!res.ok) {
-    // Only the server dispatcher produces these two errors, and only
-    // for dead sessions — never for business errors.
-    if (data?.error === "Sign in required." || data?.error === "Not allowed.") {
+    // ONLY "Sign in required." (missing/invalid token) means a dead
+    // session. "Not allowed." means a VALID session hit a permission
+    // rule — signing the user out for that would turn a permission
+    // bug into a mysterious logout (exactly what happened when the
+    // Admin Panel opened a customer chat thread), so it surfaces as
+    // a plain error instead.
+    if (data?.error === "Sign in required.") {
       clearSessionAndReload();
     }
     throw new Error(`Action ${action} failed: ${res.status}`);
