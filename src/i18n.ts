@@ -227,6 +227,7 @@ export const STR = {
   "menu.wallet": { en: "Wallet", hi: "वॉलेट" , ar: "المحفظة"},
   "menu.support": { en: "Customer Support", hi: "ग्राहक सहायता" , ar: "دعم العملاء"},
   "menu.account": { en: "Account / Login", hi: "खाता / लॉगिन" , ar: "الحساب / تسجيل الدخول"},
+  "menu.myAccount": { en: "My Account", hi: "मेरा खाता" , ar: "حسابي"},
   "menu.admin": { en: "Admin Panel", hi: "एडमिन पैनल" , ar: "لوحة المسؤول"},
   "menu.language": { en: "Language", hi: "भाषा" , ar: "اللغة"},
   "menu.currency": { en: "Currency", hi: "मुद्रा" , ar: "العملة"},

@@ -505,3 +505,12 @@ button:disabled:active {
   transform: none;
   filter: none;
 }
+
+/* Homepage hero rotation: each new hero photo fades in softly when
+   the 10-second rotation swaps it (the key on the hero frame remounts
+   it, replaying this animation). */
+@keyframes hero-fade {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+.hero-fade { animation: hero-fade 0.6s ease; }

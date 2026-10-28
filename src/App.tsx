@@ -1026,12 +1026,22 @@ function ShopView({
     return map;
   }, [allProducts.data]);
 
-  // Premium homepage: the editorial hero shows the first real product
-  // photo from the catalog (never a stock or invented image).
-  const heroProduct = useMemo(() => {
+  // Premium homepage hero rotation (user request 2026-10-28): the
+  // hero photo cycles through every product with a real photo,
+  // changing every 10 seconds continuously (loops back to the start).
+  // The headline stays the store's; only the featured product photo
+  // — and the detail page its click opens — rotates.
+  const heroProducts = useMemo(() => {
     const list = allProducts.data?.products ?? [];
-    return list.find((p) => p.imageAsset && IMAGE_MAP[p.imageAsset]);
+    return list.filter((p) => p.imageAsset && IMAGE_MAP[p.imageAsset]);
   }, [allProducts.data]);
+  const [heroIndex, setHeroIndex] = useState(0);
+  useEffect(() => {
+    if (heroProducts.length < 2) return;
+    const id = window.setInterval(() => setHeroIndex((i) => (i + 1) % heroProducts.length), 10000);
+    return () => window.clearInterval(id);
+  }, [heroProducts.length]);
+  const heroProduct = heroProducts.length > 0 ? heroProducts[heroIndex % heroProducts.length] : undefined;
   // Shop by collection: only categories that actually have products and
   // a real photo, headline categories first, then by size, max 6.
   const collectionCards = useMemo(() => {
@@ -1322,7 +1332,7 @@ function ShopView({
             aria-label={heroProduct.name}
             className="order-1 w-full md:order-2"
           >
-            <span className="block overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
+            <span key={heroProduct.id} className="hero-fade block overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
               <span className="block aspect-[4/3] md:aspect-[4/5]">
                 <ProductImage
                   product={heroProduct}
@@ -10071,6 +10081,14 @@ export function App() {
   const dHome = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M3 11.5 12 4l9 7.5" /><path d="M5.5 10.5V20h13v-9.5" /></svg>);
   const dBell = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M18 9a6 6 0 1 0-12 0c0 5.5-2 6.5-2 6.5h16S18 14.5 18 9Z" /><path d="M10 19.5a2 2 0 0 0 4 0" /></svg>);
   const dBox = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M21 8.5 12 3.5 3 8.5v7l9 5 9-5v-7Z" /><path d="M3.5 8.5 12 13l8.5-4.5" /><path d="M12 13v7.5" /></svg>);
+  // Drawer bag icon (Categories row): original line art in the same
+  // stroke style as the other drawer icons (no emoji).
+  const dBag = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M5.5 8h13l-1.2 12.5H6.7L5.5 8Z" /><path d="M9 10V6.5a3 3 0 0 1 6 0V10" /></svg>);
+  // Drawer row style (preview design 2026-10-28): tall rounded rows,
+  // icon + label, generous tap height. Active Home gets the soft tint
+  // plus the gold left bar from the preview.
+  const drawerRowCls = "relative flex items-center gap-3 rounded-xl px-3 py-3.5 text-left text-[15px] font-semibold hover:bg-[var(--surface-alt)]";
+  const drawerHomeActive = user?.role === "seller" ? (view === "seller" && sellerTab === "home") : (view === "shop" && shopCategory === "All");
   // Day/night toggle icons: clean line-art sun/moon (no emoji).
   const iconSun = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12h2.5M19 12h2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" /></svg>);
   const iconMoon = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>);
@@ -10467,24 +10485,27 @@ const NAV: NavItem[] =
               onClick={() => setDrawerOpen(false)}
               className="absolute inset-0 h-full w-full bg-black/50"
             />
-            <aside className="absolute inset-y-0 left-0 flex w-[84vw] max-w-xs flex-col overflow-y-auto bg-[var(--surface)] pb-safe shadow-2xl rtl:left-auto rtl:right-0">
-              <div className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-2.5 pt-safe">
-                <span className="font-display text-lg font-extrabold text-[var(--accent)]">
+            <aside className="absolute inset-y-0 left-0 flex w-[84vw] max-w-xs flex-col overflow-y-auto bg-[var(--surface)] pb-safe shadow-2xl sm:bottom-3 sm:left-3 sm:top-3 sm:rounded-3xl sm:border sm:border-[var(--border)] rtl:left-auto rtl:right-0 rtl:sm:left-auto rtl:sm:right-3">
+              <div className="flex items-center gap-2 px-5 py-4 pt-safe">
+                <span className="min-w-0 flex-1 truncate font-display text-[26px] font-extrabold leading-none text-[var(--text)]">
                   {storeName}
                   <span className="text-[var(--gold)]">.</span>
                 </span>
-                <span className="text-sm font-semibold text-[var(--dim)]">{ui.t("menu.title")}</span>
                 <button
                   type="button"
                   onClick={() => setDrawerOpen(false)}
                   aria-label={ui.t("menu.close")}
-                  className="ml-auto rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-base leading-none text-[var(--text)]"
+                  className="ml-auto shrink-0 rounded-lg p-2 text-[var(--text)] hover:bg-[var(--surface-alt)]"
                 >
                   <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M6 6l12 12M18 6 6 18" /></svg>
                 </button>
               </div>
-              <nav aria-label={ui.t("menu.title")} className="flex flex-col gap-1 px-3 py-3 text-[var(--text)]">
-                <button type="button" onClick={() => (user?.role === "seller" ? goSellerTab("home") : goShopCategory("All"))} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
+              <nav aria-label={ui.t("menu.title")} className="flex flex-col gap-1.5 px-3 pb-3 text-[var(--text)]">
+                <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
+                  {ui.t("menu.title")}
+                </p>
+                <button type="button" onClick={() => (user?.role === "seller" ? goSellerTab("home") : goShopCategory("All"))} className={drawerRowCls + (drawerHomeActive ? " bg-[var(--accent-soft)]" : "")}>
+                  {drawerHomeActive && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-1 rounded-full bg-[var(--gold)]" />}
                   {dHome} <span>{ui.t("menu.home")}</span>
                 </button>
                 {user?.role === "seller" && sellerUnread > 0 && (
@@ -10499,15 +10520,15 @@ const NAV: NavItem[] =
                     added products, with Remove. */}
                 {user?.role === "seller" ? (
                   <>
-                    <button type="button" aria-label={ui.t("nav.shop")} onClick={() => goShopCategory("All")} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
+                    <button type="button" aria-label={ui.t("nav.shop")} onClick={() => goShopCategory("All")} className={drawerRowCls}>
                       {iconShop} <span>{ui.t("nav.shop")}</span>
                     </button>
-                    <button type="button" aria-label={ui.t("nav.products")} onClick={() => goSellerTab("products")} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
+                    <button type="button" aria-label={ui.t("nav.products")} onClick={() => goSellerTab("products")} className={drawerRowCls}>
                       {iconProducts} <span>{ui.t("nav.products")}</span>
                     </button>
                   </>
                 ) : (
-                  <button type="button" onClick={() => goShopCategory("All")} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
+                  <button type="button" onClick={() => goShopCategory("All")} className={drawerRowCls}>
                     {iconProducts} <span>{ui.t("menu.allProducts")}</span>
                   </button>
                 )}
@@ -10517,17 +10538,20 @@ const NAV: NavItem[] =
                     kept so it can be restored later. */}
                 {user?.role !== "seller" && (
                   <>
-                    {/* Categories header: collapsed by default, expands
-                        on tap. Bolder, slightly larger, serif style so
-                        the main tab stands out from the list below. */}
+                    {/* Categories row: same tall row style as the other
+                        menu entries (preview design), bag icon + a
+                        right chevron that turns down when expanded.
+                        Collapsed by default; sub-items align under
+                        the row labels. */}
                     <button
                       type="button"
                       onClick={() => setDrawerCatsOpen((o) => !o)}
                       aria-expanded={drawerCatsOpen}
-                      className="mt-1 flex w-full items-center gap-2 rounded-lg bg-[var(--surface-alt)] px-3 py-2.5 text-left font-['Georgia','Times_New_Roman',serif] text-[15px] font-extrabold tracking-wide text-[var(--text)]"
+                      className={drawerRowCls}
                     >
+                      {dBag}
                       <span className="flex-1">{ui.t("menu.categories")}</span>
-                      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 shrink-0 transition-transform ${drawerCatsOpen ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6" /></svg>
+                      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-5 w-5 shrink-0 transition-transform ${drawerCatsOpen ? "rotate-90" : ""}`}><path d="m9 6 6 6-6 6" /></svg>
                     </button>
                     {drawerCatsOpen && CATEGORIES.filter((c) => c !== "All").map((c) => (
                       <button
@@ -10535,7 +10559,7 @@ const NAV: NavItem[] =
                         type="button"
                         aria-label={`Category ${c}`}
                         onClick={() => goShopCategory(c)}
-                        className={`rounded-lg px-3 py-2 text-left font-medium hover:bg-[var(--surface-alt)] ${shopCategory === c && view === "shop" ? "text-[var(--accent)]" : ""}`}
+                        className={`rounded-lg py-2.5 pl-11 pr-3 text-left font-medium hover:bg-[var(--surface-alt)] ${shopCategory === c && view === "shop" ? "text-[var(--accent)]" : ""}`}
                       >
                         {trCategory(effectiveLang, c)}
                       </button>
@@ -10553,7 +10577,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => (user?.role === "seller" ? goSellerTab("orders") : goView("orders"))}
                   aria-label={user?.role === "seller" ? ui.t("sd.tabOrders") : ui.t("menu.orders")}
-                  className="flex items-center gap-2 rounded-lg bg-[var(--accent-soft)] px-3 py-2.5 text-left font-semibold ring-1 ring-[var(--accent)]/40 hover:bg-[var(--surface-alt)]"
+                  className="flex items-center gap-3 rounded-xl bg-[var(--accent-soft)] px-3 py-3.5 text-left text-[15px] font-semibold ring-1 ring-[var(--accent)]/40 hover:bg-[var(--surface-alt)]"
                 >
                   <span aria-hidden className="flex leading-none">{dBox}</span>
                   <span className="flex-1">{user?.role === "seller" ? ui.t("sd.tabOrders") : ui.t("menu.orders")}</span>
@@ -10561,27 +10585,27 @@ const NAV: NavItem[] =
                 </button>
                 )}
                 {user?.role === "seller" ? (
-                  <button type="button" onClick={() => goSellerTab("home")} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
+                  <button type="button" onClick={() => goSellerTab("home")} className={drawerRowCls}>
                     {iconStore} <span>{ui.t("menu.sellerDash")}</span>
                   </button>
                 ) : (
-                  <button type="button" onClick={() => goView("account")} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
+                  <button type="button" onClick={() => goView("account")} className={drawerRowCls}>
                     {iconStore} <span>{ui.t("menu.becomeSeller")}</span>
                   </button>
                 )}
                 {user?.role === "seller" && (
-                  <button type="button" onClick={() => goSellerTab("wallet")} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
+                  <button type="button" onClick={() => goSellerTab("wallet")} className={drawerRowCls}>
                     {iconWallet} <span>{ui.t("menu.wallet")}</span>
                   </button>
                 )}
-                <button type="button" onClick={() => goView("support")} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
+                <button type="button" onClick={() => goView("support")} className={drawerRowCls}>
                   {iconChat} <span>{ui.t("menu.support")}</span>
                 </button>
-                <button type="button" onClick={() => goView("account")} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
-                  {iconUser} <span>{user ? user.name : ui.t("menu.account")}</span>
+                <button type="button" onClick={() => goView("account")} className={drawerRowCls}>
+                  {iconUser} <span>{ui.t("menu.myAccount")}</span>
                 </button>
                 {user?.role === "admin" && (
-                  <button type="button" onClick={() => goView("admin")} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
+                  <button type="button" onClick={() => goView("admin")} className={drawerRowCls}>
                     {iconGear} <span>{ui.t("menu.admin")}</span>
                   </button>
                 )}
@@ -10598,7 +10622,7 @@ const NAV: NavItem[] =
                       aria-label={l === "en" ? "Switch language to English" : l === "hi" ? "Switch language to Hindi" : "Switch language to Arabic"}
                       aria-pressed={effectiveLang === l}
                       onClick={() => changeLang(l)}
-                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${effectiveLang === l ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] text-[var(--text)]"}`}
+                      className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold ${effectiveLang === l ? "border-[var(--gold)] bg-[var(--gold)] text-[var(--gold-ink)]" : "border-[var(--border)] text-[var(--text)]"}`}
                     >
                       {l === "en" ? "EN — English" : l === "hi" ? "हिंदी" : "العربية"}
                     </button>
@@ -10616,7 +10640,7 @@ const NAV: NavItem[] =
                       aria-label={c === "INR" ? "Show prices in Indian Rupees" : c === "USD" ? "Show prices in US Dollars" : "Show prices in USDT"}
                       aria-pressed={effectiveCurrency === c}
                       onClick={() => changeCurrency(c)}
-                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${effectiveCurrency === c ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] text-[var(--text)]"}`}
+                      className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-bold ${effectiveCurrency === c ? "border-[var(--gold)] bg-[var(--gold)] text-[var(--gold-ink)]" : "border-[var(--border)] text-[var(--text)]"}`}
                     >
                       {c === "INR" ? "₹ INR" : c === "USD" ? "$ USD" : "USDT"}
                     </button>
