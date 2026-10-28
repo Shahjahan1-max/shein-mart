@@ -367,7 +367,7 @@ function Chip({
       onClick={onClick}
       className={`min-h-10 shrink-0 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
         active
-          ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+          ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]"
           : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
       }`}
     >
@@ -572,9 +572,9 @@ const inputCls =
   "w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base text-[var(--text)] outline-none focus:border-[var(--accent)]";
 
 const primaryBtn =
-  "rounded-xl bg-[var(--accent)] px-4 py-2.5 font-display text-sm font-bold text-white shadow-sm disabled:opacity-50";
+  "rounded-xl bg-[var(--accent)] px-4 py-2.5 font-display text-sm font-bold text-[var(--accent-ink)] shadow-sm disabled:opacity-50";
 const goldBtn =
-  "rounded-xl bg-[var(--gold)] px-4 py-2.5 font-display text-sm font-bold text-white shadow-sm disabled:opacity-50";
+  "rounded-xl bg-[var(--gold)] px-4 py-2.5 font-display text-sm font-bold text-[var(--gold-ink)] shadow-sm disabled:opacity-50";
 const ghostBtn =
   "rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold text-[var(--text)] disabled:opacity-50";
 
@@ -632,7 +632,7 @@ function ProductCard({
     >
         <ProductImage product={product} fallbackSrc={fallbackImage} />
         {discount > 0 && (
-          <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold text-white">
+          <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold text-[var(--gold-ink)]">
             -{discount}%
           </span>
         )}
@@ -768,7 +768,7 @@ function ProductDetail({
           <div className="relative aspect-square overflow-hidden">
             <ProductImage product={product} fallbackSrc={fallbackImage} />
             {discount > 0 && (
-              <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold text-white">
+              <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold text-[var(--gold-ink)]">
                 -{discount}%
               </span>
             )}
@@ -1144,16 +1144,16 @@ function ShopView({
 
   return (
     <div>
-      <section className="rounded-xl bg-[var(--accent)] px-4 py-3 text-white sm:px-5">
+      <section className="rounded-xl bg-[var(--accent)] px-4 py-3 text-[var(--accent-ink)] sm:px-5">
         <h2 className="font-display text-lg font-extrabold leading-tight sm:text-xl">
           {t("hero.title")}
         </h2>
-        <p className="mt-1 max-w-xl text-[13px] leading-snug text-white/85">{t("hero.sub")}</p>
+        <p className="mt-1 max-w-xl text-[13px] leading-snug text-[var(--accent-ink)]">{t("hero.sub")}</p>
         {user?.role === "seller" && (
           <button
             type="button"
             onClick={onGoSeller}
-            className="mt-2 rounded-lg bg-white px-3 py-1.5 font-display text-[13px] font-bold text-[var(--accent-strong)]"
+            className="mt-2 rounded-lg bg-[var(--surface)] px-3 py-1.5 font-display text-[13px] font-bold text-[var(--accent-strong)]"
           >
             {t("hero.sellerCta")}
           </button>
@@ -1162,7 +1162,7 @@ function ShopView({
 
       <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 shadow-sm">
         <p className="text-[13px] font-semibold text-[var(--text)]">{t("daily.explore")}</p>
-        <span className="ml-auto rounded-full bg-[var(--accent)] px-2.5 py-1 font-display text-[11px] font-bold text-white">
+        <span className="ml-auto rounded-full bg-[var(--accent)] px-2.5 py-1 font-display text-[11px] font-bold text-[var(--accent-ink)]">
           ✨ {t("daily.badge")}
         </span>
       </div>
@@ -1205,7 +1205,7 @@ function ShopView({
               aria-label={t("shop.grid2")}
               aria-pressed={gridCols === 2}
               onClick={() => changeGridCols(2)}
-              className={`px-3 font-display text-sm font-bold ${gridCols === 2 ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)] text-[var(--dim)]"}`}
+              className={`px-3 font-display text-sm font-bold ${gridCols === 2 ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "bg-[var(--surface)] text-[var(--dim)]"}`}
             >
               ▦ 2
             </button>
@@ -1214,7 +1214,7 @@ function ShopView({
               aria-label={t("shop.grid3")}
               aria-pressed={gridCols === 3}
               onClick={() => changeGridCols(3)}
-              className={`px-3 font-display text-sm font-bold ${gridCols === 3 ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)] text-[var(--dim)]"}`}
+              className={`px-3 font-display text-sm font-bold ${gridCols === 3 ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "bg-[var(--surface)] text-[var(--dim)]"}`}
             >
               ▦ 3
             </button>
@@ -1267,7 +1267,7 @@ function ShopView({
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {freshArrivals.map((p) => (
               <div key={p.id} className="relative">
-                <span className="absolute left-2 top-2 z-10 rounded-md bg-[var(--accent)] px-1.5 py-0.5 font-display text-[11px] font-bold text-white">
+                <span className="absolute left-2 top-2 z-10 rounded-md bg-[var(--accent)] px-1.5 py-0.5 font-display text-[11px] font-bold text-[var(--accent-ink)]">
                   {t("fresh.badge")}
                 </span>
                 <ProductCard
@@ -1362,7 +1362,7 @@ function ShopView({
       {cartToast && (
         <div
           role="status"
-          className="fixed inset-x-3 bottom-[4.75rem] z-50 mx-auto flex max-w-xl items-center gap-3 rounded-xl bg-[var(--accent)] px-4 py-3 text-white shadow-xl sm:bottom-6"
+          className="fixed inset-x-3 bottom-[4.75rem] z-50 mx-auto flex max-w-xl items-center gap-3 rounded-xl bg-[var(--accent)] px-4 py-3 text-[var(--accent-ink)] shadow-xl sm:bottom-6"
         >
           <span aria-hidden className="text-lg leading-none">🛒</span>
           <p className="min-w-0 flex-1 text-sm font-semibold leading-snug">
@@ -1374,7 +1374,7 @@ function ShopView({
             type="button"
             onClick={() => { setCartToast(null); onGoCart(); }}
             aria-label={t("shop.viewCart")}
-            className="shrink-0 rounded-lg bg-white px-3 py-2 font-display text-[13px] font-bold text-[var(--accent-strong)]"
+            className="shrink-0 rounded-lg bg-[var(--surface)] px-3 py-2 font-display text-[13px] font-bold text-[var(--accent-strong)]"
           >
             {t("shop.viewCart")} →
           </button>
@@ -1878,7 +1878,7 @@ function CheckoutView({
                     st?.usdtDepositAddress ? (
                       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
                         <p className="text-sm font-semibold text-[var(--text)]">{t("co.payToAddress")}</p>
-                        <p className="mt-1 inline-block rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-bold text-white">USDT — {st.depositNetwork}</p>
+                        <p className="mt-1 inline-block rounded-full bg-[var(--accent)] px-2.5 py-1 text-[11px] font-bold text-[var(--accent-ink)]">USDT — {st.depositNetwork}</p>
                         <p className="mt-2 break-all font-mono text-sm font-semibold text-[var(--text)]">{st.usdtDepositAddress}</p>
                         <div className="mt-2 inline-block rounded-lg bg-white p-1.5">
                           <QRCodeSVG value={st.usdtDepositAddress} size={132} bgColor="#FFFFFF" fgColor="#111827" level="M" marginSize={1} aria-label="USDT payment address QR code" />
@@ -2404,10 +2404,10 @@ function FinanceSummary({ finance, compact, hideBalance }: { finance: { availabl
         figures in its compact balance strip at the very top instead, so
         the balance is never shown twice. */}
     {!hideBalance && (<>
-    <div className="rounded-2xl bg-[var(--accent)] p-4 text-center text-white">
+    <div className="rounded-2xl bg-[var(--accent)] p-4 text-center text-[var(--accent-ink)]">
       <p className="font-display text-2xl font-extrabold min-[400px]:text-3xl">{fmt(totalBalance)}</p>
-      <p className="mt-0.5 text-sm font-bold text-white/90">{t("fin.total")}</p>
-      <p className="mt-0.5 text-xs text-white/75">{t("fin.totalSub")}</p>
+      <p className="mt-0.5 text-sm font-bold text-[var(--accent-ink)]">{t("fin.total")}</p>
+      <p className="mt-0.5 text-xs text-[var(--accent-ink)]">{t("fin.totalSub")}</p>
     </div>
     <div className="mt-3 grid grid-cols-2 gap-3">
       <div className="min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-center">
@@ -2687,7 +2687,7 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
               onClick={() => { setStep(i + 1); setTouched(false); setError(null); window.scrollTo(0, 0); }}
               className={`w-full rounded-lg px-2 py-1.5 text-center text-xs font-bold ${
                 step === i + 1
-                  ? "bg-[var(--accent)] text-white shadow"
+                  ? "bg-[var(--accent)] text-[var(--accent-ink)] shadow"
                   : step > i + 1
                     ? "bg-[var(--surface-alt)] text-[var(--accent)]"
                     : "bg-[var(--surface-alt)] text-[var(--dim)]"
@@ -3011,7 +3011,7 @@ function SellerMediaImage({
   return (
     <span
       aria-hidden
-      className={`${className} flex items-center justify-center bg-[var(--accent)] font-display font-bold text-white`}
+      className={`${className} flex items-center justify-center bg-[var(--accent)] font-display font-bold text-[var(--accent-ink)]`}
     >
       {fallbackText.charAt(0).toUpperCase()}
     </span>
@@ -3286,7 +3286,7 @@ function AdminSellerLogo({
   return (
     <span
       aria-hidden
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-display font-bold text-white"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] font-display font-bold text-[var(--accent-ink)]"
     >
       {fallbackText.charAt(0).toUpperCase()}
     </span>
@@ -3332,7 +3332,7 @@ function PrefsCard({
               type="button"
               aria-pressed={lang === l}
               onClick={() => onLangChange(l)}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${lang === l ? "bg-[var(--accent)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${lang === l ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
             >
               {l === "en" ? "EN" : l === "hi" ? "हिंदी" : "عربي"}
             </button>
@@ -3348,7 +3348,7 @@ function PrefsCard({
               type="button"
               aria-pressed={currency === c}
               onClick={() => onCurrencyChange(c)}
-              className={`rounded-full px-4 py-2 text-sm font-bold ${currency === c ? "bg-[var(--accent)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+              className={`rounded-full px-4 py-2 text-sm font-bold ${currency === c ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
             >
               {c === "INR" ? "₹ INR" : c === "USD" ? "$ USD" : "USDT"}
             </button>
@@ -3719,7 +3719,7 @@ function AccountView({
         {headerLogoUrl ? (
           <img src={headerLogoUrl} alt="" className="h-14 w-14 rounded-2xl object-contain shadow-md" />
         ) : (
-          <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent)] font-display text-3xl font-extrabold text-white shadow-md">
+          <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--accent)] font-display text-3xl font-extrabold text-[var(--accent-ink)] shadow-md">
             S<span className="text-[var(--gold)]">.</span>
           </span>
         )}
@@ -3746,7 +3746,7 @@ function AccountView({
             aria-label="Continue with Gmail"
             aria-pressed={method === "gmail"}
             onClick={() => { setMethod("gmail"); setAuthTouched(false); setError(null); }}
-            className={`rounded-full border px-3 py-3 text-sm font-bold ${method === "gmail" ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+            className={`rounded-full border px-3 py-3 text-sm font-bold ${method === "gmail" ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
           >
             ✉️ {t("auth.withGmail")}
           </button>
@@ -3755,7 +3755,7 @@ function AccountView({
             aria-label="Continue with Mobile Number"
             aria-pressed={method === "mobile"}
             onClick={() => { setMethod("mobile"); setAuthTouched(false); setError(null); }}
-            className={`rounded-full border px-3 py-3 text-sm font-bold ${method === "mobile" ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+            className={`rounded-full border px-3 py-3 text-sm font-bold ${method === "mobile" ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
           >
             📱 {t("auth.withMobile")}
           </button>
@@ -4077,7 +4077,7 @@ function DepositAddressCard({ address, network }: { address: string; network: st
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="font-display font-bold text-[var(--text)]">💠 {t("dep.title")}</h4>
-        <span className="rounded-full bg-[var(--accent)] px-2.5 py-0.5 text-xs font-bold text-white">USDT — {net}</span>
+        <span className="rounded-full bg-[var(--accent)] px-2.5 py-0.5 text-xs font-bold text-[var(--accent-ink)]">USDT — {net}</span>
       </div>
       {addr ? (
         <>
@@ -4232,24 +4232,24 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
           same shared computation as always. This REPLACES the full
           balance block: the FinanceSummary below the deposit section
           is told hideBalance so the figures never appear twice. */}
-      <div className="mt-2 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-strong)] px-4 py-3 text-white shadow-md" role="group" aria-label={t("fin.total")}>
+      <div className="mt-2 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-strong)] px-4 py-3 text-[var(--accent-ink)] shadow-md" role="group" aria-label={t("fin.total")}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold text-white/75">👛 {t("fin.total")}</p>
+            <p className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--accent-ink)]">👛 {t("fin.total")}</p>
             <p className="font-display text-[26px] font-extrabold leading-tight">{fmt(stripTotal)}</p>
           </div>
           <div className="ms-auto flex flex-wrap gap-2">
-            <div className="rounded-xl bg-white/10 px-3 py-1.5">
-              <p className="text-[10px] font-bold text-white/70">✅ {t("w.balance")}</p>
+            <div className="rounded-xl bg-accent-ink-10 px-3 py-1.5">
+              <p className="text-[10px] font-bold text-[var(--accent-ink)]">✅ {t("w.balance")}</p>
               <p className="font-display text-sm font-bold leading-snug">{fmt(w.availableBalance)}</p>
             </div>
-            <div className="rounded-xl bg-white/10 px-3 py-1.5">
-              <p className="text-[10px] font-bold text-white/70">⏳ {t("fin.pendingCard")}</p>
+            <div className="rounded-xl bg-accent-ink-10 px-3 py-1.5">
+              <p className="text-[10px] font-bold text-[var(--accent-ink)]">⏳ {t("fin.pendingCard")}</p>
               <p className="font-display text-sm font-bold leading-snug">{fmt(stripPending)}</p>
             </div>
           </div>
         </div>
-        <p className="mt-1.5 text-[11px] leading-snug text-white/70">{t("fin.totalSub")}</p>
+        <p className="mt-1.5 text-[11px] leading-snug text-[var(--accent-ink)]">{t("fin.totalSub")}</p>
       </div>
 
       {/* Deposit / Withdraw actions and the Deposit Address card come
@@ -4782,7 +4782,7 @@ function SellerView({
           className="h-10 w-10 shrink-0 rounded-full text-sm"
         />
         {d.pendingShipment > 0 && (
-          <span className="ml-auto inline-flex shrink-0 animate-pulse items-center gap-1 rounded-full bg-[var(--alert)] px-2.5 py-1 text-[11px] font-bold text-white">
+          <span className="ml-auto inline-flex shrink-0 animate-pulse items-center gap-1 rounded-full bg-[var(--alert)] px-2.5 py-1 text-[11px] font-bold text-[var(--alert-ink)]">
             ● {d.pendingShipment} {t("notif.pendingAlert")}
           </span>
         )}
@@ -4794,7 +4794,7 @@ function SellerView({
             <div key={n.id} role="alert" className="rounded-xl border-2 border-[var(--gold)] bg-[var(--amber-bg)] px-4 py-3 shadow-sm">
               <p className="flex flex-wrap items-center gap-2 font-display text-sm font-bold text-[var(--text)]">
                 <span aria-hidden>📣</span> {t("snotice.title")}
-                {n.orderId !== null && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[11px] font-bold text-white">{t("snotice.orderWord")} #{n.orderId}</span>}
+                {n.orderId !== null && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[11px] font-bold text-[var(--alert-ink)]">{t("snotice.orderWord")} #{n.orderId}</span>}
                 <span className="ml-auto text-[11px] font-medium text-[var(--dim)]">{new Date(n.createdAt).toLocaleString()}</span>
               </p>
               <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--text)]">{n.message}</p>
@@ -4847,7 +4847,7 @@ function SellerView({
                   <div className="relative mx-auto w-fit text-2xl" aria-hidden>
                     {tile.icon}
                     {tile.count > 0 && (
-                      <span className={`absolute -right-3 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-display text-[11px] font-bold text-white ${isPending ? "bg-[var(--alert)]" : "bg-[var(--accent)]"}`}>
+                      <span className={`absolute -right-3 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-display text-[11px] font-bold ${isPending ? "bg-[var(--alert)] text-[var(--alert-ink)]" : "bg-[var(--accent)] text-[var(--accent-ink)]"}`}>
                         {tile.count > 99 ? "99+" : tile.count}
                       </span>
                     )}
@@ -4862,9 +4862,9 @@ function SellerView({
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {bigStats.map((s) => (
-                <div key={s.label} className="rounded-xl bg-[var(--accent)] px-3 py-3 text-center text-white shadow-sm">
+                <div key={s.label} className="rounded-xl bg-[var(--accent)] px-3 py-3 text-center text-[var(--accent-ink)] shadow-sm">
                   <p className="font-display text-xl font-extrabold sm:text-2xl">{s.value}</p>
-                  <p className="mt-0.5 text-xs text-white/85">{s.label}</p>
+                  <p className="mt-0.5 text-xs text-[var(--accent-ink)]">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -4893,8 +4893,8 @@ function SellerView({
               <section aria-label={t("seller.toComplete")} className={`mt-5 rounded-2xl border-2 bg-[var(--surface)] p-4 shadow-sm ${homePending.length > 0 ? "border-[var(--alert)]" : "border-[var(--border)]"}`}>
                 <h3 className="flex flex-wrap items-center gap-2 font-display text-base font-bold text-[var(--text)]">
                   📦 {t("seller.toComplete")}
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold text-white ${homePending.length > 0 ? "bg-[var(--alert)]" : "bg-[var(--dim)]"}`}>{t("sord.secPending")}: {homePending.length}</span>
-                  {unreadCount > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-xs font-bold text-white">🔔 {unreadCount}</span>}
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${homePending.length > 0 ? "bg-[var(--alert)] text-[var(--alert-ink)]" : "bg-[var(--dim)] text-[var(--dim-ink)]"}`}>{t("sord.secPending")}: {homePending.length}</span>
+                  {unreadCount > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-xs font-bold text-[var(--alert-ink)]">🔔 {unreadCount}</span>}
                 </h3>
                 <p className="mt-1 text-sm text-[var(--dim)]">{t("seller.toCompleteSub")}</p>
                 {homePending.length === 0 ? (
@@ -4932,15 +4932,15 @@ function SellerView({
 
           {/* Wallet summary card — the balance at a glance; all wallet
               detail (deposit, withdraw, history) lives in the Wallet page. */}
-          <section aria-label={t("seller.walletCardTitle")} className="mt-5 rounded-2xl bg-[var(--accent)] p-4 text-white shadow-sm">
+          <section aria-label={t("seller.walletCardTitle")} className="mt-5 rounded-2xl bg-[var(--accent)] p-4 text-[var(--accent-ink)] shadow-sm">
             <div className="flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-white/80">👛 {t("seller.walletCardTitle")} · {t("fin.total")}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-ink)]">👛 {t("seller.walletCardTitle")} · {t("fin.total")}</p>
                 <p className="mt-1 font-display text-2xl font-extrabold">{walletQ.isPending ? "…" : fmt(walletQ.data?.totalBalance ?? 0)}</p>
-                <p className="mt-0.5 text-xs text-white/85">{t("w.balance")}: <strong>{walletQ.isPending ? "…" : fmt(walletQ.data?.availableBalance ?? 0)}</strong> · {t("fin.pendingCard")}: <strong>{walletQ.isPending ? "…" : fmt(walletQ.data?.pendingOrderHolds ?? 0)}</strong></p>
-                <p className="text-[11px] text-white/70">{t("fin.totalSub")}</p>
+                <p className="mt-0.5 text-xs text-[var(--accent-ink)]">{t("w.balance")}: <strong>{walletQ.isPending ? "…" : fmt(walletQ.data?.availableBalance ?? 0)}</strong> · {t("fin.pendingCard")}: <strong>{walletQ.isPending ? "…" : fmt(walletQ.data?.pendingOrderHolds ?? 0)}</strong></p>
+                <p className="text-[11px] text-[var(--accent-ink)]">{t("fin.totalSub")}</p>
               </div>
-              <button type="button" aria-label={t("seller.goWallet")} onClick={() => setTab("wallet")} className="rounded-full bg-white px-4 py-2.5 text-sm font-bold text-[var(--accent-strong)]">{t("seller.goWallet")}</button>
+              <button type="button" aria-label={t("seller.goWallet")} onClick={() => setTab("wallet")} className="rounded-full bg-[var(--surface)] px-4 py-2.5 text-sm font-bold text-[var(--accent-strong)]">{t("seller.goWallet")}</button>
             </div>
           </section>
         </>
@@ -5027,7 +5027,7 @@ function SellerView({
               <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-[var(--text)]">
                 {t("sd.myOrders")} ({d.orders.length})
                 {pendingOrders.length > 0 && (
-                  <span className="inline-flex animate-pulse items-center gap-1 rounded-full bg-[var(--alert)] px-2.5 py-1 text-xs font-bold text-white">
+                  <span className="inline-flex animate-pulse items-center gap-1 rounded-full bg-[var(--alert)] px-2.5 py-1 text-xs font-bold text-[var(--alert-ink)]">
                     ● {pendingOrders.length} {t("sd.pendingShipment")} — {t("notif.live")}
                   </span>
                 )}
@@ -5054,10 +5054,10 @@ function SellerView({
                     aria-selected={active}
                     aria-label={`${st.label}: ${st.count}${newInTab > 0 ? `, ${newInTab} new` : ""}`}
                     onClick={() => { setOrderSection(st.id); setDeliverFor(null); setDeliverErr(null); }}
-                    className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-center text-xs font-bold leading-tight min-[420px]:text-[13px] sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${active ? (alertTab ? "bg-[var(--alert)] text-white" : "bg-[var(--accent)] text-white") : alertTab ? "border-2 border-[var(--alert)] bg-[var(--alert-bg)] text-[var(--alert)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+                    className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-center text-xs font-bold leading-tight min-[420px]:text-[13px] sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${active ? (alertTab ? "bg-[var(--alert)] text-[var(--alert-ink)]" : "bg-[var(--accent)] text-[var(--accent-ink)]") : alertTab ? "border-2 border-[var(--alert)] bg-[var(--alert-bg)] text-[var(--alert)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
                   >
                     <span aria-hidden>{st.icon}</span> {st.label}
-                    <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${active ? "bg-white/25 text-white" : alertTab ? "bg-[var(--alert)] text-white" : "bg-[var(--surface-alt)] text-[var(--dim)]"}`}>{st.count}</span>
+                    <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${active ? (alertTab ? "bg-alert-ink-25 text-[var(--alert-ink)]" : "bg-accent-ink-25 text-[var(--accent-ink)]") : alertTab ? "bg-[var(--alert)] text-[var(--alert-ink)]" : "bg-[var(--surface-alt)] text-[var(--dim)]"}`}>{st.count}</span>
                     {newInTab > 0 && <span className="rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-extrabold text-[var(--gold-ink)] shadow">NEW {newInTab}</span>}
                   </button>
                 );
@@ -5090,7 +5090,7 @@ function SellerView({
                       className={isNew ? "cursor-pointer rounded-xl ring-2 ring-[var(--gold)] ring-offset-1 shadow-[0_0_0_4px_rgba(217,119,6,0.18)]" : isPendingShip ? "rounded-xl ring-2 ring-[var(--alert)] ring-offset-1 shadow-[0_0_0_4px_rgba(220,38,38,0.12)]" : ""}
                     >
                       {isPendingShip && (
-                        <p className="flex items-center gap-2 rounded-t-xl bg-[var(--alert)] px-3 py-1.5 text-xs font-bold text-white">
+                        <p className="flex items-center gap-2 rounded-t-xl bg-[var(--alert)] px-3 py-1.5 text-xs font-bold text-[var(--alert-ink)]">
                           <span className="h-2 w-2 animate-ping rounded-full bg-white" aria-hidden /> 📦 {t("sd.pendingShipment")} — {t("notif.pendingAlert")}
                           {isNew && <span className="ml-auto rounded-full bg-[var(--gold)] px-2 py-0.5 text-[10px] font-extrabold text-[var(--gold-ink)] shadow">✦ {t("sord.newOrderBadge")}</span>}
                         </p>
@@ -5299,7 +5299,7 @@ function SellerView({
             }`}
           >
             <span className="relative text-lg leading-none">{tb.icon}
-              {badge > 0 && <span className="absolute -right-3 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--alert)] px-0.5 text-[10px] font-bold text-white">{badge > 99 ? "99+" : badge}</span>}
+              {badge > 0 && <span className="absolute -right-3 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--alert)] px-0.5 text-[10px] font-bold text-[var(--alert-ink)]">{badge > 99 ? "99+" : badge}</span>}
               {showWalletDot && <span aria-hidden className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
             </span>
             {tb.label}
@@ -6355,7 +6355,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
                   <legend className="font-display text-sm font-bold text-[var(--text)]">{t("bulk.scope")}</legend>
                   <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label={t("bulk.scope")}>
                     {([["all", t("bulk.scopeAll")], ["category", t("bulk.scopeCategory")], ["price_range", t("bulk.scopePrice")]] as const).map(([v, lab]) => (
-                      <button key={v} type="button" role="radio" aria-checked={bulkScopeType === v} aria-label={lab} onClick={() => { setBulkScopeType(v); setBulkPreview(null); setBulkConfirming(false); }} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold ${bulkScopeType === v ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}>{lab}</button>
+                      <button key={v} type="button" role="radio" aria-checked={bulkScopeType === v} aria-label={lab} onClick={() => { setBulkScopeType(v); setBulkPreview(null); setBulkConfirming(false); }} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold ${bulkScopeType === v ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}>{lab}</button>
                     ))}
                   </div>
                   {bulkScopeType === "category" && (
@@ -6451,7 +6451,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
                         <div className="mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-3 dark:bg-amber-950/30">
                           <p className="text-sm font-bold text-amber-900 dark:text-amber-100">Apply this bulk change to {bulkPreview.count} products? This updates shop prices and seller profit at once. Past orders will not change.</p>
                           <div className="mt-2 flex flex-wrap gap-2">
-                            <button type="button" aria-label={`Confirm apply bulk profit to ${bulkPreview.count} products`} disabled={applyBulk.isPending} onClick={() => applyBulk.mutate()} className="rounded-lg bg-[var(--accent)] px-4 py-2 font-display text-sm font-bold text-white disabled:opacity-50">{applyBulk.isPending ? t("bulk.applying") : `${t("bulk.applyBtn")} ${bulkPreview.count} ${t("bulk.applyProducts")}`}</button>
+                            <button type="button" aria-label={`Confirm apply bulk profit to ${bulkPreview.count} products`} disabled={applyBulk.isPending} onClick={() => applyBulk.mutate()} className="rounded-lg bg-[var(--accent)] px-4 py-2 font-display text-sm font-bold text-[var(--accent-ink)] disabled:opacity-50">{applyBulk.isPending ? t("bulk.applying") : `${t("bulk.applyBtn")} ${bulkPreview.count} ${t("bulk.applyProducts")}`}</button>
                             <button type="button" aria-label="Cancel bulk apply" onClick={() => setBulkConfirming(false)} className={ghostBtn + " px-3 py-2 text-sm"}>{t("adm.cancel")}</button>
                           </div>
                         </div>
@@ -6533,7 +6533,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
         aria-pressed={o.status === target}
         disabled={setStatus.isPending || o.status === target}
         onClick={() => setStatus.mutate({ orderId: o.id, status: target })}
-        className={`rounded-lg px-3 py-1.5 text-xs font-bold disabled:opacity-50 ${o.status === target ? "bg-[var(--accent)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+        className={`rounded-lg px-3 py-1.5 text-xs font-bold disabled:opacity-50 ${o.status === target ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
       >
         {o.status === target ? "● " : ""}{label}
       </button>
@@ -6651,10 +6651,10 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
             <p className="mt-0.5 text-[11px] font-semibold text-[var(--dim)]">{t("stmt.totalUsed")}</p>
             <p className="text-[10px] leading-tight text-[var(--dim)]">{t("w.typeWithdraw")}: {fmt(f.usedAmount - f.totalOrderPayments)} · {t("w.typeOrderPayment")}: {fmt(f.totalOrderPayments)}</p>
           </div>
-          <div className="rounded-xl bg-[var(--accent)] p-3 text-center text-white">
+          <div className="rounded-xl bg-[var(--accent)] p-3 text-center text-[var(--accent-ink)]">
             <p className="font-display text-base font-extrabold sm:text-lg">{fmt(f.availableBalance)}</p>
-            <p className="mt-0.5 text-[11px] font-semibold text-white/85">{t("stmt.remaining")}</p>
-            <p className="text-[10px] leading-tight text-white/70">{fmt(f.totalCreditsCompleted)} − {fmt(f.usedAmount)}{f.pendingWithdrawal > 0 ? ` − ${fmt(f.pendingWithdrawal)} ${t("fin.pendingWithdraw")}` : ""}</p>
+            <p className="mt-0.5 text-[11px] font-semibold text-[var(--accent-ink)]">{t("stmt.remaining")}</p>
+            <p className="text-[10px] leading-tight text-[var(--accent-ink)]">{fmt(f.totalCreditsCompleted)} − {fmt(f.usedAmount)}{f.pendingWithdrawal > 0 ? ` − ${fmt(f.pendingWithdrawal)} ${t("fin.pendingWithdraw")}` : ""}</p>
           </div>
         </div>
         {/* Total Withdrawn / Total Deposited — the same shared figures
@@ -6860,7 +6860,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
                       <span className="flex justify-around border-t border-[var(--border)] bg-[var(--surface)] py-0.5"><span className="h-1 w-1 rounded-full bg-[var(--accent)]" /><span className="h-1 w-1 rounded-full bg-[var(--dim)]" /><span className="h-1 w-1 rounded-full bg-[var(--dim)]" /><span className="h-1 w-1 rounded-full bg-[var(--dim)]" /></span>
                     </>)}
                     {l.id === "menu" && (<>
-                      <span className="flex items-center gap-1 bg-[var(--accent)] px-1 py-0.5"><span className="text-[7px] leading-none text-white">☰</span><span className="h-1.5 flex-1 rounded-full bg-white/85" /></span>
+                      <span className="flex items-center gap-1 bg-[var(--accent)] px-1 py-0.5"><span className="text-[7px] leading-none text-[var(--accent-ink)]">☰</span><span className="h-1.5 flex-1 rounded-full bg-white/85" /></span>
                       <span className="block h-8" />
                     </>)}
                     {l.id === "topsearch" && (<>
@@ -6920,7 +6920,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
     return (
       <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
         <h4 className="flex flex-wrap items-center gap-2 font-display font-bold text-[var(--text)]">🔑 {t(titleKey)} ({list.filter((r) => r.status === "pending").length} pending)
-          {list.filter((r) => r.status === "pending").length > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[11px] font-bold text-white">{list.filter((r) => r.status === "pending").length}</span>}
+          {list.filter((r) => r.status === "pending").length > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[11px] font-bold text-[var(--alert-ink)]">{list.filter((r) => r.status === "pending").length}</span>}
         </h4>
         <p className="mt-1 text-xs leading-snug text-[var(--dim)]">{t("adm.resetRequestsSub")}</p>
         {resetReqOk && <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {resetReqOk}</p>}
@@ -7120,8 +7120,8 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
     return (
       <div key={o.id} onClick={() => { if (isNewOrder) markSeen.mutate({ kind: "order", refId: o.id }); }} className={pend ? "rounded-xl ring-2 ring-[var(--alert)]" : isNewOrder ? "rounded-xl ring-2 ring-[var(--gold)]" : ""}>
         {o.paymentStatus === "pending" ? (
-          <p className="rounded-t-xl bg-[var(--gold)] px-3 py-1.5 text-xs font-bold text-white">💳 {t("paygate.title")} — {t("paygate.under")}</p>
-        ) : pend && <p className="rounded-t-xl bg-[var(--alert)] px-3 py-1.5 text-xs font-bold text-white">● {t("sd.pendingShipment")} — {t("notif.pendingAlert")}</p>}
+          <p className="rounded-t-xl bg-[var(--gold)] px-3 py-1.5 text-xs font-bold text-[var(--gold-ink)]">💳 {t("paygate.title")} — {t("paygate.under")}</p>
+        ) : pend && <p className="rounded-t-xl bg-[var(--alert)] px-3 py-1.5 text-xs font-bold text-[var(--alert-ink)]">● {t("sd.pendingShipment")} — {t("notif.pendingAlert")}</p>}
         {isNewOrder && <p className="flex items-center gap-2 px-1 pt-1.5"><NewBadge /><span className="text-xs font-bold text-[var(--text)]">{t("act.title")}</span></p>}
         <OrderCard order={o} codActor={{ role: "admin", id: user.id }} />
         {o.hasPaymentProof && <div className="px-1 pt-1.5"><OrderPaymentProofView orderId={o.id} adminId={user.id} /></div>}
@@ -7197,11 +7197,11 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
         <nav aria-label={t("adm.title")} className="scrollbar-none flex shrink-0 gap-1.5 overflow-x-auto pb-1 lg:sticky lg:top-20 lg:w-56 lg:flex-col lg:overflow-visible">
           {sections.map((s) => (
             <button key={s.id} type="button" aria-label={s.label} aria-current={section === s.id ? "page" : undefined} onClick={() => setSection(s.id)}
-              className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-bold ${section === s.id ? "bg-[var(--accent)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}>
+              className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-bold ${section === s.id ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}>
               <span className="flex-1">{s.label}</span>
               {s.isNew && <NewBadge id={`sec-nav-${s.id}`} />}
-              {s.alert !== undefined && s.alert > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[11px] font-bold text-white">{s.alert}</span>}
-              {s.badge !== undefined && s.badge > 0 && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${section === s.id ? "bg-white text-[var(--accent)]" : "bg-[var(--surface-alt)] text-[var(--dim)]"}`}>{s.badge}</span>}
+              {s.alert !== undefined && s.alert > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[11px] font-bold text-[var(--alert-ink)]">{s.alert}</span>}
+              {s.badge !== undefined && s.badge > 0 && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${section === s.id ? "bg-[var(--surface)] text-[var(--accent)]" : "bg-[var(--surface-alt)] text-[var(--dim)]"}`}>{s.badge}</span>}
             </button>
           ))}
         </nav>
@@ -7210,7 +7210,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
             <div className="rounded-2xl border-2 border-[var(--gold)]/60 bg-[var(--surface)] p-4">
               <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-[var(--text)]">
                 🔔 {t("act.title")}
-                {actCounts.total > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-xs font-bold text-white">{actCounts.total} {t("act.newCount")}</span>}
+                {actCounts.total > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-xs font-bold text-[var(--alert-ink)]">{actCounts.total} {t("act.newCount")}</span>}
                 <NewBadge />
               </h3>
               <p className="mt-1 text-sm text-[var(--dim)]">{t("act.sub")}</p>
@@ -7337,10 +7337,10 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
                   { id: "chat", label: t("tab.chat") },
                 ] as Array<{ id: SellerDetailTab; label: string }>).map((tb) => (
                   <button key={tb.id} type="button" role="tab" aria-selected={sellerTab === tb.id} aria-label={tb.label} onClick={() => setSellerTab(tb.id)}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold ${sellerTab === tb.id ? "bg-[var(--accent)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}>
+                    className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold ${sellerTab === tb.id ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}>
                     {tb.label}
-                    {tb.id === "orders" && (sellerOrdersAdmin.data?.orders ?? []).some((o) => o.status === "Pending") && <span className="rounded-full bg-[var(--alert)] px-1.5 py-0.5 text-[10px] font-bold text-white">{(sellerOrdersAdmin.data?.orders ?? []).filter((o) => o.status === "Pending").length}</span>}
-                    {tb.id === "chat" && awaitingChat.has(selectedSeller.id) && <span className="rounded-full bg-[var(--alert)] px-1.5 py-0.5 text-[10px] font-bold text-white">●</span>}
+                    {tb.id === "orders" && (sellerOrdersAdmin.data?.orders ?? []).some((o) => o.status === "Pending") && <span className="rounded-full bg-[var(--alert)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--alert-ink)]">{(sellerOrdersAdmin.data?.orders ?? []).filter((o) => o.status === "Pending").length}</span>}
+                    {tb.id === "chat" && awaitingChat.has(selectedSeller.id) && <span className="rounded-full bg-[var(--alert)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--alert-ink)]">●</span>}
                   </button>
                 ))}
               </div>
@@ -7533,9 +7533,9 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
                   { id: "chat", label: t("tab.chat") },
                 ] as Array<{ id: BuyerDetailTab; label: string }>).map((tb) => (
                   <button key={tb.id} type="button" role="tab" aria-selected={buyerTab === tb.id} aria-label={tb.label} onClick={() => setBuyerTab(tb.id)}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold ${buyerTab === tb.id ? "bg-[var(--accent)] text-white" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}>
+                    className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold ${buyerTab === tb.id ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}>
                     {tb.label}
-                    {tb.id === "chat" && awaitingChat.has(selectedBuyer.id) && <span className="rounded-full bg-[var(--alert)] px-1.5 py-0.5 text-[10px] font-bold text-white">●</span>}
+                    {tb.id === "chat" && awaitingChat.has(selectedBuyer.id) && <span className="rounded-full bg-[var(--alert)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--alert-ink)]">●</span>}
                   </button>
                 ))}
               </div>
@@ -7738,7 +7738,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
           </div>)}
 
           {section === "orders" && (<div>
-            <h3 className="mt-6 font-display text-lg font-bold text-[var(--text)]">{t("adm.orders")} ({ov.orders.length}){actCounts.orders > 0 && <span className="ml-2 rounded-full bg-[var(--alert)] px-2 py-0.5 text-xs font-bold text-white">{actCounts.orders} {t("act.newCount")}</span>}</h3>
+            <h3 className="mt-6 font-display text-lg font-bold text-[var(--text)]">{t("adm.orders")} ({ov.orders.length}){actCounts.orders > 0 && <span className="ml-2 rounded-full bg-[var(--alert)] px-2 py-0.5 text-xs font-bold text-[var(--alert-ink)]">{actCounts.orders} {t("act.newCount")}</span>}</h3>
             <div className="mt-3 grid grid-cols-2 gap-2 min-[560px]:grid-cols-4" role="group" aria-label={t("adm.orders")}>
               {[
                 { label: t("adm.totalOrders"), value: ordCounts.total, alert: false },
@@ -8063,7 +8063,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
                         <div className="flex flex-wrap items-center gap-2">
                           <strong className="text-[var(--text)]">{a.name}</strong>
                           <span className="rounded-full bg-[var(--surface-alt)] px-2 py-0.5 text-xs font-semibold">{t("adm.adminRole")}</span>
-                          {isSelf && <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-xs font-bold text-white">{t("adm.youBadge")}</span>}
+                          {isSelf && <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-xs font-bold text-[var(--accent-ink)]">{t("adm.youBadge")}</span>}
                           <span className="ml-auto text-xs text-[var(--dim)]">{t("adm.joined")}: {new Date(a.createdAt).toLocaleDateString()}</span>
                         </div>
                         <p className="mt-0.5 text-xs text-[var(--dim)]">{a.email ?? ""}{a.createdByEmail ? ` · ${t("adm.createdBy")}: ${a.createdByEmail}` : ""}</p>
@@ -8455,12 +8455,12 @@ function ChatBubble({
   return (
     <div
       className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-        own ? "self-end bg-[var(--accent)] text-white" : "self-start border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+        own ? "self-end bg-[var(--accent)] text-[var(--accent-ink)]" : "self-start border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
       }`}
     >
       {m.message && <p className="whitespace-pre-wrap break-words">{m.message}</p>}
       <ChatAttachmentView m={m} requesterId={requesterId} />
-      <p className={`mt-0.5 text-[10px] ${own ? "text-white/70" : "text-[var(--dim)]"}`}>
+      <p className={`mt-0.5 text-[10px] ${own ? "text-[var(--accent-ink)]" : "text-[var(--dim)]"}`}>
         {own ? ownLabel : otherLabel} · {new Date(m.createdAt).toLocaleString()}
       </p>
     </div>
@@ -8624,7 +8624,7 @@ function LiveChat({
                   setShowJump(false);
                   scrollToLatest();
                 }}
-                className="absolute bottom-3 right-3 rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-bold text-white shadow-lg"
+                className="absolute bottom-3 right-3 rounded-full bg-[var(--accent)] px-3 py-1.5 text-xs font-bold text-[var(--accent-ink)] shadow-lg"
               >
                 {t("sup.jumpLatest")}
               </button>
@@ -9382,17 +9382,17 @@ const NAV: NavItem[] =
                   >
                     🔔
                     {sellerUnread > 0 && (
-                      <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 animate-pulse items-center justify-center rounded-full bg-[var(--alert)] px-1 font-display text-[11px] font-bold text-white">
+                      <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 animate-pulse items-center justify-center rounded-full bg-[var(--alert)] px-1 font-display text-[11px] font-bold text-[var(--alert-ink)]">
                         {sellerUnread > 99 ? "99+" : sellerUnread}
                       </span>
                     )}
                   </button>
                   {notifOpen && (
                     <div className="fixed inset-x-3 top-[calc(var(--header-h,3.5rem)+8px)] z-50 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-96 sm:max-w-[calc(100vw-2rem)] sm:rtl:left-0 sm:rtl:right-auto" role="dialog" aria-label={ui.t("notif.title")}>
-                      <div className="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--accent)] px-3 py-2 text-white">
+                      <div className="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--accent)] px-3 py-2 text-[var(--accent-ink)]">
                         <span aria-hidden>🔔</span>
                         <strong className="flex-1 font-display text-sm">{ui.t("notif.title")}{sellerUnread > 0 ? ` (${sellerUnread})` : ""}</strong>
-                        <button type="button" aria-label={ui.t("menu.close")} onClick={() => setNotifOpen(false)} className="rounded px-1.5 py-0.5 text-white/90">✕</button>
+                        <button type="button" aria-label={ui.t("menu.close")} onClick={() => setNotifOpen(false)} className="rounded px-1.5 py-0.5 text-[var(--accent-ink)]">✕</button>
                       </div>
                       <div className="max-h-80 overflow-y-auto p-2">
                         {(sellerNotifs.data?.notifications ?? []).length === 0 ? (
@@ -9422,7 +9422,7 @@ const NAV: NavItem[] =
                           {ui.t("notif.markSeen")}
                         </button>
                       )}
-                      <button type="button" onClick={() => { setNotifOpen(false); goSellerTab("orders"); }} className="w-full bg-[var(--accent)] px-3 py-2 text-center text-sm font-bold text-white">
+                      <button type="button" onClick={() => { setNotifOpen(false); goSellerTab("orders"); }} className="w-full bg-[var(--accent)] px-3 py-2 text-center text-sm font-bold text-[var(--accent-ink)]">
                         {ui.t("sd.tabOrders")} →
                       </button>
                     </div>
@@ -9461,7 +9461,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="My account"
-                  className="hdr-user max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-white min-h-11 py-0.5 text-sm"
+                  className="hdr-user max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-[var(--accent-ink)] min-h-11 py-0.5 text-sm"
                 >
                   {user.name.split(" ")[0]}
                 </button>
@@ -9470,7 +9470,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="Sign in or register"
-                  className="hdr-signin flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-white shadow-sm hover:brightness-110 min-h-11 px-5 text-[15px]"
+                  className="hdr-signin flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-[var(--accent-ink)] shadow-sm hover:brightness-110 min-h-11 px-5 text-[15px]"
                 >
                   {iconUser}
                   {ui.t("header.signIn")}
@@ -9532,7 +9532,7 @@ const NAV: NavItem[] =
                 </button>
                 {user?.role === "seller" && sellerUnread > 0 && (
                   <button type="button" onClick={() => goSellerTab("orders")} className="flex items-center gap-2 rounded-xl border border-[var(--alert)] bg-[var(--alert-bg)] px-3 py-2.5 text-left font-bold text-[var(--text)]">
-                    <span aria-hidden>🔔</span><span className="flex-1 text-sm">{ui.t("notif.newOrder")} ({sellerUnread})</span><span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[10px] font-bold text-white">{ui.t("notif.live")}</span>
+                    <span aria-hidden>🔔</span><span className="flex-1 text-sm">{ui.t("notif.newOrder")} ({sellerUnread})</span><span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[10px] font-bold text-[var(--alert-ink)]">{ui.t("notif.live")}</span>
                   </button>
                 )}
                 {/* Sellers get Shop first, then Products — the same
@@ -9634,7 +9634,7 @@ const NAV: NavItem[] =
                       aria-label={l === "en" ? "Switch language to English" : l === "hi" ? "Switch language to Hindi" : "Switch language to Arabic"}
                       aria-pressed={effectiveLang === l}
                       onClick={() => changeLang(l)}
-                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${effectiveLang === l ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] text-[var(--text)]"}`}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${effectiveLang === l ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] text-[var(--text)]"}`}
                     >
                       {l === "en" ? "EN — English" : l === "hi" ? "हिंदी" : "العربية"}
                     </button>
@@ -9652,7 +9652,7 @@ const NAV: NavItem[] =
                       aria-label={c === "INR" ? "Show prices in Indian Rupees" : c === "USD" ? "Show prices in US Dollars" : "Show prices in USDT"}
                       aria-pressed={effectiveCurrency === c}
                       onClick={() => changeCurrency(c)}
-                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${effectiveCurrency === c ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] text-[var(--text)]"}`}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${effectiveCurrency === c ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] text-[var(--text)]"}`}
                     >
                       {c === "INR" ? "₹ INR" : c === "USD" ? "$ USD" : "USDT"}
                     </button>
@@ -9667,7 +9667,7 @@ const NAV: NavItem[] =
                     aria-label={ui.t("theme.toLight")}
                     aria-pressed={theme === "light"}
                     onClick={() => changeTheme("light")}
-                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${theme === "light" ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] text-[var(--text)]"}`}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${theme === "light" ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] text-[var(--text)]"}`}
                   >
                     ☀️ {ui.t("theme.light")}
                   </button>
@@ -9676,7 +9676,7 @@ const NAV: NavItem[] =
                     aria-label={ui.t("theme.toDark")}
                     aria-pressed={theme === "dark"}
                     onClick={() => changeTheme("dark")}
-                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${theme === "dark" ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] text-[var(--text)]"}`}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-bold ${theme === "dark" ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] text-[var(--text)]"}`}
                   >
                     🌙 {ui.t("theme.dark")}
                   </button>
@@ -9809,7 +9809,7 @@ const NAV: NavItem[] =
               aria-current={navCurrent(n) ? "page" : undefined}
               onClick={() => navGo(n)}
               className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold lg:px-4 ${
-                navCurrent(n) ? "bg-[var(--accent)] text-white" : "text-[var(--dim)] hover:bg-[var(--surface-alt)]"
+                navCurrent(n) ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "text-[var(--dim)] hover:bg-[var(--surface-alt)]"
               }`}
             >
               {n.icon} {n.label}
@@ -9824,7 +9824,7 @@ const NAV: NavItem[] =
               aria-current={view === "admin" ? "page" : undefined}
               onClick={() => setView("admin")}
               className={`shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold lg:px-4 ${
-                view === "admin" ? "bg-[var(--accent)] text-white" : "text-[var(--dim)] hover:bg-[var(--surface-alt)]"
+                view === "admin" ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "text-[var(--dim)] hover:bg-[var(--surface-alt)]"
               }`}
             >
               {iconGear} {ui.t("nav.admin")}

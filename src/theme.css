@@ -26,6 +26,9 @@
 
 :root {
   color-scheme: light dark;
+  --accent-ink: #ffffff;
+  --alert-ink: #ffffff;
+  --dim-ink: #ffffff;
   /* Professional palette: deep navy primary, slate greys, amber accent.
      Alert red is reserved sparingly for new-order / pending-shipment. */
   --bg: #f6f7f9;
@@ -54,6 +57,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --accent-ink: #111827;
+    --alert-ink: #111827;
+    --dim-ink: #111827;
     --bg: #0f172a;
     --surface: #1e293b;
     --surface-alt: #273449;
@@ -78,6 +84,9 @@
    the OS preference, so the user's pick persists exactly as chosen. */
 :root[data-theme="light"] {
   color-scheme: light;
+  --accent-ink: #ffffff;
+  --alert-ink: #ffffff;
+  --dim-ink: #ffffff;
   --bg: #f6f7f9;
   --surface: #ffffff;
   --surface-alt: #eef1f5;
@@ -98,6 +107,9 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --accent-ink: #111827;
+  --alert-ink: #111827;
+  --dim-ink: #111827;
   --bg: #0b1120;
   --surface: #16213a;
   --surface-alt: #1f2c47;
@@ -350,6 +362,15 @@ h1, h2, h3, h4, h5, h6, p, li, dt, dd {
 .shine-btn:hover .shine-sweep::after {
   transform: translateX(130%);
 }
+
+/* Ink tints: translucent fills that follow the light/dark ink colour
+   (plain CSS, not Tailwind opacity-on-var, so they always compile).
+   Used by count pills and gradient-card chips sitting on accent/alert
+   surfaces: light mode keeps the old white tint exactly, dark mode
+   gets a dark tint that keeps the ink text readable. */
+.bg-accent-ink-25 { background-color: color-mix(in srgb, var(--accent-ink) 25%, transparent); }
+.bg-alert-ink-25 { background-color: color-mix(in srgb, var(--alert-ink) 25%, transparent); }
+.bg-accent-ink-10 { background-color: color-mix(in srgb, var(--accent-ink) 10%, transparent); }
 
 /* Compact header (toggled imperatively on scroll; see App.tsx).
    These beat the single-class Tailwind utilities above by
