@@ -9189,6 +9189,7 @@ const NAV: NavItem[] =
   function handleAuth(u: NonNullable<User>) {
     setUser(u);
     localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+    applyCountryCurrency(u.country, u.role);
     queryClient.invalidateQueries();
     if (u.role === "seller") { setSellerTab("home"); setSellerKey((k) => k + 1); setView("seller"); }
     else if (u.role === "admin") setView("admin");
@@ -9217,6 +9218,30 @@ const NAV: NavItem[] =
     setTheme(next);
     localStorage.setItem(THEME_KEY, next);
   }
+  // Auto currency from the signed-in account's country (user request
+  // 2026-10-28): buyer/seller accounts from India see INR, every other
+  // country sees USD — automatically, with no manual switch needed.
+  // It applies ONLY when this browser has no saved currency choice
+  // yet (no CURRENCY_KEY), so a manual pick always wins afterwards
+  // and the Language & Currency pickers stay exactly as they are.
+  // Admin accounts are skipped, and a target currency switched OFF
+  // in Admin → Language & Prices is never forced on.
+  function applyCountryCurrency(country: string | null | undefined, role: string | undefined) {
+    if (role !== "buyer" && role !== "seller") return;
+    if (!country || country === "Not set") return;
+    if (typeof localStorage === "undefined") return;
+    if (localStorage.getItem(CURRENCY_KEY)) return;
+    const target: Currency = country === "India" ? "INR" : "USD";
+    const s = settings.data;
+    if (s && (target === "INR" ? !s.currencyInrEnabled : !s.currencyUsdEnabled)) return;
+    setCurrency(target);
+    localStorage.setItem(CURRENCY_KEY, target);
+  }
+  // Already signed in from a saved session: apply once on load.
+  useEffect(() => {
+    if (user) applyCountryCurrency(user.country, user.role);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!drawerOpen) return;
