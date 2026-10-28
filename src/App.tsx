@@ -9450,26 +9450,27 @@ export function App() {
   const [view, setView] = useState<View>("shop");
   const viewRef = useRef(view);
   viewRef.current = view;
-  // Cart back guard: while the Cart tab is open, a browser/system back
-  // press must land on the home page (Shop), not navigate away from
-  // the site. Entering Cart pushes a history marker; popping it (the
-  // back press) switches the view home instead of leaving.
+  // Back guard (all pages): while the visitor is on ANY page other
+  // than the home page (Shop), a browser/system back press must land
+  // on the home page (Shop), not navigate away from the site.
+  // Entering a non-shop view pushes a history marker; popping it (the
+  // back press) switches the view home instead of leaving. Markers are
+  // deliberately NOT consumed when leaving a page through the UI: a
+  // cleanup-time history.back() would race the next view's marker
+  // (the new view pushes before the queued pop fires) and bounce the
+  // visitor home. Leftover markers sit below the home entry, so a back
+  // press from the home page itself still exits normally.
   useEffect(() => {
-    if (view !== "cart") return;
-    window.history.pushState({ cartGuard: true }, "");
-    let poppedByBack = false;
+    if (view === "shop") return;
+    window.history.pushState({ shopGuard: true }, "");
     const onPop = () => {
-      if (viewRef.current === "cart") {
-        poppedByBack = true;
+      if (viewRef.current !== "shop") {
         setView("shop");
       }
     };
     window.addEventListener("popstate", onPop);
     return () => {
       window.removeEventListener("popstate", onPop);
-      // Left Cart through the UI (not via back): consume the marker
-      // we pushed, so a later back press is not swallowed by it.
-      if (!poppedByBack) window.history.back();
     };
   }, [view]);
   const [infoPage, setInfoPage] = useState<InfoPageId>("about");
