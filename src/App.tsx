@@ -5905,10 +5905,13 @@ function PayWithdrawPanel({
   );
 }
 
-function AdminView({ user, settings, onUserUpdated }: { user: User; settings: ApiResponse<typeof api, "getSettings"> | undefined; onUserUpdated?: (u: NonNullable<User>) => void }) {
+function AdminView({ user, settings, onUserUpdated, onBackToStore }: { user: User; settings: ApiResponse<typeof api, "getSettings"> | undefined; onUserUpdated?: (u: NonNullable<User>) => void; onBackToStore?: () => void }) {
   const { t, fmt, currency, lang } = useUi();
   const queryClient = useQueryClient();
   const [section, setSection] = useState<AdminSection>("overview");
+  // Premium sidebar: open as an overlay drawer on mobile, fixed panel
+  // on desktop (sticky within the page).
+  const [adminNavOpen, setAdminNavOpen] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
   const [viewer, setViewer] = useState<{ sellerId: number; kind: DocKind; label: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; role: "seller" | "buyer"; title: string; detail: string } | null>(null);
@@ -7419,23 +7422,161 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
 
   return (
     <div>
-      <h2 className="font-display text-2xl font-bold text-[var(--text)]">{t("adm.title")} — {settings?.storeName ?? "sheinmart"}</h2>
-      {deleteMsg && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">{deleteMsg}</p>}
-      <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
-        <nav aria-label={t("adm.title")} className="scrollbar-none flex shrink-0 gap-1.5 overflow-x-auto pb-1 lg:sticky lg:top-20 lg:w-56 lg:flex-col lg:overflow-visible">
-          {sections.map((s) => (
-            <button key={s.id} type="button" aria-label={s.label} aria-current={section === s.id ? "page" : undefined} onClick={() => setSection(s.id)}
-              className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-bold ${section === s.id ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}>
-              <span className="flex-1">{s.label}</span>
-              {s.isNew && <NewBadge id={`sec-nav-${s.id}`} />}
-              {s.alert !== undefined && s.alert > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[11px] font-bold text-[var(--alert-ink)]">{s.alert}</span>}
-              {s.badge !== undefined && s.badge > 0 && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${section === s.id ? "bg-[var(--surface)] text-[var(--accent)]" : "bg-[var(--surface-alt)] text-[var(--dim)]"}`}>{s.badge}</span>}
-            </button>
-          ))}
-        </nav>
+      {/* Mobile sidebar backdrop */}
+      {adminNavOpen && (
+        <button
+          type="button"
+          aria-label={t("menu.close")}
+          onClick={() => setAdminNavOpen(false)}
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+        />
+      )}
+      <div className="flex items-start gap-5">
+        {/* Premium admin sidebar: fixed charcoal panel (dark in both
+            modes, like the reference), grouped nav, mobile drawer. */}
+        <aside
+          aria-label={t("adm.title")}
+          className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col overflow-y-auto bg-[#20262C] p-4 text-[#F5F1E8] shadow-2xl transition-transform lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:translate-x-0 ${adminNavOpen ? "translate-x-0" : "-translate-x-full"}`}
+        >
+          <div className="flex items-center gap-2.5 px-1 pb-4">
+            {settings?.headerLogoUrl ? (
+              <img src={settings.headerLogoUrl} alt="" className="h-10 w-10 shrink-0 rounded-xl object-contain" />
+            ) : (
+              <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#A67C2E] font-display text-2xl font-extrabold text-white">S</span>
+            )}
+            <span className="min-w-0">
+              <span className="block truncate font-display text-xl font-extrabold leading-none text-white">sheinmart</span>
+              <span className="mt-1 block text-[11px] font-bold uppercase tracking-[0.25em] text-[#C9A86A]">Admin</span>
+            </span>
+            <button type="button" aria-label={t("menu.close")} onClick={() => setAdminNavOpen(false)} className="ml-auto rounded-lg px-2 py-1 text-lg text-[#A8A29A] lg:hidden">×</button>
+          </div>
+          <nav className="flex flex-col gap-5">
+            {[
+              { title: "Overview", ids: ["overview"] },
+              { title: "Management", ids: ["sellers", "users", "products", "sellerProducts", "external", "orders"] },
+              { title: "Finance", ids: ["wallet", "profit"] },
+              { title: "Support", ids: ["support"] },
+              { title: "System", ids: ["theme", "settings"] },
+            ].map((g) => (
+              <div key={g.title}>
+                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#8B8F94]">{g.title}</p>
+                <div className="flex flex-col gap-0.5">
+                  {sections.filter((sec) => g.ids.includes(sec.id)).map((sec) => (
+                    <button key={sec.id} type="button" aria-label={sec.label} aria-current={section === sec.id ? "page" : undefined} onClick={() => { setSection(sec.id); setAdminNavOpen(false); }}
+                      className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-bold ${section === sec.id ? "bg-[#A67C2E] text-white" : "text-[#E8E6E1] hover:bg-white/10"}`}>
+                      <span className="flex-1">{sec.label}</span>
+                      {sec.isNew && <NewBadge id={`sec-nav-${sec.id}`} />}
+                      {sec.alert !== undefined && sec.alert > 0 && <span className="rounded-full bg-[#DC2626] px-2 py-0.5 text-[11px] font-bold text-white">{sec.alert}</span>}
+                      {sec.badge !== undefined && sec.badge > 0 && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${section === sec.id ? "bg-white/20 text-white" : "bg-white/10 text-[#C9C4BC]"}`}>{sec.badge}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </nav>
+          <div className="mt-auto pt-6">
+            <p className="px-3 pb-3 text-center text-[11px] font-bold uppercase tracking-[0.25em] text-[#8B8F94]">{t("adm.sidebarTagline")}</p>
+            {onBackToStore && (
+              <button type="button" onClick={onBackToStore} className="w-full rounded-xl border border-[#A67C2E] px-4 py-2.5 text-sm font-bold text-[#C9A86A] hover:bg-[#A67C2E] hover:text-white">
+                ← {t("adm.backToStore")}
+              </button>
+            )}
+          </div>
+        </aside>
         <div className="min-w-0 flex-1">
+          {/* Admin top bar: page title, notifications (activity feed),
+              admin profile. Dark mode stays on the app header toggle. */}
+          <div className="mb-4 flex items-center gap-2 sm:gap-3">
+            <button type="button" aria-label={t("menu.open")} onClick={() => setAdminNavOpen(true)} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-[var(--text)] lg:hidden">
+              <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="h-5 w-5"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+            </button>
+            <h2 className="min-w-0 flex-1 truncate text-xl font-bold text-[var(--text)] sm:text-2xl">
+              {sections.find((sec) => sec.id === section)?.label ?? t("adm.title")}
+            </h2>
+            <button type="button" aria-label={t("adm.notifications")} onClick={() => { setSection("overview"); window.setTimeout(() => document.getElementById("admin-activity")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150); }} className="relative shrink-0 rounded-full border border-[var(--border)] bg-[var(--surface)] p-2.5 text-[var(--text)]">
+              <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>
+              {actCounts.total > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#DC2626] px-1 text-[10px] font-bold text-white">{actCounts.total > 99 ? "99+" : actCounts.total}</span>}
+            </button>
+            <span className="flex shrink-0 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] py-1.5 pl-1.5 pr-3">
+              <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent-soft)] text-sm font-bold text-[var(--accent-strong)]">{(user.name ?? "A").trim().charAt(0).toUpperCase()}</span>
+              <span className="hidden min-w-0 sm:block"><span className="block max-w-32 truncate text-sm font-bold leading-tight text-[var(--text)]">{user.name}</span><span className="block text-[11px] font-semibold leading-tight text-[var(--dim)]">Admin</span></span>
+            </span>
+          </div>
+          {deleteMsg && <p role="status" className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">{deleteMsg}</p>}
           {section === "overview" && (<div>
-            <div className="rounded-2xl border-2 border-[var(--gold)]/60 bg-[var(--surface)] p-4">
+            <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)] sm:text-4xl">{t("adm.welcomeTitle")}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--dim)] sm:text-base">{t("adm.welcomeSub")}</p>
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+              {[
+                { label: t("adm.sellers"), value: String(sellersCount), go: "sellers" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>) },
+                { label: t("adm.buyers"), value: String(buyersCount), go: "users" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>) },
+                { label: t("adm.products"), value: String(ov.totalProducts), go: "products" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="M3.3 7 12 12l8.7-5" /><path d="M12 22V12" /></svg>) },
+                { label: t("adm.totalOrders"), value: String(ordCounts.total), go: "orders" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>) },
+              ].map((c) => (
+                <button key={c.label} type="button" aria-label={`${c.label}: ${c.value}`} onClick={() => setSection(c.go)} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left shadow-sm transition-shadow hover:shadow-md">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-strong)]">{c.icon}</span>
+                  <span className="mt-3 block text-xs font-semibold text-[var(--dim)]">{c.label}</span>
+                  <span className="mt-0.5 flex items-center justify-between gap-2"><span className="font-display text-2xl font-extrabold text-[var(--text)]">{c.value}</span><span aria-hidden className="text-[var(--gold)]">→</span></span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <section aria-label={t("adm.recentOrders")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-display text-lg font-extrabold text-[var(--text)]">{t("adm.recentOrders")}</h3>
+                  <button type="button" onClick={() => setSection("orders")} className="shrink-0 text-sm font-bold text-[var(--gold)]">{t("adm.viewAll")} →</button>
+                </div>
+                {(ov.orders ?? []).length === 0 ? (
+                  <p className="mt-3 text-sm text-[var(--dim)]">{t("adm.noOrders")}</p>
+                ) : (
+                  <div className="mt-3 flex flex-col gap-2">
+                    {ov.orders.slice(0, 5).map((o) => {
+                      const buyer = (ov.users ?? []).find((u) => u.id === o.buyerId);
+                      return (
+                        <div key={o.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2.5 text-sm">
+                          <strong className="text-[var(--text)]">#{o.id}</strong>
+                          <span className="min-w-0 flex-1 truncate text-[var(--dim)]">{buyer?.name ?? "—"}</span>
+                          <span className="text-xs text-[var(--dim)]">{new Date(o.createdAt).toLocaleDateString()}</span>
+                          <StatusBadge status={o.status} />
+                          <button type="button" aria-label={`View order ${o.id}`} onClick={() => setSection("orders")} className="text-xs font-bold text-[var(--gold)]">→</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+              <section aria-label={t("adm.needsAttention")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-display text-lg font-extrabold text-[var(--text)]">{t("adm.needsAttention")}</h3>
+                  <button type="button" onClick={() => setSection("support")} className="shrink-0 text-sm font-bold text-[var(--gold)]">{t("adm.viewAll")} →</button>
+                </div>
+                <div className="mt-3 flex flex-col gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+                      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-[var(--text)]">{t("adm.resetRequests")}</p>
+                      <p className="text-xs leading-snug text-[var(--dim)]">{t("adm.resetRequestsSub")}</p>
+                    </div>
+                    <span className="shrink-0 font-display text-xl font-extrabold text-[var(--text)]">{(resetRequests.data?.requests ?? []).filter((r) => r.status === "pending").length}</span>
+                    <button type="button" aria-label={t("adm.resetRequests")} onClick={() => setSection("support")} className="shrink-0 text-[var(--gold)]">→</button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-strong)]">
+                      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6.5 9.5h.01M17.5 14.5h.01" /></svg>
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-[var(--text)]">{t("adm.walletRequests")}</p>
+                      <p className="text-xs leading-snug text-[var(--dim)]">{t("adm.walletRequestsSub")}</p>
+                    </div>
+                    <span className="shrink-0 font-display text-xl font-extrabold text-[var(--text)]">{(walletRequests.data?.requests ?? []).filter((r) => r.status === "pending").length}</span>
+                    <button type="button" aria-label={t("adm.walletRequests")} onClick={() => setSection("wallet")} className="shrink-0 text-[var(--gold)]">→</button>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div id="admin-activity" className="mt-6 scroll-mt-[calc(var(--header-h,3.5rem)+1rem)] rounded-2xl border-2 border-[var(--gold)]/60 bg-[var(--surface)] p-4">
               <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-[var(--text)]">
                 🔔 {t("act.title")}
                 {actCounts.total > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-xs font-bold text-[var(--alert-ink)]">{actCounts.total} {t("act.newCount")}</span>}
@@ -7482,13 +7623,8 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
               )}
               <p className="mt-3 text-xs leading-snug text-[var(--dim)]">{t("act.noDeleteNote")}</p>
             </div>
-            <h3 className="mt-6 font-display text-lg font-bold text-[var(--text)]">{t("adm.sec.overview")}</h3>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {[
-                { label: t("adm.sellers"), value: String(sellersCount), go: "sellers" as AdminSection },
-                { label: t("adm.buyers"), value: String(buyersCount), go: "users" as AdminSection },
-                { label: t("adm.products"), value: String(ov.totalProducts), go: "products" as AdminSection },
-                { label: t("adm.totalOrders"), value: String(ordCounts.total), go: "orders" as AdminSection },
                 { label: t("adm.completedOrders"), value: String(ordCounts.completed), go: "orders" as AdminSection },
                 { label: t("adm.pendingOrders"), value: String(ordCounts.pending), go: "orders" as AdminSection },
                 { label: t("adm.shippedOrders"), value: String(ordCounts.shipped), go: "orders" as AdminSection },
@@ -7515,7 +7651,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
                 <p className="mt-2 text-xs text-[var(--dim)]">{t("adm.productsInStore")}: {a.productCount} · {t("adm.orders")}: {a.orderCount} · {t("adm.totalSales")}: {fmt(a.totalSales)}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button type="button" aria-label={`View seller ${a.name}`} onClick={() => { setSelectedSellerId(a.id); setSellerTab("personal"); setCreditOk(null); setCreditErr(null); setQuickQty({}); setQuickErr(null); setQuickOk(null); setNoticeResult(null); setNoticeOpenOrderId(null); setNoticeGeneral(""); setVerifyMsg(null); setRejectReason(""); }} className={primaryBtn + " px-3 py-2 text-xs"}>{t("adm.viewSeller")}</button>
-                  {a.verificationStatus === "pending" && <><button type="button" aria-label={`Approve seller ${a.name}`} disabled={review.isPending} onClick={() => review.mutate({ sellerId: a.id, decision: "approved" })} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">✓ {t("adm.approve")}</button><button type="button" aria-label={`Reject seller ${a.name}`} disabled={review.isPending} onClick={() => review.mutate({ sellerId: a.id, decision: "rejected" })} className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">✕ {t("adm.reject")}</button></>}
+                  {a.verificationStatus === "pending" && <><button type="button" aria-label={`Approve seller ${a.name}`} disabled={review.isPending} onClick={() => { if (window.confirm(t("adm.confirmApprove"))) review.mutate({ sellerId: a.id, decision: "approved" }); }} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">✓ {t("adm.approve")}</button><button type="button" aria-label={`Reject seller ${a.name}`} disabled={review.isPending} onClick={() => { if (window.confirm(t("adm.confirmReject"))) review.mutate({ sellerId: a.id, decision: "rejected" }); }} className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">✕ {t("adm.reject")}</button></>}
                   <button type="button" aria-label={`Delete seller account ${a.name}`} onClick={() => setDeleteTarget({ id: a.id, role: "seller", title: a.name, detail: `${a.storeName ?? ""} · ${a.email ?? ""} · ${a.phone ? `${fmtPhone(a.phone, a.country)}` : ""}` })} className="rounded-lg border border-rose-300 px-3 py-2 text-xs font-bold text-rose-600">🗑 {t("del.sellerBtn")}</button>
                 </div>
               </div>))}</div>}
@@ -10291,7 +10427,7 @@ const NAV: NavItem[] =
               onGoSupport={goSupportChat}
             />
           )}
-          {view === "admin" && <AdminView user={user} settings={settings.data} onUserUpdated={handleUserUpdated} />}
+          {view === "admin" && <AdminView user={user} settings={settings.data} onUserUpdated={handleUserUpdated} onBackToStore={() => setView("shop")} />}
           {view === "support" && (
             <SupportView key={supportVisit} user={user} settings={settings.data} onNeedAuth={() => setView("account")} focusSignal={chatFocusSignal} startInChat={supportStartInChat} />
           )}
