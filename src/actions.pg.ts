@@ -3743,6 +3743,42 @@ export const Actions = {
     },
   }),
 
+  // Support tab dot (bottom nav): unread admin replies in the
+  // customer's Live Chat thread. Nothing signals these outside today
+  // (the bell is order-only, and buyers have no bell at all), so this
+  // dot is new signal, not a duplicate of any existing one. Tickets
+  // have no reply channel, so they are not counted here.
+  getChatUnread: defineAction({
+    request: z.object({ userId: z.number() }),
+    response: z.object({ unreadCount: z.number() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.userId)).limit(1);
+      if (!me[0] || me[0].role === "admin") return { unreadCount: 0 };
+      const rows = await db
+        .select()
+        .from(schema.chatMessages)
+        .where(and(eq(schema.chatMessages.userId, args.userId), eq(schema.chatMessages.sender, "admin"), eq(schema.chatMessages.isRead, 0)));
+      return { unreadCount: rows.length };
+    },
+  }),
+
+  // Opening Live Chat marks its admin replies seen, so the dot stays
+  // gone after a reload. Mirrors markWalletSeen.
+  markChatSeen: defineAction({
+    request: z.object({ userId: z.number() }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const db = ctx.db<typeof schema>();
+      await db
+        .update(schema.chatMessages)
+        .set({ isRead: 1 })
+        .where(and(eq(schema.chatMessages.userId, args.userId), eq(schema.chatMessages.sender, "admin"), eq(schema.chatMessages.isRead, 0)));
+      ctx.invalidateQueries();
+      return { ok: true as const };
+    },
+  }),
+
   listBuyerOrders: defineAction({
     request: z.object({ buyerId: z.number() }),
     response: z.object({ orders: z.array(orderOut) }),

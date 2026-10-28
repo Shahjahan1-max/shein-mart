@@ -90,8 +90,17 @@ CREATE TABLE IF NOT EXISTS tickets (
 CREATE TABLE IF NOT EXISTS chat_messages (
   id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), sender TEXT NOT NULL,
   message TEXT NOT NULL, attachment_blob_key TEXT, attachment_file_name TEXT,
-  attachment_content_type TEXT, attachment_size INTEGER, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  attachment_content_type TEXT, attachment_size INTEGER, is_read INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Existing databases created before the Support dot: add the column.
+ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS is_read INTEGER NOT NULL DEFAULT 0;
+-- One-time backfill guard: admin messages from before this feature
+-- (cutoff 2026-10-28 06:00 UTC, set at authoring time, before the
+-- deploy) are treated as already seen, so old threads never light a
+-- dot. Messages after the cutoff are genuinely new and are never
+-- touched by this statement on later boots.
+UPDATE chat_messages SET is_read = 1 WHERE sender = 'admin' AND is_read = 0 AND created_at < '2026-10-28 06:00:00+00';
 CREATE TABLE IF NOT EXISTS wallet_transactions (
   id SERIAL PRIMARY KEY, seller_id INTEGER NOT NULL REFERENCES users(id), type TEXT NOT NULL,
   amount INTEGER NOT NULL, method TEXT NOT NULL DEFAULT '', reference TEXT NOT NULL DEFAULT '',

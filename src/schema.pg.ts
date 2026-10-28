@@ -230,6 +230,10 @@ export const chatMessages = pgTable("chat_messages", {
   attachmentFileName: text("attachment_file_name"),
   attachmentContentType: text("attachment_content_type"),
   attachmentSize: integer("attachment_size"),
+  // Customer-side read state for admin replies: 0 = the customer has
+  // not opened Live Chat since this admin message arrived (drives the
+  // Support tab dot). Customer-sent rows stay 0 and are never counted.
+  isRead: integer("is_read").notNull().default(0),
   createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
