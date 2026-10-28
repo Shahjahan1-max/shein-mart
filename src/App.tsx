@@ -4550,7 +4550,10 @@ function SellerView({
   useEffect(() => {
     const fresh = sessionRefresh.data?.user;
     if (fresh && user && fresh.verificationStatus !== user.verificationStatus) {
-      onUserUpdated?.(fresh);
+      // refreshMySession returns status fields only (never email/phone),
+      // so merge them into the account we already hold instead of
+      // replacing it — replacing would wipe the account's own details.
+      onUserUpdated?.({ ...user, verificationStatus: fresh.verificationStatus, mustChangePassword: fresh.mustChangePassword });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionRefresh.data]);
