@@ -2966,7 +2966,7 @@ function ChangeMyPasswordPanel({ userId, onDone }: { userId: number; onDone?: ()
   const mut = useMutation({ mutationFn: () => api.changeMyPassword({ userId, currentPassword: f.currentPassword, newPassword: f.newPassword }), onSuccess: (r) => { if (!r.ok) { setServerErr(r.error ?? "Failed."); setOk(null); return; } setServerErr(null); setOk(t("cp.ok")); setF({ currentPassword: "", newPassword: "", confirmPassword: "" }); setTouched(false); onDone?.(); }, onError: (e) => setServerErr(String(e)) });
   return (
     <form className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4" noValidate onSubmit={(e) => { e.preventDefault(); setTouched(true); setServerErr(null); if (errs().length > 0) return; mut.mutate(); }}>
-      <h3 className="font-display font-bold text-[var(--text)]">🔑 {t("cp.title")}</h3>
+      <h3 className="flex items-center gap-2 font-display font-bold text-[var(--text)]">{aKey} {t("cp.title")}</h3>
       <p className="mt-1 text-sm text-[var(--dim)]">{t("cp.sub")}</p>
       {touched && errs().length > 0 && <div className="mt-3"><ValidationSummary sectionLabel={t("cp.title")} items={errs().map((e) => ({ label: e.label, msg: e.msg }))} /></div>}
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -2974,7 +2974,7 @@ function ChangeMyPasswordPanel({ userId, onDone }: { userId: number; onDone?: ()
         <Field label={t("cp.new")}><input type="password" value={f.newPassword} onChange={(e) => setF({ ...f, newPassword: e.target.value })} className={errInputCls(!!errFor("newPassword"))} aria-label="Your new password" /><FieldError msg={errFor("newPassword")} /></Field>
         <Field label={t("cp.confirm")}><input type="password" value={f.confirmPassword} onChange={(e) => setF({ ...f, confirmPassword: e.target.value })} className={errInputCls(!!errFor("confirmPassword"))} aria-label="Confirm your new password" /><FieldError msg={errFor("confirmPassword")} /></Field>
       </div>
-      {serverErr && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {serverErr}</p>}
+      {serverErr && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-rose-600">{aWarn} {serverErr}</p>}
       {ok && <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {ok}</p>}
       <button type="submit" disabled={mut.isPending} className={primaryBtn + " mt-3"}>{t("cp.btn")}</button>
     </form>
@@ -3251,7 +3251,7 @@ function SellerMediaEditor({
       aria-label={isSeller ? t("prof.title") : t("prof.titlePhotoOnly")}
       className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] p-4"
     >
-      <h3 className="font-display font-bold text-[var(--text)]">🖼️ {isSeller ? t("prof.title") : t("prof.titlePhotoOnly")}</h3>
+      <h3 className="flex items-center gap-2 font-display font-bold text-[var(--text)]">{aImage} {isSeller ? t("prof.title") : t("prof.titlePhotoOnly")}</h3>
       <p className="mt-1 text-sm text-[var(--dim)]">{isSeller ? t("prof.sub") : t("prof.subPhotoOnly")}</p>
       <div className={`mt-3 grid gap-3 ${isSeller ? "sm:grid-cols-2" : ""}`}>
         <MediaEditRow user={user} kind="photo" onUpdated={onUpdated} />
@@ -3304,6 +3304,19 @@ const GoogleGIcon = (
   </svg>
 );
 
+// Account page icons: professional outline style matching the drawer
+// set (24×24 stroke, no emojis).
+const aMail = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3.5 7 8.5 6 8.5-6" /></svg>);
+const aPhone = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M11 18.5h2" /></svg>);
+const aGlobe = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z" /></svg>);
+const aStore = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M4 8 5.5 3h13L20 8" /><path d="M4 8v12h16V8" /><path d="M9 20v-5h6v5" /></svg>);
+const aUser = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></svg>);
+const aGear = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" /></svg>);
+const aLogout = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M15 4h4v16h-4" /><path d="M3 12h11M10 8l4 4-4 4" /></svg>);
+const aImage = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.5" /><path d="m5 19 5-5 3 3 2-2 4 4" /></svg>);
+const aKey = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="7.5" cy="15.5" r="4" /><path d="M10.5 12.5 20 3" /><path d="M16 7l2.5 2.5M18.5 4.5l1.5 1.5" /></svg>);
+const aWarn = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0"><path d="M12 4 22 20H2L12 4Z" /><path d="M12 10v4" /><path d="M12 17h.01" /></svg>);
+
 function PrefsCard({
   lang,
   currency,
@@ -3322,7 +3335,7 @@ function PrefsCard({
   const { t } = useUi();
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)]">
-      <h3 className="font-display text-lg font-bold text-[var(--text)]">🌐 {t("pref.title")}</h3>
+      <h3 className="flex items-center gap-2 font-display text-lg font-bold text-[var(--text)]">{aGlobe} {t("pref.title")}</h3>
       <p className="mt-1 text-sm text-[var(--dim)]">{t("pref.sub")}</p>
       <div className="mt-4">
         <p className="text-xs font-bold uppercase tracking-wide text-[var(--dim)]">{t("header.language")}</p>
@@ -3604,8 +3617,8 @@ function AccountView({
               <VerifiedNamePill user={user} />
             </h2>
             {user.role === "seller" && user.storeName && (
-              <p className="truncate text-sm font-semibold text-[var(--text)]">
-                🏪 {user.storeName}
+              <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[var(--text)]">
+                {aStore} <span className="min-w-0 truncate">{user.storeName}</span>
               </p>
             )}
             <p className="text-sm text-[var(--dim)]">
@@ -3613,7 +3626,7 @@ function AccountView({
               <span className="font-semibold capitalize">{user.role}</span> {t("acc.accountWord")}
             </p>
             {user.country && (
-              <p className="text-sm text-[var(--dim)]">🌍 {user.country}</p>
+              <p className="flex items-center gap-1.5 text-sm text-[var(--dim)]">{aGlobe} {user.country}</p>
             )}
           </div>
         </div>
@@ -3628,7 +3641,7 @@ function AccountView({
             aria-label={t("acc.profile")}
             className={menuRowCls}
           >
-            <span aria-hidden className="text-xl leading-none">👤</span>
+            <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)]">{aUser}</span>
             <span className="min-w-0 flex-1">
               <span className="block font-display text-[15px] font-bold text-[var(--text)]">
                 {t("acc.profile")}
@@ -3649,7 +3662,7 @@ function AccountView({
             aria-label={t("pref.title")}
             className={menuRowCls}
           >
-            <span aria-hidden className="text-xl leading-none">🌐</span>
+            <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)]">{aGlobe}</span>
             <span className="min-w-0 flex-1">
               <span className="block font-display text-[15px] font-bold text-[var(--text)]">
                 {t("pref.title")}
@@ -3667,7 +3680,7 @@ function AccountView({
               aria-label={t("acc.sellerDash")}
               className={menuRowCls}
             >
-              <span aria-hidden className="text-xl leading-none">🏪</span>
+              <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)]">{aStore}</span>
               <span className="min-w-0 flex-1">
                 <span className="block font-display text-[15px] font-bold text-[var(--text)]">
                   {t("acc.sellerDash")}
@@ -3683,7 +3696,7 @@ function AccountView({
               aria-label={t("acc.adminPanel")}
               className={menuRowCls}
             >
-              <span aria-hidden className="text-xl leading-none">🛠️</span>
+              <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)]">{aGear}</span>
               <span className="min-w-0 flex-1">
                 <span className="block font-display text-[15px] font-bold text-[var(--text)]">
                   {t("acc.adminPanel")}
@@ -3698,7 +3711,7 @@ function AccountView({
             aria-label={t("acc.signOut")}
             className={menuRowCls}
           >
-            <span aria-hidden className="text-xl leading-none">🚪</span>
+            <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-300">{aLogout}</span>
             <span className="min-w-0 flex-1">
               <span className="block font-display text-[15px] font-bold text-rose-600">
                 {t("acc.signOut")}
@@ -3747,18 +3760,18 @@ function AccountView({
             aria-label="Continue with Gmail"
             aria-pressed={method === "gmail"}
             onClick={() => { setMethod("gmail"); setAuthTouched(false); setError(null); }}
-            className={`rounded-full border px-3 py-3 text-sm font-bold ${method === "gmail" ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+            className={`flex items-center justify-center gap-2 rounded-full border px-3 py-3 text-sm font-bold ${method === "gmail" ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
           >
-            ✉️ {t("auth.withGmail")}
+            {aMail} {t("auth.withGmail")}
           </button>
           <button
             type="button"
             aria-label="Continue with Mobile Number"
             aria-pressed={method === "mobile"}
             onClick={() => { setMethod("mobile"); setAuthTouched(false); setError(null); }}
-            className={`rounded-full border px-3 py-3 text-sm font-bold ${method === "mobile" ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
+            className={`flex items-center justify-center gap-2 rounded-full border px-3 py-3 text-sm font-bold ${method === "mobile" ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-ink)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
           >
-            📱 {t("auth.withMobile")}
+            {aPhone} {t("auth.withMobile")}
           </button>
         </div>
       )}
@@ -3896,8 +3909,8 @@ function AccountView({
             </>
           )}
           {authTouched && authErrFor("contact") && (
-            <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30">
-              ⚠ {authErrFor("contact")}
+            <p role="alert" className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30">
+              {aWarn} {authErrFor("contact")}
             </p>
           )}
           <Field label={t("acc.password")}>
@@ -3926,7 +3939,7 @@ function AccountView({
                         <Field label={t("fp.identifier")}>
                           <input value={forgotId} onChange={(e) => setForgotId(e.target.value)} placeholder="name@gmail.com / mobile number" className={inputCls} aria-label="Gmail or mobile number for password reset" />
                         </Field>
-                        {forgotErr && <p role="alert" className="mt-1 text-xs font-semibold text-rose-600">⚠ {forgotErr}</p>}
+                        {forgotErr && <p role="alert" className="mt-1 flex items-center gap-1 text-xs font-semibold text-rose-600">{aWarn} {forgotErr}</p>}
                       </div>
                       <div className="mt-2">
                         <Field label={t("fp.storeName")}>
