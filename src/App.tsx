@@ -9435,10 +9435,10 @@ const NAV: NavItem[] =
           { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
         ]
       : [
+          // Products / Wallet / Seller are seller-only tabs: buyers,
+          // guests and admins never see them (seller signup still
+          // lives on the Account page: Register → "Apply as seller").
           { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
-          { key: "products", sellerTab: "products", label: ui.t("nav.products"), icon: iconProducts, isNew: true },
-          { key: "wallet", sellerTab: "wallet", label: ui.t("nav.wallet"), icon: iconWallet },
-          { key: "seller", sellerTab: "home", label: ui.t("nav.seller"), icon: iconStore },
           { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
           { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
         ];
