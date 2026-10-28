@@ -4810,7 +4810,7 @@ export const Actions = {
   }),
 
   listChatMessages: defineAction({
-    auth: { arg: "userId" },
+    auth: { arg: "userId", adminOk: true },
     request: z.object({ userId: z.number() }),
     response: z.object({ messages: z.array(chatMessageOut) }),
     async handler(ctx, args) {

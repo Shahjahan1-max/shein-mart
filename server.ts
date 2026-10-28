@@ -340,8 +340,14 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
           if (typeof policy === "object" && policy !== null && "admin" in policy) {
             if (auth.role !== "admin") return fail("Not allowed.", 403);
           } else if (typeof policy === "object" && policy !== null && "arg" in policy) {
-            if (parsed?.[(policy as any).arg] !== auth.userId) return fail("Not allowed.", 403);
-            if ((policy as any).role && auth.role !== (policy as any).role) return fail("Not allowed.", 403);
+            // adminOk: a valid admin token bypasses the id match (Admin
+            // reading customer threads). Any other mismatch is a real
+            // permission failure, not a dead session.
+            const adminBypass = (policy as any).adminOk === true && auth.role === "admin";
+            if (!adminBypass) {
+              if (parsed?.[(policy as any).arg] !== auth.userId) return fail("Not allowed.", 403);
+              if ((policy as any).role && auth.role !== (policy as any).role) return fail("Not allowed.", 403);
+            }
           } else if (typeof policy === "object" && policy !== null && "any" in policy) {
             // any valid token suffices
           } else if (typeof policy === "object" && policy !== null && "optional" in policy) {

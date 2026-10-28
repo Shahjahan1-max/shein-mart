@@ -20,6 +20,12 @@ export { z };
 //   { arg: "<field>" }  — token's user id must equal args[field]; the
 //                         handler's own checks (role, attribution) still
 //                         apply on top.
+//   { arg: "<field>", adminOk: true } — as above, except a valid ADMIN
+//                         token bypasses the match: the Admin legitimately
+//                         reads customer threads (listChatMessages from
+//                         the Admin Panel). Without this, opening a thread
+//                         as Admin fails the guard — and the client treats
+//                         the failure as a dead session and signs out.
 //   { arg: "<field>", role: "<role>" } — as above, plus token user's
 //                         role must equal role (admin actions).
 //   { optional: "<field>" } — if args[field] is null/undefined the call
@@ -31,7 +37,7 @@ export type AuthPolicy =
   | "public"
   | { any: true }
   | { admin: true }
-  | { arg: string; role?: string }
+  | { arg: string; role?: string; adminOk?: boolean }
   | { optional: string };
 
 export type ActionDef = {
