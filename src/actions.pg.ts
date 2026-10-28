@@ -614,11 +614,33 @@ type Finance = z.infer<typeof financeOut>;
 //      name exactly the sellers the order was attributed to then); a
 //      seller not among them gets nothing from that order, a seller who
 //      is among them keeps the established current-picks item split.
-//   3. Nothing recorded (very old orders): current store picks.
+//   3. Notification rows, BUT only when the seller's account already
+//      existed when the order was placed. A row created later for a
+//      seller who did not exist at order time can only be backfill
+//      (the old backfill manufactured rows from current store picks,
+//      and it stamped them with the ORDER's date, so the row itself
+//      cannot tell genuine from backfilled) — it is not proof.
+//   4. Nothing recorded: NOBODY. Never guess from current store picks:
+//      a seller who adds a product today must not inherit old orders
+//      for it (the ghost-order bug: new seller Ali added the BagNest
+//      backpack and instantly "received" old Order #5, Completed, with
+//      its profit in his wallet, though he never sold it).
 type OrderAttribution = {
   snapByOrder: Map<number, Map<number, Set<number>>>;
   notifByOrder: Map<number, Set<number>>;
+  sellerCreatedAt: Map<number, Date>;
+  orderCreatedAt: Map<number, Date>;
 };
+
+// A seller can only genuinely own an order placed after their account
+// was created. Missing dates fail OPEN (preserve old behaviour) —
+// real rows always carry both dates.
+function sellerExistedAtOrder(attr: OrderAttribution, sellerId: number, orderId: number): boolean {
+  const sc = attr.sellerCreatedAt.get(sellerId);
+  const oc = attr.orderCreatedAt.get(orderId);
+  if (!sc || !oc) return true;
+  return sc.getTime() <= oc.getTime();
+}
 
 async function loadOrderAttribution(db: Db): Promise<OrderAttribution> {
   const snapByOrder = new Map<number, Map<number, Set<number>>>();
@@ -641,7 +663,13 @@ async function loadOrderAttribution(db: Db): Promise<OrderAttribution> {
     if (!set) { set = new Set(); notifByOrder.set(n.orderId, set); }
     set.add(n.sellerId);
   }
-  return { snapByOrder, notifByOrder };
+  const sellerCreatedAt = new Map<number, Date>();
+  const userRows = await db.select({ id: schema.users.id, createdAt: schema.users.createdAt }).from(schema.users);
+  for (const u of userRows) sellerCreatedAt.set(u.id, u.createdAt);
+  const orderCreatedAt = new Map<number, Date>();
+  const orderRows = await db.select({ id: schema.orders.id, createdAt: schema.orders.createdAt }).from(schema.orders);
+  for (const o of orderRows) orderCreatedAt.set(o.id, o.createdAt);
+  return { snapByOrder, notifByOrder, sellerCreatedAt, orderCreatedAt };
 }
 
 // The product ids of `orderId` that belong to `sellerId` under the
@@ -664,8 +692,14 @@ function attributedProductIds(
   const snap = attr.snapByOrder.get(orderId);
   if (snap) return snap.get(sellerId) ?? new Set<number>();
   const notif = attr.notifByOrder.get(orderId);
-  if (notif && !notif.has(sellerId)) return new Set<number>();
-  return currentIds;
+  if (notif) {
+    if (!notif.has(sellerId)) return new Set<number>();
+    if (!sellerExistedAtOrder(attr, sellerId, orderId)) return new Set<number>();
+    return currentIds;
+  }
+  // No order-time proof at all: nobody owns it. (Previously this fell
+  // back to current store picks — the ghost-order bug.)
+  return new Set<number>();
 }
 
 // The sellers `orderId` is attributed to under the same rules, given the
@@ -680,8 +714,10 @@ function attributedSellerIds(
   const snap = attr.snapByOrder.get(orderId);
   if (snap) return [...snap.keys()];
   const notif = attr.notifByOrder.get(orderId);
-  if (notif) return currentSellerIds.filter((id) => notif.has(id));
-  return currentSellerIds;
+  if (notif) return currentSellerIds.filter((id) => notif.has(id) && sellerExistedAtOrder(attr, id, orderId));
+  // No order-time proof at all: nobody owns it — never guess from
+  // current store picks (the ghost-order bug).
+  return [];
 }
 
 // THE wallet model (one shared computation for every screen):
@@ -3732,6 +3768,27 @@ export const Actions = {
             });
           } catch (e) {
             if (!String(e).includes("UNIQUE")) throw e;
+          }
+        }
+      }
+      // Cleanup of poisoned rows: the old backfill manufactured
+      // notifications from current store picks for sellers whose
+      // accounts were created AFTER the order was placed (the
+      // ghost-order bug — e.g. new seller Ali + old Order #5). Such a
+      // row can never be genuine, so delete it. Genuine rows (seller
+      // existed at order time) are never touched by this.
+      {
+        const sc = attr.sellerCreatedAt.get(args.sellerId);
+        if (sc) {
+          const mine = await db
+            .select()
+            .from(schema.sellerNotifications)
+            .where(eq(schema.sellerNotifications.sellerId, args.sellerId));
+          for (const r of mine) {
+            const oc = attr.orderCreatedAt.get(r.orderId);
+            if (oc && sc.getTime() > oc.getTime()) {
+              await db.delete(schema.sellerNotifications).where(eq(schema.sellerNotifications.id, r.id));
+            }
           }
         }
       }
