@@ -4623,17 +4623,21 @@ export const Actions = {
     },
   }),
 
-  // Fresh copy of the signed-in account (the client polls this while a
-  // seller waits for verification, so an Admin approval/rejection shows
-  // up without the seller having to sign out and back in).
+  // Fresh account STATUS for the polling client (a seller waits for
+  // verification, so an Admin approval/rejection shows up without the
+  // seller having to sign out and back in). Deliberately status fields
+  // ONLY — never email/phone: this endpoint takes a bare userId, so
+  // returning contact details here would let anyone harvest them by
+  // enumerating ids. The client merges these fields into the account
+  // it already holds (see SellerView's sessionRefresh effect).
   refreshMySession: defineAction({
     request: z.object({ userId: z.number() }),
-    response: z.object({ user: userOut.nullable() }),
+    response: z.object({ user: z.object({ id: z.number(), verificationStatus: z.string(), mustChangePassword: z.boolean() }).nullable() }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
       const rows = await db.select().from(schema.users).where(eq(schema.users.id, args.userId)).limit(1);
       if (!rows[0] || rows[0].email === "deleted-placeholder@system.local") return { user: null };
-      return { user: toUserOut(rows[0]) };
+      return { user: { id: rows[0].id, verificationStatus: rows[0].verificationStatus, mustChangePassword: rows[0].mustChangePassword === 1 } };
     },
   }),
 
