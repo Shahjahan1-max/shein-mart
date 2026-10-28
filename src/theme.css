@@ -20,7 +20,7 @@
   --text-4xl--line-height: 40px;
   --text-5xl: 48px;
   --text-5xl--line-height: 52px;
-  --font-display: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
 }
 
 :root {
@@ -30,16 +30,16 @@
   --dim-ink: #ffffff;
   /* Professional palette: deep navy primary, slate greys, amber accent.
      Alert red is reserved sparingly for new-order / pending-shipment. */
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --surface-alt: #eef1f5;
-  --text: #111827;
-  --dim: #5b6b82;
-  --border: #dde3ea;
+  --bg: #FAF6EF;
+  --surface: #FFFEFB;
+  --surface-alt: #F3ECDD;
+  --text: #292524;
+  --dim: #6B6259;
+  --border: #E7DFD0;
   --accent: #1a365d;
   --accent-strong: #122847;
-  --accent-soft: #e8eef6;
-  --gold: #d97706;
+  --accent-soft: #EFE8D8;
+  --gold: #B08D3E;
   --gold-ink: #ffffff;
   --amber: #f59e0b;
   --amber-bg: #fff7e0;
@@ -86,16 +86,16 @@
   --accent-ink: #ffffff;
   --alert-ink: #ffffff;
   --dim-ink: #ffffff;
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --surface-alt: #eef1f5;
-  --text: #111827;
-  --dim: #5b6b82;
-  --border: #dde3ea;
+  --bg: #FAF6EF;
+  --surface: #FFFEFB;
+  --surface-alt: #F3ECDD;
+  --text: #292524;
+  --dim: #6B6259;
+  --border: #E7DFD0;
   --accent: #1a365d;
   --accent-strong: #122847;
-  --accent-soft: #e8eef6;
-  --gold: #d97706;
+  --accent-soft: #EFE8D8;
+  --gold: #B08D3E;
   --gold-ink: #ffffff;
   --amber: #f59e0b;
   --amber-bg: #fff7e0;
@@ -161,11 +161,11 @@
   --bg: #120e1d;
 }
 :root[data-scheme="charcoal"] {
-  --accent: #1f2937;
-  --accent-strong: #030712;
-  --accent-soft: #e5e7eb;
-  --gold: #dc2626;
-  --bg: #f7f7f8;
+  --accent: #232323;
+  --accent-strong: #111111;
+  --accent-soft: #EFE9D8;
+  --gold: #A67C2E;
+  --bg: #FAF6EF;
 }
 :root[data-theme="dark"][data-scheme="charcoal"] {
   --accent: #9ca3af;
@@ -258,6 +258,12 @@ body {
 
 .font-display {
   font-family: var(--font-display);
+}
+
+/* Visible keyboard focus everywhere (accessibility). */
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 /* Professional type: headings sit tighter and never leave a single
@@ -385,3 +391,4 @@ h1, h2, h3, h4, h5, h6, p, li, dt, dd {
 .site-header.compact .hdr-toggle { height: 2.5rem; width: 2.5rem; }
 .site-header.compact .hdr-user { min-height: 2.5rem; font-size: 13px; }
 .site-header.compact .hdr-signin { min-height: 2.5rem; padding-left: 1rem; padding-right: 1rem; font-size: 0.875rem; }
+.site-header.compact .topnav-row { display: none; }

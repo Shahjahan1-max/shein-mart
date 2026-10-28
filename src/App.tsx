@@ -573,9 +573,9 @@ const inputCls =
   "w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base text-[var(--text)] outline-none focus:border-[var(--accent)]";
 
 const primaryBtn =
-  "rounded-xl bg-[var(--accent)] px-4 py-2.5 font-display text-sm font-bold text-[var(--accent-ink)] shadow-sm disabled:opacity-50";
+  "rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-[var(--accent-ink)] shadow-sm disabled:opacity-50";
 const goldBtn =
-  "rounded-xl bg-[var(--gold)] px-4 py-2.5 font-display text-sm font-bold text-[var(--gold-ink)] shadow-sm disabled:opacity-50";
+  "rounded-xl bg-[var(--gold)] px-4 py-2.5 text-sm font-bold text-[var(--gold-ink)] shadow-sm disabled:opacity-50";
 const ghostBtn =
   "rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm font-semibold text-[var(--text)] disabled:opacity-50";
 
@@ -633,7 +633,7 @@ function ProductCard({
     >
         <ProductImage product={product} fallbackSrc={fallbackImage} />
         {discount > 0 && (
-          <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold text-[var(--gold-ink)]">
+          <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 text-xs font-bold text-[var(--gold-ink)]">
             -{discount}%
           </span>
         )}
@@ -651,7 +651,7 @@ function ProductCard({
           {product.name}
         </h3>
         <div className="mt-auto pt-1">
-          <p className={`font-display font-extrabold leading-tight tracking-tight text-[var(--text)] ${dense ? "text-[15px]" : "text-lg"}`}>
+          <p className={`font-extrabold leading-tight tracking-tight text-[var(--text)] ${dense ? "text-[15px]" : "text-lg"}`}>
             {fmt(product.buyerPrice)}
           </p>
           {product.oldPrice && (
@@ -690,7 +690,7 @@ function ProductCard({
           )}
           {user?.role === "seller" &&
             (inMyStore ? (
-              <p className="rounded-lg bg-[var(--surface-alt)] px-2 py-2 text-center font-display text-sm font-bold text-[var(--accent)]">
+              <p className="rounded-lg bg-[var(--surface-alt)] px-2 py-2 text-center text-sm font-bold text-[var(--accent)]">
                 {t("shop.inStore")}
               </p>
             ) : (
@@ -994,6 +994,63 @@ function ShopView({
     return map;
   }, [allProducts.data]);
 
+  // Premium homepage: the editorial hero shows the first real product
+  // photo from the catalog (never a stock or invented image).
+  const heroProduct = useMemo(() => {
+    const list = allProducts.data?.products ?? [];
+    return list.find((p) => p.imageAsset && IMAGE_MAP[p.imageAsset]);
+  }, [allProducts.data]);
+  // Shop by collection: only categories that actually have products and
+  // a real photo, headline categories first, then by size, max 6.
+  const collectionCards = useMemo(() => {
+    const list = allProducts.data?.products ?? [];
+    if (list.length === 0) return [];
+    const counts: Record<string, number> = {};
+    for (const p of list) counts[p.category] = (counts[p.category] ?? 0) + 1;
+    const preferred = ["Fashion", "Bags", "Electronics", "Home & Kitchen", "Beauty", "Shoes"];
+    const cats = Object.keys(counts).filter((c) => categoryPhoto[c]);
+    cats.sort((a, b) => {
+      const pa = preferred.indexOf(a);
+      const pb = preferred.indexOf(b);
+      if (pa !== -1 || pb !== -1) return (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
+      return counts[b]! - counts[a]!;
+    });
+    return cats.slice(0, 6).map((c) => ({ category: c, count: counts[c]!, photo: categoryPhoto[c]! }));
+  }, [allProducts.data, categoryPhoto]);
+  // Featured: biggest real discounts first, topped up with the rest so
+  // the row is always full — prices and discounts come only from data.
+  const featuredProducts = useMemo(() => {
+    const list = allProducts.data?.products ?? [];
+    if (list.length === 0) return [];
+    const disc = (p: Product) =>
+      p.oldPrice && p.oldPrice > p.buyerPrice
+        ? Math.round((1 - p.buyerPrice / p.oldPrice) * 100)
+        : 0;
+    const discounted = [...list].filter((p) => disc(p) > 0).sort((a, b) => disc(b) - disc(a));
+    const rest = list.filter((p) => disc(p) === 0);
+    return [...discounted, ...rest].slice(0, 8);
+  }, [allProducts.data]);
+  // Homepage section jumps (the sections only render on All + no search,
+  // so reset the filter first when coming from a filtered view).
+  function goCollections() {
+    const scroll = () =>
+      document.getElementById("shop-collections")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (category !== "All" || search.trim()) {
+      setCategory("All");
+      setSearch("");
+      window.setTimeout(scroll, 120);
+    } else {
+      scroll();
+    }
+  }
+  function goCategory(cat: string) {
+    setCategory(cat);
+    window.setTimeout(
+      () => document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      60,
+    );
+  }
+
   const sellerPicks = useQuery({
     queryKey: ["seller-products", user?.id],
     queryFn: () => api.listSellerProducts({ sellerId: user!.id }),
@@ -1111,11 +1168,38 @@ function ShopView({
     addToCart.mutate(p);
   }
 
+  // Premium trust icons: original 24×24 outline line-art (no emojis).
+  const trustIconProps = {
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    className: "h-6 w-6",
+    "aria-hidden": true,
+  };
   const trustItems = [
-    { icon: "🛡️", title: t("trust.verified.t"), text: t("trust.verified.d") },
-    { icon: "💵", title: t("trust.cod.t"), text: t("trust.cod.d") },
-    { icon: "💬", title: t("trust.live.t"), text: t("trust.live.d") },
-    { icon: "🏷️", title: t("trust.prices.t"), text: t("trust.prices.d") },
+    {
+      icon: (<svg {...trustIconProps}><path d="M12 3 5 6v6c0 4 3 6.5 7 9 4-2.5 7-5 7-9V6l-7-3Z" /><path d="m9 12 2 2 4-4" /></svg>),
+      title: t("trust.verified.t"),
+      text: t("trust.verified.d"),
+    },
+    {
+      icon: (<svg {...trustIconProps}><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6.5 9.5h.01M17.5 14.5h.01" /></svg>),
+      title: t("trust.cod.t"),
+      text: t("trust.cod.d"),
+    },
+    {
+      icon: (<svg {...trustIconProps}><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.6 0-3.1-.4-4.4-1.2L3 20l1.2-5.1A8.5 8.5 0 1 1 21 11.5Z" /></svg>),
+      title: t("trust.live.t"),
+      text: t("trust.live.d"),
+    },
+    {
+      icon: (<svg {...trustIconProps}><path d="M3 12V4h8l9 9-8 8-9-9Z" /><circle cx="8" cy="9" r="1.5" /></svg>),
+      title: t("trust.prices.t"),
+      text: t("trust.prices.d"),
+    },
   ];
 
   if (detailProduct) {
@@ -1145,18 +1229,53 @@ function ShopView({
 
   return (
     <div>
-      <section className="rounded-xl bg-[var(--accent)] px-4 py-3 text-[var(--accent-ink)] sm:px-5">
-        <h2 className="font-display text-lg font-extrabold leading-tight sm:text-xl">
-          {t("hero.title")}
-        </h2>
-        <p className="mt-1 max-w-xl text-[13px] leading-snug text-[var(--accent-ink)]">{t("hero.sub")}</p>
-        {user?.role === "seller" && (
+      {/* Premium editorial hero: large real product photo on one side,
+          serif headline + Explore button on the other; stacks on mobile. */}
+      <section aria-label={t("hero.title")} className="grid items-center gap-6 py-6 sm:py-10 md:grid-cols-2 md:gap-10">
+        <div className="order-2 md:order-1">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--gold)]">
+            {t("daily.badge")}
+          </p>
+          <h2 className="mt-3 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-[var(--text)] sm:text-5xl">
+            {t("hero.title")}
+          </h2>
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-[var(--dim)]">
+            {t("hero.sub")}
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={goCollections}
+              className="rounded-xl bg-[var(--gold)] px-6 py-3 text-base font-bold text-[var(--gold-ink)] shadow-sm"
+            >
+              {t("explore.btn")}
+            </button>
+            {user?.role === "seller" && (
+              <button
+                type="button"
+                onClick={onGoSeller}
+                className="px-2 py-2 text-sm font-bold text-[var(--accent)]"
+              >
+                {t("hero.sellerCta")}
+              </button>
+            )}
+          </div>
+        </div>
+        {heroProduct && (
           <button
             type="button"
-            onClick={onGoSeller}
-            className="mt-2 rounded-lg bg-[var(--surface)] px-3 py-1.5 font-display text-[13px] font-bold text-[var(--accent-strong)]"
+            onClick={() => openDetail(heroProduct)}
+            aria-label={heroProduct.name}
+            className="order-1 w-full md:order-2"
           >
-            {t("hero.sellerCta")}
+            <span className="block overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
+              <span className="block aspect-[4/3] md:aspect-[4/5]">
+                <ProductImage
+                  product={heroProduct}
+                  fallbackSrc={categoryPhoto[heroProduct.category]}
+                />
+              </span>
+            </span>
           </button>
         )}
       </section>
@@ -1164,12 +1283,78 @@ function ShopView({
       <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 shadow-sm">
         <p className="text-[13px] font-semibold text-[var(--text)]">{t("daily.explore")}</p>
         <span className="ml-auto rounded-full bg-[var(--accent)] px-2.5 py-1 font-display text-[11px] font-bold text-[var(--accent-ink)]">
-          ✨ {t("daily.badge")}
+          {t("daily.badge")}
         </span>
       </div>
 
+      {category === "All" && !search.trim() && collectionCards.length > 0 && (
+        <section
+          id="shop-collections"
+          aria-label={t("coll.title")}
+          className="mt-10 scroll-mt-[calc(var(--header-h,3.5rem)+1rem)]"
+        >
+          <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)]">
+            {t("coll.title")}
+          </h2>
+          <p className="mt-1 text-sm text-[var(--dim)]">{t("coll.sub")}</p>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+            {collectionCards.map((c) => (
+              <button
+                key={c.category}
+                type="button"
+                onClick={() => goCategory(c.category)}
+                aria-label={`${trCategory(lang, c.category)}, ${c.count} ${t("coll.count")}`}
+                className="group overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] text-left shadow-sm transition-shadow hover:shadow-lg"
+              >
+                <span className="block aspect-[4/3] overflow-hidden">
+                  <img
+                    src={c.photo}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
+                </span>
+                <span className="flex items-baseline justify-between gap-2 px-4 py-3">
+                  <span className="font-display text-lg font-bold text-[var(--text)]">
+                    {trCategory(lang, c.category)}
+                  </span>
+                  <span className="shrink-0 text-xs font-semibold text-[var(--dim)]">
+                    {c.count} {t("coll.count")}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {category === "All" && !search.trim() && featuredProducts.length > 0 && (
+        <section aria-label={t("feat.title")} className="mt-12">
+          <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)]">
+            {t("feat.title")}
+          </h2>
+          <p className="mt-1 text-sm text-[var(--dim)]">{t("feat.sub")}</p>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {featuredProducts.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                user={user}
+                onAddToCart={handleAddToCart}
+                onBuyNow={(pp) => handleAddToCartQty(pp, 1, true)}
+                onOpen={openDetail}
+                onAddToMyStore={handleAddToMyStore}
+                inMyStore={myStoreIds.has(p.id)}
+                fallbackImage={categoryPhoto[p.category]}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       <div
-        className="sticky z-30 -mx-3 mt-3 bg-[var(--bg)] px-3 py-2 min-[400px]:-mx-4 min-[400px]:px-4"
+        id="catalog"
+        className="sticky z-30 -mx-3 mt-3 scroll-mt-[calc(var(--header-h,3.5rem)+1rem)] bg-[var(--bg)] px-3 py-2 min-[400px]:-mx-4 min-[400px]:px-4"
         style={{ top: "var(--header-h, 44px)" }}
       >
         <div
@@ -1312,14 +1497,40 @@ function ShopView({
         </div>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
-        <h3 className="font-display text-lg font-bold text-[var(--text)]">
+      {/* Seller program: elegant intro; profit detail stays in the
+          seller's own dashboard and the How-it-works example below. */}
+      <section
+        aria-label={user?.role === "seller" ? t("acc.sellerDash") : t("menu.becomeSeller")}
+        className="mt-12 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-10"
+      >
+        <div className="max-w-2xl">
+          <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)] sm:text-4xl">
+            {user?.role === "seller" ? t("acc.sellerDash") : t("menu.becomeSeller")}
+          </h2>
+          <p className="mt-3 text-base leading-relaxed text-[var(--dim)]">
+            {t("seller.sub")}
+          </p>
+          <button
+            type="button"
+            onClick={() => (user?.role === "seller" ? onGoSeller() : onNeedAuth())}
+            className="mt-6 rounded-xl bg-[var(--accent)] px-6 py-3 text-base font-bold text-[var(--accent-ink)] shadow-sm"
+          >
+            {user?.role === "seller" ? t("hero.sellerCta") : t("menu.becomeSeller")}
+          </button>
+        </div>
+      </section>
+
+      <section className="mt-12 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-8">
+        <h3 className="font-display text-2xl font-extrabold tracking-tight text-[var(--text)]">
           {t("trust.title")}
         </h3>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {trustItems.map((item) => (
             <div key={item.title} className="flex gap-3">
-              <span aria-hidden className="text-2xl leading-none">
+              <span
+                aria-hidden
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-strong)]"
+              >
                 {item.icon}
               </span>
               <div>
@@ -9529,6 +9740,17 @@ const NAV: NavItem[] =
     if (n.sellerTab) return view === "seller" && sellerTab === n.sellerTab;
     return view === n.view;
   }
+  // Desktop top nav: Collections jumps to the homepage collection
+  // section (resetting any filter first, like the hero button).
+  function goCollectionsTop() {
+    setView("shop");
+    setShopCategory("All");
+    setShopSearch("");
+    window.setTimeout(
+      () => document.getElementById("shop-collections")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      120,
+    );
+  }
 
   const [googleError, setGoogleError] = useState<string | null>(null);
   // Visible "signing in" state while the one-time Google code is
@@ -9757,6 +9979,71 @@ const NAV: NavItem[] =
               )}
             </div>
           </div>
+          {/* Premium desktop top nav (classic layout only; the header's
+              own Sign In button serves Account, and the footer keeps
+              its Cart tab — this row adds Shop / Collections / Seller /
+              Search / Cart links without duplicating either). */}
+          {layoutDesign === "classic" && (
+            <nav
+              aria-label="Store sections"
+              className={`topnav-row mx-auto hidden ${containerW} items-center gap-1 px-3 pb-2.5 sm:px-4 lg:flex`}
+            >
+              <button
+                type="button"
+                onClick={() => setView("shop")}
+                aria-current={view === "shop" ? "page" : undefined}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${view === "shop" ? "text-[var(--accent)]" : "text-[var(--dim)] hover:bg-[var(--surface-alt)]"}`}
+              >
+                {ui.t("nav.shop")}
+              </button>
+              <button
+                type="button"
+                onClick={goCollectionsTop}
+                className="rounded-full px-3.5 py-1.5 text-sm font-semibold text-[var(--dim)] hover:bg-[var(--surface-alt)]"
+              >
+                {ui.t("menu.categories")}
+              </button>
+              <button
+                type="button"
+                onClick={() => (user?.role === "seller" ? goSellerTab("home") : setView("account"))}
+                className="rounded-full px-3.5 py-1.5 text-sm font-semibold text-[var(--dim)] hover:bg-[var(--surface-alt)]"
+              >
+                {user?.role === "seller" ? ui.t("acc.sellerDash") : ui.t("menu.becomeSeller")}
+              </button>
+              <label className="ml-2 flex min-w-0 max-w-xs flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
+                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-4 w-4 shrink-0 text-[var(--dim)]">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+                <input
+                  value={shopSearch}
+                  onChange={(e) => setShopSearch(e.target.value)}
+                  onFocus={() => { if (view !== "shop") setView("shop"); }}
+                  placeholder={ui.t("shop.searchPlaceholder")}
+                  aria-label={ui.t("shop.searchPlaceholder")}
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--dim)]"
+                />
+              </label>
+              <span className="flex-1" />
+              {user?.role === "buyer" && (
+                <button
+                  type="button"
+                  onClick={() => setView("cart")}
+                  aria-label={`${ui.t("nav.cart")}${cartCount > 0 ? ` (${cartCount})` : ""}`}
+                  aria-current={view === "cart" ? "page" : undefined}
+                  className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold text-[var(--dim)] hover:bg-[var(--surface-alt)]"
+                >
+                  {iconBag}
+                  {ui.t("nav.cart")}
+                  {cartCount > 0 && (
+                    <span aria-hidden className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[11px] font-bold text-[var(--gold-ink)]">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
+                </button>
+              )}
+            </nav>
+          )}
           {/* Layout designs 2 & 3 put the product Search in the top
               header itself: Design 2 (Menu) as a compact row under the
               brand row, Design 3 (Top Search) as a big full-width row.

@@ -71,6 +71,13 @@ export const STR = {
   "hero.sellerCta": {
     en: "Open My Store / Earnings →",
     hi: "मेरी दुकान / कमाई देखें →", ar: "افتح متجري / الأرباح ←"},
+  "coll.title": { en: "Shop by collection", hi: "कलेक्शन से खरीदें" , ar: "تسوقوا حسب المجموعة"},
+  "coll.sub": { en: "Browse the store by category.", hi: "कैटेगरी के हिसाब से स्टोर देखें।" , ar: "تصفحوا المتجر حسب الفئة."},
+  "coll.count": { en: "products", hi: "प्रोडक्ट" , ar: "منتجات"},
+  "feat.title": { en: "Featured products", hi: "चुनिंदा प्रोडक्ट" , ar: "منتجات مميزة"},
+  "feat.sub": { en: "The biggest savings in the store right now.", hi: "स्टोर में इस वक्त सबसे बड़ी बचत।" , ar: "أكبر التوفيرات في المتجر الآن."},
+  "explore.btn": { en: "Explore Collection", hi: "कलेक्शन देखें" , ar: "استكشف المجموعة"},
+  "seller.sub": { en: "Add products from the main store to your own store and earn profit on every sale — no stock to buy or store.", hi: "मुख्य स्टोर से प्रोडक्ट अपनी दुकान में जोड़ें और हर बिक्री पर मुनाफ़ा कमाएँ — स्टॉक खरीदने की झंझट नहीं।" , ar: "أضيفوا المنتجات من المتجر الرئيسي إلى متجركم واربحوا على كل عملية بيع — دون شراء أو تخزين مخزون."},
   "shop.searchPlaceholder": {
     en: "Search products… (e.g. watch, kurta, lipstick)",
     hi: "प्रोडक्ट खोजें… (जैसे घड़ी, कुर्ता, लिपस्टिक)", ar: "ابحث عن المنتجات… (مثال: ساعة، كورتا، أحمر شفاه)"},
