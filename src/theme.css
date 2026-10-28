@@ -350,3 +350,18 @@ h1, h2, h3, h4, h5, h6, p, li, dt, dd {
 .shine-btn:hover .shine-sweep::after {
   transform: translateX(130%);
 }
+
+/* Compact header (toggled imperatively on scroll; see App.tsx).
+   These beat the single-class Tailwind utilities above by
+   specificity, and carry no transitions so the switch snaps. */
+.site-header.compact .hdr-row { flex-wrap: nowrap; row-gap: 0; padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.site-header.compact .hdr-drawer { min-height: 2.25rem; font-size: 0.875rem; }
+.site-header.compact .hdr-brand { font-size: 1.125rem; }
+.site-header.compact .hdr-logo { height: 2rem; width: 2rem; }
+.site-header.compact .hdr-tagline { display: none; }
+.site-header.compact .hdr-actions { flex-wrap: nowrap; }
+.site-header.compact .hdr-bell { min-height: 2.25rem; font-size: 0.875rem; }
+.site-header.compact .hdr-cart { min-height: 2.5rem; font-size: 1.125rem; }
+.site-header.compact .hdr-toggle { height: 2.5rem; width: 2.5rem; }
+.site-header.compact .hdr-user { min-height: 2.5rem; font-size: 13px; }
+.site-header.compact .hdr-signin { min-height: 2.5rem; padding-left: 1rem; padding-right: 1rem; font-size: 0.875rem; }

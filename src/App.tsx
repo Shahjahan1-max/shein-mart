@@ -276,10 +276,6 @@ type Ui = {
   enabledCurrencies: Currency[];
   t: (key: StrKey) => string;
   fmt: (inr: number) => string;
-  // Measured height (px) of the sticky app header, which slims down and
-  // shrinks further on scroll-down. Sticky bars below it (e.g. the shop
-  // category bar) offset themselves by exactly this much.
-  headerH: number;
   // Store layout design chosen by the Admin in settings ("classic" |
   // "menu" | "topsearch" | "minimal" | "wide"); recolours/rearranges
   // chrome for everyone.
@@ -293,7 +289,6 @@ const UiContext = createContext<Ui>({
   enabledCurrencies: ["INR", "USD", "USDT"],
   t: (key) => tr("en", key),
   fmt: (n) => formatMoney(n, "INR"),
-  headerH: 44,
   layout: "classic",
 });
 
@@ -933,7 +928,7 @@ function ShopView({
   search: string;
   onSearchChange: (s: string) => void;
 }) {
-  const { t, fmt, lang, headerH } = useUi();
+  const { t, fmt, lang } = useUi();
   const queryClient = useQueryClient();
   const setCategory = onCategoryChange;
   const setSearch = onSearchChange;
@@ -1174,7 +1169,7 @@ function ShopView({
 
       <div
         className="sticky z-30 -mx-3 mt-3 bg-[var(--bg)] px-3 py-2 min-[400px]:-mx-4 min-[400px]:px-4"
-        style={{ top: headerH }}
+        style={{ top: "var(--header-h, 44px)" }}
       >
         <div
           className="scrollbar-none flex gap-2 overflow-x-auto pb-1"
@@ -8897,24 +8892,27 @@ export function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   // Professional compact-on-scroll header (user's rule, 2026-10-28):
-  // at the very top the header is full-size; once the visitor scrolls
+  // At the very top the header is full-size; once the visitor scrolls
   // down past ~140px it compacts to a single slim row so more of the
   // page is visible. It expands again ONLY when scrolled back to near
   // the top (<30px) — never on a small upward scroll mid-page (that
   // immediate re-expand was the old "ajeeb movement"). The wide
   // hysteresis gap (30–140px) means it toggles at most twice per
-  // scroll journey, so there is no flicker; the 300ms transition
-  // keeps the morph smooth. `headerH` (ResizeObserver below) keeps
-  // tracking the real height so sticky bars below offset exactly.
+  // scroll journey, so there is no flicker.
+  // The compact switch is a plain DOM class toggle on the header
+  // element — deliberately NOT React state. The old state version
+  // re-rendered the whole app (including the 270-card product grid)
+  // on every toggle, and the height state re-rendered it again via
+  // context; on phones that showed up as a stutter exactly when
+  // scrolling crossed the thresholds. Now scrolling does zero React
+  // work: the .compact class drives the slim sizes via theme.css,
+  // and the sticky category bar reads the --header-h CSS variable
+  // (kept current by the ResizeObserver below) instead of state.
   // NO transition on the header row, its buttons, or the category
   // bar's top offset: animating padding/font-size/top while scrolling
-  // forces a layout pass every frame (and the height observer fires
-  // repeatedly mid-animation), which made the bar lag and stutter on
-  // phones — the 300ms morph was the reported "slow up/down". The
-  // compact switch snaps instantly now; the hysteresis above still
-  // prevents flicker.
-  const [headerCompact, setHeaderCompact] = useState(false);
-  const [headerH, setHeaderH] = useState(44);
+  // forces a layout pass every frame, which made the bar lag and
+  // stutter on phones. The compact switch snaps instantly.
+  const headerRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     let compact = false;
     let ticking = false;
@@ -8923,24 +8921,24 @@ export function App() {
       ticking = true;
       requestAnimationFrame(() => {
         const y = window.scrollY;
-        if (!compact && y > 140) { compact = true; setHeaderCompact(true); }
-        else if (compact && y < 30) { compact = false; setHeaderCompact(false); }
+        const el = headerRef.current;
+        if (!compact && y > 140) { compact = true; el?.classList.add("compact"); }
+        else if (compact && y < 30) { compact = false; el?.classList.remove("compact"); }
         ticking = false;
       });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-  const headerRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
     const update = () => {
       const h = Math.round(el.offsetHeight);
-      setHeaderH(h);
-      // Shared with CSS (chat scroll margins, the notification panel's
-      // mobile position) so they track the header's real height at
-      // every width — the header wraps taller on small phones.
+      // Shared with CSS (sticky category bar offset, chat scroll
+      // margins, the notification panel's mobile position) so they
+      // track the header's real height at every width — the header
+      // wraps taller on small phones.
       document.documentElement.style.setProperty("--header-h", `${h}px`);
     };
     update();
@@ -9050,10 +9048,9 @@ export function App() {
       enabledCurrencies,
       t: (key) => tr(effectiveLang, key),
       fmt: (n) => formatMoney(n, effectiveCurrency),
-      headerH,
       layout: layoutDesign,
     }),
-    [effectiveLang, effectiveCurrency, enabledLangs, enabledCurrencies, headerH, layoutDesign],
+    [effectiveLang, effectiveCurrency, enabledLangs, enabledCurrencies, layoutDesign],
   );
   // Google sign-in return: the backend callback redirects here with a
   // one-time code; exchange it for the user session (or show the error).
@@ -9313,14 +9310,14 @@ const NAV: NavItem[] =
             <p className="text-sm text-[var(--dim)]">{ui.t("auth.googleSigningInSub")}</p>
           </div>
         )}
-        <header ref={headerRef} className="sticky top-0 z-40 border-b-2 border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
-          <div className={`mx-auto flex ${containerW} items-center gap-x-1.5 px-3 sm:px-4 ${headerCompact ? "flex-nowrap gap-y-0 py-1" : "flex-wrap gap-y-1 py-2.5"}`}>
+        <header ref={headerRef} className="site-header sticky top-0 z-40 border-b-2 border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
+          <div className={`hdr-row mx-auto flex ${containerW} items-center gap-x-1.5 px-3 sm:px-4 flex-wrap gap-y-1 py-2.5`}>
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label={ui.t("menu.open")}
               aria-expanded={drawerOpen}
-              className={`rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] ${headerCompact ? "min-h-9 py-0.5 text-sm" : "min-h-11 py-0.5 text-lg"}`}
+              className="hdr-drawer rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] min-h-11 py-0.5 text-lg"
             >
               ☰
             </button>
@@ -9328,18 +9325,18 @@ const NAV: NavItem[] =
               type="button"
               onClick={() => (user?.role === "seller" ? goSellerTab("home") : setView("shop"))}
               aria-label={`${storeName} home`}
-              className={`flex min-w-0 max-w-[34vw] items-center text-left font-display font-extrabold tracking-tight text-[var(--accent)] ${headerCompact ? "text-lg" : "text-2xl"}`}
+              className="hdr-brand flex min-w-0 max-w-[34vw] items-center text-left font-display font-extrabold tracking-tight text-[var(--accent)] text-2xl"
             >
               {headerLogoUrl ? (
-                <img src={headerLogoUrl} alt="" className={headerCompact ? "mr-1.5 h-8 w-8 shrink-0 rounded-xl object-contain" : "mr-1.5 h-10 w-10 shrink-0 rounded-xl object-contain"} />
+                <img src={headerLogoUrl} alt="" className="hdr-logo mr-1.5 h-10 w-10 shrink-0 rounded-xl object-contain" />
               ) : null}
               <span className="truncate">{storeName}</span>
               {headerLogoUrl ? null : <span className="text-[var(--gold)]">.</span>}
             </button>
-            <span className={headerCompact ? "hidden" : "hidden text-xs font-medium text-[var(--dim)] lg:block"}>
+            <span className="hdr-tagline hidden text-xs font-medium text-[var(--dim)] lg:block">
               {ui.t("header.tagline")}
             </span>
-            <div className={`ml-auto flex items-center gap-1.5 ${headerCompact ? "flex-nowrap" : "flex-wrap"}`}>
+            <div className="hdr-actions ml-auto flex items-center gap-1.5 flex-wrap">
               
               {user?.role === "seller" && (
                 <div className="relative">
@@ -9348,7 +9345,7 @@ const NAV: NavItem[] =
                     onClick={() => { const next = !notifOpen; setNotifOpen(next); if (next && sellerUnread > 0) { /* keep unread until panel viewed */ } }}
                     aria-label={`${ui.t("notif.bell")}${sellerUnread > 0 ? `, ${sellerUnread} unread` : ""}`}
                     aria-expanded={notifOpen}
-                    className={`relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none ${headerCompact ? "min-h-9 py-0.5 text-sm" : "min-h-11 py-0.5 text-lg"}`}
+                    className="hdr-bell relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none min-h-11 py-0.5 text-lg"
                   >
                     🔔
                     {sellerUnread > 0 && (
@@ -9405,7 +9402,7 @@ const NAV: NavItem[] =
                   onClick={() => setView("cart")}
                   aria-label={`${ui.t("cart.title")}${cartCount > 0 ? ` (${cartCount})` : ""}`}
                   aria-current={view === "cart" ? "page" : undefined}
-                  className={`shine-btn relative rounded-full bg-[var(--surface-alt)] px-3.5 leading-none hover:scale-110 ${headerCompact ? "min-h-10 py-0.5 text-lg" : "min-h-12 py-0.5 text-[22px]"}`}
+                  className="hdr-cart shine-btn relative rounded-full bg-[var(--surface-alt)] px-3.5 leading-none hover:scale-110 min-h-12 py-0.5 text-[22px]"
                 >
                   <span aria-hidden className="shine-sweep" />
                   🛒
@@ -9422,7 +9419,7 @@ const NAV: NavItem[] =
                 aria-label={theme === "dark" ? ui.t("theme.toLight") : ui.t("theme.toDark")}
                 aria-pressed={theme === "dark"}
                 title={theme === "dark" ? ui.t("theme.light") : ui.t("theme.dark")}
-                className={`flex items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] ${headerCompact ? "h-10 w-10" : "h-12 w-12"}`}
+                className="hdr-toggle flex items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] h-12 w-12"
               >
                 {theme === "dark" ? iconSun : iconMoon}
               </button>
@@ -9431,7 +9428,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="My account"
-                  className={`max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-white ${headerCompact ? "min-h-10 py-0.5 text-[13px]" : "min-h-11 py-0.5 text-sm"}`}
+                  className="hdr-user max-w-[26vw] truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-white min-h-11 py-0.5 text-sm"
                 >
                   {user.name.split(" ")[0]}
                 </button>
@@ -9440,7 +9437,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="Sign in or register"
-                  className={`flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-white shadow-sm hover:brightness-110 ${headerCompact ? "min-h-10 px-4 text-sm" : "min-h-11 px-5 text-[15px]"}`}
+                  className="hdr-signin flex items-center gap-1.5 rounded-full bg-[var(--accent)] font-bold text-white shadow-sm hover:brightness-110 min-h-11 px-5 text-[15px]"
                 >
                   {iconUser}
                   {ui.t("header.signIn")}
