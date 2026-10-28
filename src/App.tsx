@@ -940,6 +940,33 @@ function ProductDetail({
   );
 }
 
+// Scroll the product list back to its top when the category changes.
+// The #catalog bar itself must NOT be measured while it is stuck: a
+// stuck sticky bar reports its current stuck position, so scrolling
+// there moves nothing and the visitor stays at the bottom of the new
+// list (that was the first attempt's bug, proven by two guest checks).
+// Measure the first element below the bar instead (notice, loading,
+// empty message, or product grid): it is not sticky, so its document
+// position is exact, and the bar's own height is subtracted so the
+// bar stays fully visible above it. Runs after a tick so the category
+// change has re-rendered first: switching away from All unmounts the
+// hero/collection/featured sections above, which moves everything
+// below up. Module-level (not ShopView-local) so the drawer's category
+// picks in App can use the same scroll.
+function scrollCatalogToTop() {
+  const bar = document.getElementById("catalog");
+  const anchor = bar?.nextElementSibling as HTMLElement | null;
+  if (!bar || !anchor) return;
+  let top = 0;
+  let node: HTMLElement | null = anchor;
+  while (node) {
+    top += node.offsetTop;
+    node = node.offsetParent as HTMLElement | null;
+  }
+  const headerH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 56;
+  window.scrollTo({ top: Math.max(0, top - headerH - bar.offsetHeight - 16), behavior: "smooth" });
+}
+
 function ShopView({
   user,
   onNeedAuth,
@@ -1084,31 +1111,6 @@ function ShopView({
     } else {
       scroll();
     }
-  }
-  // Scroll the product list back to its top when the category changes.
-  // The #catalog bar itself must NOT be measured while it is stuck: a
-  // stuck sticky bar reports its current stuck position, so scrolling
-  // there moves nothing and the visitor stays at the bottom of the new
-  // list (that was the first attempt's bug, proven by two guest checks).
-  // Measure the first element below the bar instead (notice, loading,
-  // empty message, or product grid): it is not sticky, so its document
-  // position is exact, and the bar's own height is subtracted so the
-  // bar stays fully visible above it. Runs after a tick so the category
-  // change has re-rendered first: switching away from All unmounts the
-  // hero/collection/featured sections above, which moves everything
-  // below up.
-  function scrollCatalogToTop() {
-    const bar = document.getElementById("catalog");
-    const anchor = bar?.nextElementSibling as HTMLElement | null;
-    if (!bar || !anchor) return;
-    let top = 0;
-    let node: HTMLElement | null = anchor;
-    while (node) {
-      top += node.offsetTop;
-      node = node.offsetParent as HTMLElement | null;
-    }
-    const headerH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 56;
-    window.scrollTo({ top: Math.max(0, top - headerH - bar.offsetHeight - 16), behavior: "smooth" });
   }
   function goCategory(cat: string) {
     setCategory(cat);
@@ -10034,21 +10036,12 @@ export function App() {
   });
   const sellerPending = sellerDashQ.data?.pendingShipment ?? 0;
 
-  // Support tab dot: unread admin replies in Live Chat. Nothing
-  // signals these outside today (the bell is order-only, and buyers
-  // have no bell at all), so this is new signal, not a duplicate.
-  const chatUnreadQ = useQuery({
-    queryKey: ["chat-unread", user?.id],
-    queryFn: () => api.getChatUnread({ userId: user!.id }),
-    enabled: !!user && user.role !== "admin",
-    refetchInterval: 30000,
-  });
-  const chatUnread = chatUnreadQ.data?.unreadCount ?? 0;
-
   // Bottom / desktop navigation: Products / Wallet / Seller are
-  // seller-only. Buyers get a Cart tab here instead (Cart moved out of
-  // the header and the drawer); guests and admins see Shop, Support,
-  // Account only. Orders live in the drawer.
+  // seller-only. Buyers get Cart and Orders tabs here (Cart moved out
+  // of the header and the drawer; Orders also out of the drawer).
+  // Support and Account are NOT footer tabs: they live in the drawer
+  // (Customer Support, My Account) and the header account button, so
+  // the footer chat dot went away with the Support tab.
   type NavItem = {
     key: string;
     label: string;
@@ -10099,8 +10092,6 @@ const NAV: NavItem[] =
           { key: "products", sellerTab: "products", label: ui.t("nav.products"), icon: iconProducts, isNew: true },
           { key: "wallet", sellerTab: "wallet", label: ui.t("nav.wallet"), icon: iconWallet },
           { key: "seller", sellerTab: "home", label: ui.t("nav.seller"), icon: iconStore },
-          { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
-          { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
         ]
       : user?.role === "buyer"
         ? [
@@ -10111,14 +10102,12 @@ const NAV: NavItem[] =
             { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
             { key: "cart", view: "cart", label: ui.t("nav.cart"), icon: iconBag },
             { key: "orders", view: "orders", label: ui.t("menu.orders"), icon: iconOrders },
-            { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
-            { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
           ]
         : [
-            // Guests and admins: no Products / Wallet / Seller / Cart.
+            // Guests and admins: Shop only in the footer — Support
+            // and Account live in the drawer (and the header button),
+            // not as footer tabs.
             { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
-            { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
-            { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
           ];
   // General Support / Customer Service entry: land on the Customer
   // Support overview page first — Live Chat card, WhatsApp, Email,
@@ -10251,6 +10240,11 @@ const NAV: NavItem[] =
     setShopCategory(c);
     setView("shop");
     setDrawerOpen(false);
+    // Drawer category picks land on the catalog section with its top
+    // visible — the same scroll the catalog chips use (120 ms tick so
+    // the category change re-renders first). "All" (Home / All
+    // Products) keeps its existing no-scroll behaviour.
+    if (c !== "All") window.setTimeout(scrollCatalogToTop, 120);
   }
   function goSellerTab(tab: SellerTab) {
     setSellerTab(tab);
@@ -10752,7 +10746,7 @@ const NAV: NavItem[] =
               <button
                 key={n.key}
                 type="button"
-                aria-label={n.key === "cart" && cartCount > 0 ? `${n.label} (${cartCount})` : n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.key === "seller" && sellerPending > 0 ? `${n.label}, ${ui.t("sd.newOrdersToShip")}` : n.key === "support" && chatUnread > 0 ? `${n.label}, ${ui.t("sd.newSupportMessage")}` : n.label}
+                aria-label={n.key === "cart" && cartCount > 0 ? `${n.label} (${cartCount})` : n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.key === "seller" && sellerPending > 0 ? `${n.label}, ${ui.t("sd.newOrdersToShip")}` : n.label}
                 aria-current={navCurrent(n) ? "page" : undefined}
                 onClick={() => navGo(n)}
                 className={`relative flex min-h-[4rem] flex-col items-center justify-center gap-1 pb-2 pt-2.5 text-[10px] font-medium leading-tight tracking-wide ${
@@ -10763,8 +10757,7 @@ const NAV: NavItem[] =
                 {n.isNew && <NewBadge id="nav-products" className="absolute right-0.5 top-0.5" />}
                 {n.key === "wallet" && walletUnread > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
                 {n.key === "seller" && sellerPending > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
-                {n.key === "support" && chatUnread > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
-                {n.key === "cart" && cartCount > 0 && <span aria-hidden className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[10px] font-bold text-[var(--gold-ink)]">{cartCount > 99 ? "99+" : cartCount}</span>}
+                                {n.key === "cart" && cartCount > 0 && <span aria-hidden className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[10px] font-bold text-[var(--gold-ink)]">{cartCount > 99 ? "99+" : cartCount}</span>}
                 <span className="flex leading-none">{n.icon}</span>
                 <span className="max-w-full truncate px-0.5">{n.label}</span>
               </button>
@@ -10782,7 +10775,7 @@ const NAV: NavItem[] =
             <button
               key={n.key}
               type="button"
-              aria-label={n.key === "cart" && cartCount > 0 ? `${n.label} (${cartCount})` : n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.key === "seller" && sellerPending > 0 ? `${n.label}, ${ui.t("sd.newOrdersToShip")}` : n.key === "support" && chatUnread > 0 ? `${n.label}, ${ui.t("sd.newSupportMessage")}` : n.label}
+              aria-label={n.key === "cart" && cartCount > 0 ? `${n.label} (${cartCount})` : n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.key === "seller" && sellerPending > 0 ? `${n.label}, ${ui.t("sd.newOrdersToShip")}` : n.label}
               aria-current={navCurrent(n) ? "page" : undefined}
               onClick={() => navGo(n)}
               className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold lg:px-4 ${
@@ -10793,8 +10786,7 @@ const NAV: NavItem[] =
               {n.isNew && <NewBadge id="nav-products" />}
               {n.key === "wallet" && walletUnread > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
               {n.key === "seller" && sellerPending > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
-              {n.key === "support" && chatUnread > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
-              {n.key === "cart" && cartCount > 0 && <span aria-hidden className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[11px] font-bold text-[var(--gold-ink)]">{cartCount > 99 ? "99+" : cartCount}</span>}
+                            {n.key === "cart" && cartCount > 0 && <span aria-hidden className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[11px] font-bold text-[var(--gold-ink)]">{cartCount > 99 ? "99+" : cartCount}</span>}
             </button>
           ))}
           {user?.role === "admin" && (
