@@ -10072,7 +10072,7 @@ const NAV: NavItem[] =
               {headerNameShown && <span className="truncate">{storeName}</span>}
               {headerNameShown && !headerLogoShown ? <span className="text-[var(--gold)]">.</span> : null}
             </button>
-            <span className="hdr-tagline hidden text-xs font-medium text-[var(--dim)] lg:block">
+            <span className="hdr-tagline ml-2 hidden shrink-0 text-xs font-medium text-[var(--dim)] lg:block">
               {ui.t("header.tagline")}
             </span>
             <div className="hdr-actions ml-auto flex shrink-0 items-center gap-1.5">
@@ -10170,9 +10170,9 @@ const NAV: NavItem[] =
             </div>
           </div>
           {/* Premium desktop top nav (classic layout only; the header's
-              own Sign In button serves Account, and the footer keeps
-              its Cart tab — this row adds Shop / Collections / Seller /
-              Search / Cart links without duplicating either). */}
+              own Sign In button serves Account, and Cart lives only in
+              the footer Cart tab — this row adds Shop / Collections /
+              Seller / Search links, links left, search right-aligned). */}
           {layoutDesign === "classic" && (
             <nav
               aria-label="Store sections"
@@ -10200,7 +10200,8 @@ const NAV: NavItem[] =
               >
                 {user?.role === "seller" ? ui.t("acc.sellerDash") : ui.t("menu.becomeSeller")}
               </button>
-              <label className="ml-2 flex min-w-0 max-w-xs flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
+              <span className="flex-1" />
+              <label className="flex min-w-0 max-w-xs flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
                 <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-4 w-4 shrink-0 text-[var(--dim)]">
                   <circle cx="11" cy="11" r="7" />
                   <path d="m20 20-3.5-3.5" />
@@ -10214,24 +10215,6 @@ const NAV: NavItem[] =
                   className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--dim)]"
                 />
               </label>
-              <span className="flex-1" />
-              {user?.role === "buyer" && (
-                <button
-                  type="button"
-                  onClick={() => setView("cart")}
-                  aria-label={`${ui.t("nav.cart")}${cartCount > 0 ? ` (${cartCount})` : ""}`}
-                  aria-current={view === "cart" ? "page" : undefined}
-                  className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold text-[var(--dim)] hover:bg-[var(--surface-alt)]"
-                >
-                  {iconBag}
-                  {ui.t("nav.cart")}
-                  {cartCount > 0 && (
-                    <span aria-hidden className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[11px] font-bold text-[var(--gold-ink)]">
-                      {cartCount > 99 ? "99+" : cartCount}
-                    </span>
-                  )}
-                </button>
-              )}
             </nav>
           )}
           {/* Layout designs 2 & 3 put the product Search in the top
