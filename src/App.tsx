@@ -970,6 +970,7 @@ function scrollCatalogToTop() {
 function ShopView({
   user,
   onNeedAuth,
+  onBecomeSeller,
   onGoSeller,
   onGoCart,
   cartCount,
@@ -980,6 +981,7 @@ function ShopView({
 }: {
   user: User;
   onNeedAuth: () => void;
+  onBecomeSeller: () => void;
   onGoSeller: () => void;
   onGoCart: () => void;
   cartCount: number;
@@ -1564,7 +1566,9 @@ function ShopView({
       </section>
 
       {/* Seller program: elegant intro; profit detail stays in the
-          seller's own dashboard and the How-it-works example below. */}
+          seller's own dashboard and the How-it-works example below.
+          Hidden for admins: no seller signup is offered to admins. */}
+      {user?.role !== "admin" && (
       <section
         aria-label={user?.role === "seller" ? t("acc.sellerDash") : t("menu.becomeSeller")}
         className="mt-12 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-10"
@@ -1578,13 +1582,14 @@ function ShopView({
           </p>
           <button
             type="button"
-            onClick={() => (user?.role === "seller" ? onGoSeller() : onNeedAuth())}
+            onClick={() => (user?.role === "seller" ? onGoSeller() : user?.role === "buyer" ? onBecomeSeller() : onNeedAuth())}
             className="mt-6 rounded-xl bg-[var(--accent)] px-6 py-3 text-base font-bold text-[var(--accent-ink)] shadow-sm"
           >
             {user?.role === "seller" ? t("hero.sellerCta") : t("menu.becomeSeller")}
           </button>
         </div>
       </section>
+      )}
 
       <section className="mt-12 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-8">
         <h3 className="font-display text-2xl font-extrabold tracking-tight text-[var(--text)]">
@@ -2819,17 +2824,25 @@ function FinanceOrdersLedger({ finance }: { finance: { orders: Array<{ orderId: 
   </div>);
 }
 
-function SellerApplicationForm({ onDone }: { onDone: () => void }) {
+function SellerApplicationForm({ onDone, convertUser }: { onDone: (u?: NonNullable<User>) => void; convertUser?: NonNullable<User> }) {
   const { t } = useUi();
+  // Buyer → seller shift: when the signed-in buyer opens this form,
+  // their account details are already on file — only the remaining
+  // store + verification details are asked, and submitting converts
+  // the same account (no new account, no new password).
+  const isConvert = !!convertUser;
+  const accountCountry = (convertUser?.country ?? "").trim();
+  const needsCountry = isConvert && !accountCountry;
+  const [convertedUser, setConvertedUser] = useState<NonNullable<User> | null>(null);
   const [step, setStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [f, setF] = useState({
-    country: "",
-    name: "",
-    email: "",
+    country: convertUser?.country ?? "",
+    name: convertUser?.name ?? "",
+    email: convertUser?.email ?? "",
     password: "",
-    phone: "",
+    phone: convertUser?.phone ?? "",
     address: "",
     city: "",
     state: "",
@@ -2859,22 +2872,29 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
   function stepErrors(s: number): FieldErr[] {
     const errs: FieldErr[] = [];
     if (s === 1) {
-      if (!f.country)
+      // Shift mode: account details (country/name/email/phone/
+      // password) are already on file and are not re-asked — only a
+      // missing country is asked. Address + DOB are always checked.
+      if (!isConvert) {
+        if (!f.country)
+          errs.push({ key: "country", label: t("acc.country"), msg: t("val.country") });
+        if (f.name.trim().length < 2)
+          errs.push({ key: "name", label: t("sa.fullName"), msg: t("val.name") });
+        const emailGiven = f.email.trim() !== "";
+        const phoneGiven = f.phone.trim() !== "";
+        if (!emailGiven && !phoneGiven)
+          errs.push({ key: "contact", label: `${t("auth.withGmail")} / ${t("auth.withMobile")}`, msg: t("val.oneContact") });
+        if (emailGiven && !isEmailOk(f.email))
+          errs.push({ key: "email", label: t("sa.email"), msg: t("val.email") });
+        if (phoneGiven && !phoneValidForCountry(f.phone, f.country))
+          errs.push({ key: "phone", label: t("sa.phone"), msg: t("val.phoneCountry") });
+        if (f.password.length === 0)
+          errs.push({ key: "password", label: t("sa.password"), msg: t("val.passwordMissing") });
+        else if (f.password.length < 4)
+          errs.push({ key: "password", label: t("sa.password"), msg: t("val.password") });
+      } else if (needsCountry && !f.country) {
         errs.push({ key: "country", label: t("acc.country"), msg: t("val.country") });
-      if (f.name.trim().length < 2)
-        errs.push({ key: "name", label: t("sa.fullName"), msg: t("val.name") });
-      const emailGiven = f.email.trim() !== "";
-      const phoneGiven = f.phone.trim() !== "";
-      if (!emailGiven && !phoneGiven)
-        errs.push({ key: "contact", label: `${t("auth.withGmail")} / ${t("auth.withMobile")}`, msg: t("val.oneContact") });
-      if (emailGiven && !isEmailOk(f.email))
-        errs.push({ key: "email", label: t("sa.email"), msg: t("val.email") });
-      if (phoneGiven && !phoneValidForCountry(f.phone, f.country))
-        errs.push({ key: "phone", label: t("sa.phone"), msg: t("val.phoneCountry") });
-      if (f.password.length === 0)
-        errs.push({ key: "password", label: t("sa.password"), msg: t("val.passwordMissing") });
-      else if (f.password.length < 4)
-        errs.push({ key: "password", label: t("sa.password"), msg: t("val.password") });
+      }
       if (f.address.trim().length < 5)
         errs.push({ key: "address", label: t("sa.address"), msg: t("val.address") });
       if (f.city.trim().length < 2)
@@ -2910,7 +2930,32 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
 
   const apply = useMutation({
     mutationFn: () =>
-      api.registerSeller({
+      isConvert
+        ? api.convertBuyerToSeller({
+            userId: convertUser!.id,
+            country: needsCountry ? f.country : undefined,
+            address: f.address,
+            city: f.city,
+            state: f.state,
+            pinCode: f.pinCode,
+            dateOfBirth: f.dateOfBirth,
+            photoFileName: f.photoFileName || undefined,
+            storeName: f.storeName,
+            storeDescription: f.storeDescription,
+            storeLogoFileName: f.storeLogoFileName || undefined,
+            storeAddress: f.storeAddress,
+            businessType: f.businessType,
+            gstNumber: f.gstNumber || undefined,
+            docType: f.docType,
+            docNumber: f.docNumber,
+            docFrontFileName: f.docFrontFileName,
+            docBackFileName: f.docBackFileName || undefined,
+            photoBlobKey: uploads.photo?.blobKey, photoContentType: uploads.photo?.contentType, photoSize: uploads.photo?.size,
+            storeLogoBlobKey: uploads.logo?.blobKey, storeLogoContentType: uploads.logo?.contentType, storeLogoSize: uploads.logo?.size,
+            docFrontBlobKey: uploads.docFront?.blobKey, docFrontContentType: uploads.docFront?.contentType, docFrontSize: uploads.docFront?.size,
+            docBackBlobKey: uploads.docBack?.blobKey, docBackContentType: uploads.docBack?.contentType, docBackSize: uploads.docBack?.size,
+          })
+        : api.registerSeller({
         country: f.country,
         name: f.name,
         email: f.email.trim() || undefined,
@@ -2942,6 +2987,13 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
         setError(r.error ?? "Application failed.");
         return;
       }
+      if (isConvert) {
+        if (!r.user) {
+          setError("Application failed.");
+          return;
+        }
+        setConvertedUser(r.user);
+      }
       setSubmitted(true);
     },
     onError: (e) => setError(String(e)),
@@ -2955,8 +3007,8 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
           {t("sa.doneT")}
         </h3>
         <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--dim)]">{t("sa.doneD")}</p>
-        <button type="button" onClick={onDone} className={primaryBtn + " mt-4"}>
-          {t("acc.signIn")}
+        <button type="button" onClick={() => onDone(isConvert ? convertedUser ?? undefined : undefined)} className={primaryBtn + " mt-4"}>
+          {isConvert ? t("acc.sellerDash") : t("acc.signIn")}
         </button>
       </div>
     );
@@ -2968,7 +3020,7 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
     <div ref={topRef} className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-md">
       <div aria-hidden className="-mx-5 -mt-5 mb-4 h-1.5 bg-gradient-to-r from-[var(--accent)] via-[var(--gold)] to-[var(--accent)]" />
       <h3 className="font-display text-xl font-bold text-[var(--text)]">{t("sa.title")}</h3>
-      <p className="mt-1 text-sm text-[var(--dim)]">{t("sa.sub")}</p>
+      <p className="mt-1 text-sm text-[var(--dim)]">{t(isConvert ? "sa.convertSub" : "sa.sub")}</p>
       <ol className="mt-4 flex gap-2" aria-label="Application steps">
         {steps.map((label, i) => (
           <li key={label} className="flex-1">
@@ -3008,6 +3060,8 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
       <div className="mt-4 flex flex-col gap-3">
         {step === 1 && (
           <>
+            {!isConvert && (
+              <>
             <Field label={t("acc.country")}>
               <select value={f.country} onChange={(e) => { const c = e.target.value; setF({ ...f, country: c, state: regionsFor(c) ? "" : f.state }); }} className={errInputCls(!!errFor("country"))} aria-label="Seller country">
                 <option value="">{t("acc.countryPh")}</option>
@@ -3039,6 +3093,42 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
                 <FieldError msg={errFor("dateOfBirth")} />
               </Field>
             </div>
+              </>
+            )}
+            {isConvert && (
+              <>
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] p-4">
+                  <p className="font-display text-sm font-bold text-[var(--text)]">{t("sa.convertAccount")}</p>
+                  <dl className="mt-2 space-y-1 text-sm text-[var(--text)]">
+                    <div className="flex gap-2"><dt className="w-20 shrink-0 text-[var(--dim)]">{t("sa.fullName")}</dt><dd className="font-semibold">{convertUser!.name}</dd></div>
+                    {convertUser!.email ? (
+                      <div className="flex gap-2"><dt className="w-20 shrink-0 text-[var(--dim)]">{t("sa.email")}</dt><dd className="font-semibold">{convertUser!.email}</dd></div>
+                    ) : null}
+                    {convertUser!.phone ? (
+                      <div className="flex gap-2"><dt className="w-20 shrink-0 text-[var(--dim)]">{t("sa.phone")}</dt><dd className="font-semibold">{convertUser!.phone}</dd></div>
+                    ) : null}
+                    {accountCountry ? (
+                      <div className="flex gap-2"><dt className="w-20 shrink-0 text-[var(--dim)]">{t("acc.country")}</dt><dd className="font-semibold">{accountCountry}</dd></div>
+                    ) : null}
+                  </dl>
+                </div>
+                {needsCountry && (
+                  <Field label={t("acc.country")}>
+                    <select value={f.country} onChange={(e) => { const c = e.target.value; setF({ ...f, country: c, state: regionsFor(c) ? "" : f.state }); }} className={errInputCls(!!errFor("country"))} aria-label="Seller country">
+                      <option value="">{t("acc.countryPh")}</option>
+                      {COUNTRIES.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    <FieldError msg={errFor("country")} />
+                  </Field>
+                )}
+                <Field label={t("sa.dob")}>
+                  <input type="date" value={f.dateOfBirth} onChange={(e) => setF({ ...f, dateOfBirth: e.target.value })} className={errInputCls(!!errFor("dateOfBirth"))} aria-label="Date of birth" />
+                  <FieldError msg={errFor("dateOfBirth")} />
+                </Field>
+              </>
+            )}
             <Field label={t("sa.address")}>
               <textarea rows={2} value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} className={errInputCls(!!errFor("address"))} aria-label="Home address" />
               <FieldError msg={errFor("address")} />
@@ -3677,6 +3767,7 @@ function AccountView({
   storeName,
   externalError,
   headerLogoUrl,
+  sellerConvertSignal,
 }: {
   user: User;
   onAuth: (u: NonNullable<User>, token?: string) => void;
@@ -3685,6 +3776,7 @@ function AccountView({
   onGoAdmin: () => void;
   onGoSupport?: () => void;
   onUserUpdated?: (u: NonNullable<User>) => void;
+  sellerConvertSignal?: number;
   onLangChange: (l: Lang) => void;
   onCurrencyChange: (c: Currency) => void;
   storeName: string;
@@ -3703,6 +3795,20 @@ function AccountView({
   const [error, setError] = useState<string | null>(null);
   const [authTouched, setAuthTouched] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
+  // Buyer → seller shift entry: App bumps sellerConvertSignal when a
+  // signed-in buyer taps any Become a Seller entry. The ref seeds
+  // from the signal on first mount so a stale value never opens the
+  // form for a different buyer who signs in later.
+  const [showConvertForm, setShowConvertForm] = useState(false);
+  const convertSignalSeen = useRef(sellerConvertSignal ?? 0);
+  useEffect(() => {
+    if (!sellerConvertSignal || sellerConvertSignal === convertSignalSeen.current) return;
+    convertSignalSeen.current = sellerConvertSignal;
+    // Back to the menu section too: the form branch lives under it,
+    // so a buyer sitting on Profile/Preferences still lands on the
+    // form instead of their current section.
+    if (user?.role === "buyer") { setShowConvertForm(true); setSection("menu"); }
+  }, [sellerConvertSignal, user?.role]);
   // Notice shown on the sign-in page after a registration completes
   // (buyer register, or a seller application) — the account is NOT
   // auto-logged-in; the customer signs in from here instead.
@@ -3889,6 +3995,33 @@ function AccountView({
         </div>
       );
     }
+    // ---- Buyer → seller shift: the seller application form, opened
+    // from any Become a Seller entry (drawer / topnav / homepage /
+    // Account menu). The buyer sees only the REMAINING info — their
+    // account details are already on file. Back returns to the menu.
+    if (showConvertForm && user.role === "buyer") {
+      return (
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+          <button
+            type="button"
+            onClick={() => setShowConvertForm(false)}
+            aria-label={t("acc.back")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-bold text-[var(--text)]"
+          >
+            <span aria-hidden className="inline-block rtl:-scale-x-100">←</span> {t("acc.back")}
+          </button>
+          <div className="mt-4">
+            <SellerApplicationForm
+              convertUser={user}
+              onDone={(u) => {
+                if (u) onUserUpdated?.(u);
+                onGoSeller();
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
     // ---- Account menu: profile summary header + tidy option rows ----
     // No upload blocks or forms are dumped here — editing lives inside
     // the Profile section above.
@@ -3975,6 +4108,22 @@ function AccountView({
               <span className="min-w-0 flex-1">
                 <span className="block font-display text-[15px] font-bold text-[var(--text)]">
                   {t("acc.sellerDash")}
+                </span>
+              </span>
+              <span aria-hidden className="shrink-0 text-lg text-[var(--dim)] rtl:-scale-x-100">›</span>
+            </button>
+          )}
+          {user.role === "buyer" && (
+            <button
+              type="button"
+              onClick={() => setShowConvertForm(true)}
+              aria-label={t("menu.becomeSeller")}
+              className={menuRowCls}
+            >
+              <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)]">{aStore}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-display text-[15px] font-bold text-[var(--text)]">
+                  {t("menu.becomeSeller")}
                 </span>
               </span>
               <span aria-hidden className="shrink-0 text-lg text-[var(--dim)] rtl:-scale-x-100">›</span>
@@ -4819,6 +4968,7 @@ function SellerView({
   onTabChange,
   onUserUpdated,
   onGoAccount,
+  onBecomeSeller,
   onGoSupport,
 }: {
   user: User;
@@ -4827,6 +4977,7 @@ function SellerView({
   onTabChange?: (tab: SellerTab) => void;
   onUserUpdated?: (u: NonNullable<User>) => void;
   onGoAccount?: () => void;
+  onBecomeSeller?: () => void;
   onGoSupport?: () => void;
 }) {
   const { t, fmt, layout } = useUi();
@@ -4972,7 +5123,7 @@ function SellerView({
         title={t("sd.signInT")}
         text={t("sd.onlySellers")}
         actionLabel={t("menu.becomeSeller")}
-        onAction={onGoAccount}
+        onAction={onBecomeSeller ?? onGoAccount}
       />
     );
   }
@@ -9704,6 +9855,7 @@ export function App() {
   const [supportVisit, setSupportVisit] = useState(0);
   const [supportStartInChat, setSupportStartInChat] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sellerConvertSignal, setSellerConvertSignal] = useState(0);
   // Drawer Categories section: collapsed by default, expands on tap.
   const [drawerCatsOpen, setDrawerCatsOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -10265,6 +10417,18 @@ const NAV: NavItem[] =
     setView(v);
     setDrawerOpen(false);
   }
+  // Become a Seller routing (buyer → seller shift, 2026-10-28):
+  // guests land on the sign-in/register page exactly as before;
+  // buyers land on the Account page with the seller application form
+  // opened in shift mode (same email/phone, remaining info only);
+  // sellers go to their dashboard; admins go to their Account page
+  // (no seller signup is offered to admins anywhere).
+  function goBecomeSeller() {
+    if (!user) { setView("account"); return; }
+    if (user.role === "seller") { goSellerTab("home"); return; }
+    if (user.role === "buyer") { setSellerConvertSignal((v) => v + 1); setView("account"); return; }
+    setView("account");
+  }
 
   return (
     <UiContext.Provider value={ui}>
@@ -10431,14 +10595,17 @@ const NAV: NavItem[] =
               >
                 {ui.t("menu.categories")}
               </button>
+              {user?.role !== "admin" && (
               <button
                 type="button"
-                onClick={() => (user?.role === "seller" ? goSellerTab("home") : setView("account"))}
+                onClick={() => (user?.role === "seller" ? goSellerTab("home") : goBecomeSeller())}
                 className="rounded-full px-3.5 py-1.5 text-sm font-semibold text-[var(--dim)] hover:bg-[var(--surface-alt)]"
               >
                 {user?.role === "seller" ? ui.t("acc.sellerDash") : ui.t("menu.becomeSeller")}
               </button>
+              )}
               <span className="flex-1" />
+              {view !== "account" && (
               <label className="flex min-w-0 max-w-xs flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
                 <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-4 w-4 shrink-0 text-[var(--dim)]">
                   <circle cx="11" cy="11" r="7" />
@@ -10453,13 +10620,14 @@ const NAV: NavItem[] =
                   className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--dim)]"
                 />
               </label>
+              )}
             </nav>
           )}
           {/* Layout designs 2 & 3 put the product Search in the top
               header itself: Design 2 (Menu) as a compact row under the
               brand row, Design 3 (Top Search) as a big full-width row.
               It drives the same shop search and jumps to the shop. */}
-          {(layoutDesign === "menu" || layoutDesign === "topsearch") && (
+          {view !== "account" && (layoutDesign === "menu" || layoutDesign === "topsearch") && (
             <div className={`border-t border-[var(--border)] px-3 transition-all duration-300 sm:px-4 ${layoutDesign === "topsearch" ? "py-2" : "py-1"}`}>
               <div className={`mx-auto ${containerW}`}>
                 <label className="block">
@@ -10590,11 +10758,11 @@ const NAV: NavItem[] =
                   <button type="button" onClick={() => goSellerTab("home")} className={drawerRowCls}>
                     {iconStore} <span>{ui.t("menu.sellerDash")}</span>
                   </button>
-                ) : (
-                  <button type="button" onClick={() => goView("account")} className={drawerRowCls}>
+                ) : user?.role !== "admin" ? (
+                  <button type="button" onClick={() => goBecomeSeller()} className={drawerRowCls}>
                     {iconStore} <span>{ui.t("menu.becomeSeller")}</span>
                   </button>
-                )}
+                ) : null}
                 {user?.role === "seller" && (
                   <button type="button" onClick={() => goSellerTab("wallet")} className={drawerRowCls}>
                     {iconWallet} <span>{ui.t("menu.wallet")}</span>
@@ -10664,6 +10832,7 @@ const NAV: NavItem[] =
             <ShopView
               user={user}
               onNeedAuth={() => setView("account")}
+              onBecomeSeller={goBecomeSeller}
               onGoSeller={() => goSellerTab("home")}
               onGoCart={() => setView("cart")}
               cartCount={cartCount}
@@ -10694,6 +10863,7 @@ const NAV: NavItem[] =
               onGoAdmin={() => setView("admin")}
               onGoSupport={goSupportChat}
               onUserUpdated={handleUserUpdated}
+              sellerConvertSignal={sellerConvertSignal}
               onLangChange={changeLang}
               onCurrencyChange={changeCurrency}
               storeName={storeName}
@@ -10710,6 +10880,7 @@ const NAV: NavItem[] =
               onTabChange={(tab) => setSellerTab(tab)}
               onUserUpdated={handleUserUpdated}
               onGoAccount={() => setView("account")}
+              onBecomeSeller={goBecomeSeller}
               onGoSupport={goSupportChat}
             />
           )}

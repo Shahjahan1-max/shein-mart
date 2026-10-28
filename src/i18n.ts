@@ -525,6 +525,10 @@ export const STR = {
 
   // Seller application form
   "sa.title": { en: "Seller Application", hi: "विक्रेता आवेदन" , ar: "طلب البائع"},
+  "sa.convertSub": {
+    en: "Your account details are already on file — only the remaining store and verification details are needed. After submitting, this account becomes a seller account, pending admin verification; it cannot sell until the admin verifies it.",
+    hi: "आपके खाते का विवरण पहले से दर्ज है — केवल शेष दुकान और सत्यापन विवरण चाहिए। सबमिट करने के बाद यह खाता विक्रेता खाता बन जाएगा, व्यवस्थापक सत्यापन हेतु लंबित रहेगा; सत्यापन होने तक आप बिक्री नहीं कर सकते।", ar: "تفاصيل حسابك مسجلة مسبقًا — نحتاج فقط إلى تفاصيل المتجر والتحقق المتبقية. بعد الإرسال، سيصبح هذا الحساب حساب بائع بانتظار تحقق المسؤول؛ ولا يمكنه البيع حتى يتحقق المسؤول منه."},
+  "sa.convertAccount": { en: "Your account (already registered)", hi: "आपका खाता (पहले से पंजीकृत)" , ar: "حسابك (مسجل مسبقًا)"},
   "sa.sub": {
     en: "Complete all three steps — personal details, store details and one ID document. Your application then goes to Customer Service for verification; once Customer Service verifies your account, you can add products and start selling.",
     hi: "तीनों चरण पूरे करें — व्यक्तिगत जानकारी, दुकान की जानकारी और एक पहचान दस्तावेज़। फिर आपका आवेदन सत्यापन के लिए ग्राहक सेवा के पास जाएगा; ग्राहक सेवा के सत्यापित करते ही आप प्रोडक्ट जोड़कर बिक्री शुरू कर सकते हैं।", ar: "أكمل الخطوات الثلاث — البيانات الشخصية وبيانات المتجر ووثيقة هوية واحدة. ثم يذهب طلبك إلى خدمة العملاء للتحقق؛ بمجرد أن تتحقق خدمة العملاء من حسابك، يمكنك إضافة المنتجات وبدء البيع."},
