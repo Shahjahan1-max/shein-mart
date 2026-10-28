@@ -4597,6 +4597,28 @@ function SellerView({
     queryFn: () => api.getWallet({ sellerId: user!.id }),
     enabled: verified,
   });
+  // Wallet tab dot: unread wallet-credit events (same cache key the
+  // app bottom nav reads). Opening the Wallet tab clears the dot at
+  // once — the optimistic cache clear removes it immediately, and
+  // the mutation marks the events read on the server so a reload
+  // keeps it gone. Runs on every entry into the tab, however the
+  // seller got there (bottom nav, dashboard tile, or button).
+  const walletUnreadQ = useQuery({
+    queryKey: ["wallet-unread", user?.id],
+    queryFn: () => api.getWalletUnread({ sellerId: user!.id }),
+    enabled: isSeller,
+    refetchInterval: 10000,
+  });
+  const walletUnread = walletUnreadQ.data?.unreadCount ?? 0;
+  const markWalletSeen = useMutation({
+    mutationFn: () => api.markWalletSeen({ sellerId: user!.id }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["wallet-unread"] }),
+  });
+  useEffect(() => {
+    if (tab !== "wallet" || walletUnread <= 0) return;
+    queryClient.setQueryData(["wallet-unread", user?.id], { unreadCount: 0 });
+    markWalletSeen.mutate();
+  }, [tab, walletUnread]);
   const [orderSection, setOrderSection] = useState<"pending" | "shipment" | "completed">("pending");
   const [deliverFor, setDeliverFor] = useState<number | null>(null);
   const [deliverMsg, setDeliverMsg] = useState<string | null>(null);
@@ -5263,12 +5285,13 @@ function SellerView({
         className={`sticky z-30 mt-6 flex justify-around rounded-full border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg ${layout === "menu" ? "bottom-3" : "bottom-[calc(4.75rem+env(safe-area-inset-bottom))] sm:bottom-24"}`}
       >
         {tabs.map((tb) => {
-          const badge = tb.id === "orders" ? d.pendingShipment : tb.id === "wallet" ? 0 : 0;
+          const badge = tb.id === "orders" ? d.pendingShipment : 0;
+          const showWalletDot = tb.id === "wallet" && walletUnread > 0;
           return (
           <button
             key={tb.id}
             type="button"
-            aria-label={badge > 0 ? `${tb.label}, ${badge} pending shipment` : tb.label}
+            aria-label={showWalletDot ? `${tb.label}, ${t("sd.newWalletActivity")}` : badge > 0 ? `${tb.label}, ${badge} pending shipment` : tb.label}
             aria-current={tab === tb.id ? "page" : undefined}
             onClick={() => setTab(tb.id)}
             className={`relative flex flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[11px] font-semibold ${
@@ -5277,6 +5300,7 @@ function SellerView({
           >
             <span className="relative text-lg leading-none">{tb.icon}
               {badge > 0 && <span className="absolute -right-3 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--alert)] px-0.5 text-[10px] font-bold text-white">{badge > 99 ? "99+" : badge}</span>}
+              {showWalletDot && <span aria-hidden className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
             </span>
             {tb.label}
           </button>
@@ -9136,6 +9160,15 @@ export function App() {
     mutationFn: () => api.markSellerNotificationsSeen({ sellerId: user!.id }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["seller-notifications"] }),
   });
+  // Wallet dot (bottom nav): unread wallet-credit events for the
+  // seller. Same cache key the SellerView reads, so both navs agree.
+  const walletUnreadQ = useQuery({
+    queryKey: ["wallet-unread", user?.id],
+    queryFn: () => api.getWalletUnread({ sellerId: user!.id }),
+    enabled: !!user && user.role === "seller",
+    refetchInterval: 10000,
+  });
+  const walletUnread = walletUnreadQ.data?.unreadCount ?? 0;
 
   // Bottom / desktop navigation: NO Cart and NO Orders here — Cart lives
   // only in the ☰ hamburger drawer, and Orders moved into the drawer too.
@@ -9745,7 +9778,7 @@ const NAV: NavItem[] =
               <button
                 key={n.key}
                 type="button"
-                aria-label={n.label}
+                aria-label={n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.label}
                 aria-current={navCurrent(n) ? "page" : undefined}
                 onClick={() => navGo(n)}
                 className={`relative flex min-h-[4rem] flex-col items-center justify-center gap-1 pb-2 pt-2.5 text-[10px] font-medium leading-tight tracking-wide ${
@@ -9754,6 +9787,7 @@ const NAV: NavItem[] =
               >
                 {navCurrent(n) && <span aria-hidden className="absolute left-1/2 top-0 h-[3px] w-8 -translate-x-1/2 rounded-full bg-[var(--accent)]" />}
                 {n.isNew && <NewBadge id="nav-products" className="absolute right-0.5 top-0.5" />}
+                {n.key === "wallet" && walletUnread > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
                 <span className="flex leading-none">{n.icon}</span>
                 <span className="max-w-full truncate px-0.5">{n.label}</span>
               </button>
@@ -9771,7 +9805,7 @@ const NAV: NavItem[] =
             <button
               key={n.key}
               type="button"
-              aria-label={n.label}
+              aria-label={n.key === "wallet" && walletUnread > 0 ? `${n.label}, ${ui.t("sd.newWalletActivity")}` : n.label}
               aria-current={navCurrent(n) ? "page" : undefined}
               onClick={() => navGo(n)}
               className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold lg:px-4 ${
@@ -9780,6 +9814,7 @@ const NAV: NavItem[] =
             >
               {n.icon} {n.label}
               {n.isNew && <NewBadge id="nav-products" />}
+              {n.key === "wallet" && walletUnread > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
             </button>
           ))}
           {user?.role === "admin" && (

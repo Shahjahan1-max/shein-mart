@@ -583,6 +583,7 @@ export const STR = {
   "sd.tabProducts": { en: "Products", hi: "प्रोडक्ट" , ar: "المنتجات"},
   "sd.tabOrders": { en: "Orders", hi: "ऑर्डर" , ar: "الطلبات"},
   "sd.tabWallet": { en: "Wallet", hi: "वॉलेट" , ar: "المحفظة"},
+  "sd.newWalletActivity": { en: "New wallet activity", hi: "नई वॉलेट गतिविधि" , ar: "نشاط جديد في المحفظة"},
   "sd.tabMy": { en: "My", hi: "मेरा" , ar: "حسابي"},
   "sd.myProducts": { en: "Products in My Store", hi: "मेरी दुकान के प्रोडक्ट" , ar: "المنتجات في متجري"},
   "sd.emptyStore": {
