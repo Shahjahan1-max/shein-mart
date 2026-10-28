@@ -8,7 +8,7 @@ useState,
 type ReactNode,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type ApiResponse } from "./api";
+import { api, getSessionToken, setSessionToken, clearSessionToken, type ApiResponse } from "./api";
 import { PdfViewer, fileToBase64 } from "./compat";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -3375,7 +3375,7 @@ function AccountView({
   headerLogoUrl,
 }: {
   user: User;
-  onAuth: (u: NonNullable<User>) => void;
+  onAuth: (u: NonNullable<User>, token?: string) => void;
   onSignOut: () => void;
   onGoSeller: () => void;
   onGoAdmin: () => void;
@@ -3476,7 +3476,7 @@ function AccountView({
       }),
     onSuccess: (r) => {
       if (!r.ok || !r.user) setError(r.error ?? "Login failed.");
-      else onAuth(r.user);
+      else onAuth(r.user, r.token);
     },
     onError: (e) => setError(String(e)),
   });
@@ -3507,7 +3507,7 @@ function AccountView({
       api.createAdmin({ name: form.name, email: form.email, password: form.password }),
     onSuccess: (r) => {
       if (!r.ok || !r.user) setError(r.error ?? "Admin creation failed.");
-      else onAuth(r.user);
+      else onAuth(r.user, r.token);
     },
     onError: (e) => setError(String(e)),
   });
@@ -4543,7 +4543,7 @@ function SellerView({
   // so an Admin approval (or rejection) lands here without re-login.
   const sessionRefresh = useQuery({
     queryKey: ["my-session", user?.id],
-    queryFn: () => api.refreshMySession({ userId: user!.id }),
+    queryFn: () => api.refreshMySession({}),
     enabled: isSeller && !verified,
     refetchInterval: 15000,
   });
@@ -9200,6 +9200,19 @@ export function App() {
   useEffect(() => {
     if (view !== "admin") void refetchSettings();
   }, [view, refetchSettings]);
+  // Login-session transition: once the backend reports sessionsEnabled,
+  // a stored account WITHOUT a token is a pre-session login (or a login
+  // from an older backend) — it can no longer call protected actions,
+  // so sign it out cleanly instead of letting every action fail. While
+  // sessionsEnabled is absent (older backend) legacy logins keep working.
+  useEffect(() => {
+    if (settings.data?.sessionsEnabled && user && !getSessionToken()) {
+      setUser(null);
+      localStorage.removeItem(SESSION_KEY);
+      clearSessionToken();
+      setView("shop");
+    }
+  }, [settings.data?.sessionsEnabled, user]);
   const storeName = settings.data?.storeName ?? "sheinstore";
   // Admin-set header logo (Admin → Theme & Design → Header Logo):
   // an uploaded image or a pasted image URL; empty = text brand.
@@ -9281,7 +9294,7 @@ export function App() {
     if (code) {
       setGoogleSigningIn(true);
       api.completeGoogleLogin({ code }).then((r: any) => {
-        if (r?.ok && r.user) handleAuth(r.user);
+        if (r?.ok && r.user) handleAuth(r.user, r.token);
         else {
           setGoogleError(r?.error ?? ui.t("auth.googleFailed"));
           setView("account");
@@ -9467,7 +9480,12 @@ const NAV: NavItem[] =
   // exchanged: without it a slow backend (cold start) looks like a
   // stuck blank page, which is exactly what was reported.
   const [googleSigningIn, setGoogleSigningIn] = useState(false);
-  function handleAuth(u: NonNullable<User>) {
+  function handleAuth(u: NonNullable<User>, token?: string) {
+    // Save the session token BEFORE setUser: the token-less restore
+    // rule below would otherwise sign a fresh login straight back out.
+    // token omitted = a local account update, not a login — the stored
+    // token is left untouched.
+    if (token) setSessionToken(token);
     setUser(u);
     localStorage.setItem(SESSION_KEY, JSON.stringify(u));
     applyCountryCurrency(u.country, u.role);
@@ -9482,6 +9500,10 @@ const NAV: NavItem[] =
     queryClient.invalidateQueries();
   }
   function handleSignOut() {
+    // Best-effort: revoke the server session, then clear local state
+    // regardless of whether the call succeeds.
+    api.logout({}).catch(() => {});
+    clearSessionToken();
     setUser(null);
     localStorage.removeItem(SESSION_KEY);
     queryClient.invalidateQueries();
