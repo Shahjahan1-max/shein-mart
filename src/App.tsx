@@ -2831,6 +2831,7 @@ function SellerApplicationForm({ onDone, convertUser }: { onDone: (u?: NonNullab
   // store + verification details are asked, and submitting converts
   // the same account (no new account, no new password).
   const isConvert = !!convertUser;
+  const [showSellerPw, setShowSellerPw] = useState(false);
   const accountCountry = (convertUser?.country ?? "").trim();
   const needsCountry = isConvert && !accountCountry;
   const [convertedUser, setConvertedUser] = useState<NonNullable<User> | null>(null);
@@ -3081,7 +3082,7 @@ function SellerApplicationForm({ onDone, convertUser }: { onDone: (u?: NonNullab
                 <FieldError msg={errFor("email")} />
               </Field>
               <Field label={t("sa.password")}>
-                <input type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} className={errInputCls(!!errFor("password"))} aria-label="Seller password" />
+                <span className="flex gap-1"><input type={showSellerPw ? "text" : "password"} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} className={`${errInputCls(!!errFor("password"))} min-w-0 flex-1`} aria-label="Seller password" /><button type="button" aria-label="Show or hide password" onClick={() => setShowSellerPw(!showSellerPw)} className="shrink-0 rounded-lg border border-[var(--border)] px-2.5">{showSellerPw ? aEyeOff : aEye}</button></span>
                 <FieldError msg={errFor("password")} />
               </Field>
               <Field label={t("sa.phone")}>
@@ -3697,6 +3698,8 @@ const aLogout = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="curren
 const aImage = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.5" /><path d="m5 19 5-5 3 3 2-2 4 4" /></svg>);
 const aKey = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="7.5" cy="15.5" r="4" /><path d="M10.5 12.5 20 3" /><path d="M16 7l2.5 2.5M18.5 4.5l1.5 1.5" /></svg>);
 const aWarn = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0"><path d="M12 4 22 20H2L12 4Z" /><path d="M12 10v4" /><path d="M12 17h.01" /></svg>);
+const aEye = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3" /></svg>);
+const aEyeOff = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3" /><path d="m4 4 16 16" /></svg>);
 
 function PrefsCard({
   lang,
@@ -3795,6 +3798,7 @@ function AccountView({
   const [error, setError] = useState<string | null>(null);
   const [authTouched, setAuthTouched] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
+  const [showAuthPw, setShowAuthPw] = useState(false);
   // Buyer → seller shift entry: App bumps sellerConvertSignal when a
   // signed-in buyer taps any Become a Seller entry. The ref seeds
   // from the signal on first mount so a stale value never opens the
@@ -4354,7 +4358,7 @@ function AccountView({
             </p>
           )}
           <Field label={t("acc.password")}>
-            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={errInputCls(!!authErrFor("password"))} aria-label="Password" />
+            <span className="flex gap-1"><input type={showAuthPw ? "text" : "password"} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={`${errInputCls(!!authErrFor("password"))} min-w-0 flex-1`} aria-label="Password" /><button type="button" aria-label="Show or hide password" onClick={() => setShowAuthPw(!showAuthPw)} className="shrink-0 rounded-lg border border-[var(--border)] px-2.5">{showAuthPw ? aEyeOff : aEye}</button></span>
             <FieldError msg={authErrFor("password")} />
           </Field>
           {mode === "login" && (
