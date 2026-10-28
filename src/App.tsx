@@ -306,18 +306,21 @@ function useUi(): Ui {
 function ProductImage({
   product,
   className,
+  fallbackSrc,
 }: {
   product: Product;
   className?: string;
+  fallbackSrc?: string;
 }) {
-  // Every product now carries its own photo: bulk products received
-  // their own generated photos, so their imageAsset is shown like any
-  // other product's. Products still without a photo (imageAsset empty
-  // or unresolvable) render the honest initial-letter tile.
+  // Photo fallback: a product without its own photo shows a real photo
+  // from its own category when the caller supplies one (ShopView does,
+  // from the catalog). The initial-letter tile is only the last resort
+  // for surfaces without a category photo (cart/order rows).
   const src = product.imageAsset ? IMAGE_MAP[product.imageAsset] : undefined;
   const [failed, setFailed] = useState(false);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
   // If this product's photo was replaced/renamed, restart with the new src.
-  useEffect(() => { setFailed(false); }, [src]);
+  useEffect(() => { setFailed(false); setFallbackFailed(false); }, [src, fallbackSrc]);
   if (src && !failed) {
     return (
       <img
@@ -326,6 +329,17 @@ function ProductImage({
         className={className ?? "h-full w-full object-cover"}
         loading="lazy"
         onError={() => setFailed(true)}
+      />
+    );
+  }
+  if (fallbackSrc && !fallbackFailed) {
+    return (
+      <img
+        src={fallbackSrc}
+        alt={product.name}
+        className={className ?? "h-full w-full object-cover"}
+        loading="lazy"
+        onError={() => setFallbackFailed(true)}
       />
     );
   }
@@ -578,6 +592,7 @@ function ProductCard({
   onAddToMyStore,
   inMyStore,
   dense,
+  fallbackImage,
   onOpen,
   onBuyNow,
 }: {
@@ -596,6 +611,7 @@ function ProductCard({
   // padding, type and the profit line all step down one size and the
   // button stays fully tappable without any text spilling out.
   dense?: boolean;
+  fallbackImage?: string;
 }) {
   const { t, fmt, lang } = useUi();
   const discount = product.oldPrice
@@ -619,7 +635,7 @@ function ProductCard({
           : undefined
       }
     >
-        <ProductImage product={product} />
+        <ProductImage product={product} fallbackSrc={fallbackImage} />
         {discount > 0 && (
           <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold text-white">
             -{discount}%
@@ -726,6 +742,7 @@ function ProductDetail({
   related,
   onOpenProduct,
   onMoreInCategory,
+  fallbackImage,
 }: {
   product: Product;
   user: User;
@@ -754,7 +771,7 @@ function ProductDetail({
       <article className="mt-3 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
         <div className="grid gap-0 md:grid-cols-2">
           <div className="relative aspect-square overflow-hidden">
-            <ProductImage product={product} />
+            <ProductImage product={product} fallbackSrc={fallbackImage} />
             {discount > 0 && (
               <span className="absolute left-2 top-2 rounded-md bg-[var(--gold)] px-1.5 py-0.5 font-display text-xs font-bold text-white">
                 -{discount}%
@@ -885,7 +902,7 @@ function ProductDetail({
                 onAddToMyStore={onAddToMyStore}
                 inMyStore={myStoreIds.has(p.id)}
                 onOpen={onOpenProduct}
-              />
+              fallbackImage={fallbackImage} />
             ))}
           </div>
         </section>
@@ -970,6 +987,15 @@ function ShopView({
       out.push(list[(start + i) % list.length]!);
     }
     return out;
+  }, [allProducts.data]);
+  // Category photo fallback for photo-less products (bulk products were
+  // inserted without an image): the first real photo of the same category.
+  const categoryPhoto = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of allProducts.data?.products ?? []) {
+      if (!map[p.category] && p.imageAsset && IMAGE_MAP[p.imageAsset]) map[p.category] = IMAGE_MAP[p.imageAsset];
+    }
+    return map;
   }, [allProducts.data]);
 
   const sellerPicks = useQuery({
@@ -1104,6 +1130,7 @@ function ShopView({
       <ProductDetail
         key={detailProduct.id}
         product={detailProduct}
+        fallbackImage={detailProduct ? categoryPhoto[detailProduct.category] : undefined}
         user={user}
         onBack={closeDetail}
         onAddToCartQty={handleAddToCartQty}
@@ -1230,7 +1257,7 @@ function ShopView({
               onOpen={openDetail}
               onAddToMyStore={handleAddToMyStore}
               inMyStore={myStoreIds.has(p.id)}
-              dense={gridCols === 3}
+              fallbackImage={categoryPhoto[p.category]} dense={gridCols === 3}
             />
           ))}
         </div>
@@ -1256,7 +1283,7 @@ function ShopView({
                   onOpen={openDetail}
                   onAddToMyStore={handleAddToMyStore}
                   inMyStore={myStoreIds.has(p.id)}
-                />
+                fallbackImage={categoryPhoto[p.category]} />
               </div>
             ))}
           </div>
@@ -2671,7 +2698,7 @@ function SellerApplicationForm({ onDone }: { onDone: () => void }) {
                     : "bg-[var(--surface-alt)] text-[var(--dim)]"
               }`}
             >
-              {step > i + 1 ? "✓ " : `${i + 1}. `}{label}
+              {step > i + 1 && stepErrors(i + 1).length === 0 ? "✓ " : `${i + 1}. `}{label}
             </button>
           </li>
         ))}
