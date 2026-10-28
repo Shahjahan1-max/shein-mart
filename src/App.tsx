@@ -7419,7 +7419,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
 
   return (
     <div>
-      <h2 className="font-display text-2xl font-bold text-[var(--text)]">{t("adm.title")} — {settings?.storeName ?? "sheinstore"}</h2>
+      <h2 className="font-display text-2xl font-bold text-[var(--text)]">{t("adm.title")} — {settings?.storeName ?? "sheinmart"}</h2>
       {deleteMsg && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">{deleteMsg}</p>}
       <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
         <nav aria-label={t("adm.title")} className="scrollbar-none flex shrink-0 gap-1.5 overflow-x-auto pb-1 lg:sticky lg:top-20 lg:w-56 lg:flex-col lg:overflow-visible">
@@ -9463,7 +9463,7 @@ export function App() {
       setView("shop");
     }
   }, [settings.data?.sessionsEnabled, user]);
-  const storeName = settings.data?.storeName ?? "sheinstore";
+  const storeName = settings.data?.storeName ?? "sheinmart";
   // Admin-set header logo (Admin → Theme & Design → Header Logo):
   // an uploaded image or a pasted image URL; empty = text brand.
   const headerLogoUrl = settings.data?.headerLogoUrl ?? "";
