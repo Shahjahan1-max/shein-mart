@@ -116,6 +116,8 @@ export const STR = {
   "reviews.pickRating": { en: "Please pick a star rating first.", hi: "पहले स्टार रेटिंग चुनें।", ar: "يرجى اختيار تقييم بالنجوم أولاً." },
   "cod.awaiting": { en: "Awaiting COD confirmation — the seller confirms this order with you on WhatsApp before dispatch.", hi: "COD पुष्टि का इंतज़ार है — डिस्पैच से पहले सेलर आपसे WhatsApp पर इस ऑर्डर की पुष्टि करेगा।", ar: "بانتظار تأكيد الدفع عند الاستلام — سيؤكد البائع الطلب معك عبر واتساب قبل الشحن." },
   "cod.confirmed": { en: "COD confirmed ✓ — the customer confirmed this order on WhatsApp.", hi: "COD पुष्टि हो गई ✓ — ग्राहक ने WhatsApp पर इस ऑर्डर की पुष्टि कर दी है।", ar: "تم تأكيد الدفع عند الاستلام ✓ — أكد العميل الطلب عبر واتساب." },
+  "cod.confirmedBuyer": { en: "Your order has been confirmed.", hi: "आपका ऑर्डर कन्फर्म हो गया है।", ar: "تم تأكيد طلبك." },
+  "cod.awaitingBuyer": { en: "Awaiting confirmation — we'll confirm your order shortly.", hi: "पुष्टि का इंतज़ार है — हम जल्द आपका ऑर्डर कन्फर्म करेंगे।", ar: "بانتظار التأكيد — سنؤكد طلبك قريبًا." },
   "cod.whatsapp": { en: "Confirm on WhatsApp", hi: "WhatsApp पर पुष्टि करें", ar: "التأكيد عبر واتساب" },
   "cod.markConfirmed": { en: "Mark COD confirmed", hi: "COD पुष्टि दर्ज करें", ar: "وضع علامة تأكيد الدفع عند الاستلام" },
   "shop.addToStore": { en: "Add to My Store", hi: "मेरी दुकान में जोड़ें" , ar: "أضف إلى متجري"},

@@ -2322,7 +2322,7 @@ function OrderItemReviews({ order, buyerId }: { order: Order; buyerId: number })
   );
 }
 
-function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor }: { order: Order; hideItems?: boolean; proofViewerId?: number; reviewBuyerId?: number; codActor?: { role: "seller" | "admin"; id: number } }) {
+function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor, buyerView }: { order: Order; hideItems?: boolean; proofViewerId?: number; reviewBuyerId?: number; codActor?: { role: "seller" | "admin"; id: number }; buyerView?: boolean }) {
   const { fmt, t } = useUi();
   const queryClient = useQueryClient();
   const [codBusy, setCodBusy] = useState(false);
@@ -2347,7 +2347,7 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor }:
         <h3 className="font-display font-bold text-[var(--text)]">Order #{order.id}</h3>
         <StatusBadge status={order.status} />
         {byCustomer && (
-          <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--accent-strong)]">🧾 {t("order.byCustomer")}</span>
+          <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--accent-strong)]">{buyerView ? null : "🧾 "}{t("order.byCustomer")}</span>
         )}
         <span className="ml-auto text-xs text-[var(--dim)]">
           {new Date(order.createdAt).toLocaleString()}
@@ -2416,9 +2416,16 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor }:
       {reviewBuyerId === order.buyerId && order.status === "Delivered" && (
         <OrderItemReviews order={order} buyerId={reviewBuyerId} />
       )}
+      {/* Buyer view: one clean summary line (payment + total). The
+          name / city / PIN used to repeat here AND in the Deliver-to
+          line below; buyers now get a single delivery block instead,
+          with their name folded into it. Sellers and Admin keep the
+          full summary line, which they need at a glance. */}
       <div className="mt-2 flex flex-wrap justify-between gap-2 border-t border-[var(--border)] pt-2 text-sm">
         <span className="text-[var(--dim)]">
-          {byCustomer ? (
+          {buyerView ? (
+            <>{order.paymentMethod}</>
+          ) : byCustomer ? (
             <>{t("order.byCustomer")} · {order.paymentMethod}</>
           ) : (
             <>
@@ -2440,8 +2447,9 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor }:
           behind this card never return another customer's order. */}
       {(order.address || order.phone) && (
         <p className="mt-1.5 text-xs leading-relaxed text-[var(--dim)]">
-          📍 {t("order.deliverTo")}:{" "}
+          {buyerView ? null : "📍 "}{t("order.deliverTo")}:{" "}
           <span className="text-[var(--text)]">
+            {buyerView && order.customerName ? `${order.customerName}, ` : ""}
             {order.address}
             {order.city ? `, ${order.city}` : ""}
             {order.state ? `, ${order.state}` : ""}
@@ -2449,7 +2457,7 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor }:
           </span>
           {order.phone && (
             <>
-              {" "}· 📞 <span className="text-[var(--text)]">{order.phone}</span>
+              {" "}· {buyerView ? null : "📞 "}<span className="text-[var(--text)]">{order.phone}</span>
             </>
           )}
         </p>
@@ -2457,10 +2465,10 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor }:
       {(order.paymentReference || order.hasPaymentProof) && (
         <p className="mt-1.5 text-xs text-[var(--dim)]">
           {order.paymentReference && (
-            <>🧾 {t("order.payRef")}: <strong className="break-all text-[var(--text)]">{order.paymentReference}</strong></>
+            <>{buyerView ? null : "🧾 "}{t("order.payRef")}: <strong className="break-all text-[var(--text)]">{order.paymentReference}</strong></>
           )}
           {order.paymentReference && order.hasPaymentProof ? " · " : ""}
-          {order.hasPaymentProof && <>📷 {t("order.proofAttached")}</>}
+          {order.hasPaymentProof && <>{buyerView ? null : "📷 "}{t("order.proofAttached")}</>}
         </p>
       )}
       {/* Prepaid payment verification gate — clear stage text for the
@@ -2478,11 +2486,17 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor }:
           {order.paymentRejectReason && <> {t("paygate.reason")}: {order.paymentRejectReason}</>}
         </p>
       )}
+      {/* Buyer wording is deliberately professional and second-person:
+          the old confirmed line read like an internal note ("the
+          customer confirmed this order on WhatsApp"). Sellers and
+          Admin keep the operational wording — they act on it. The
+          WhatsApp confirmation step itself is unchanged; only the
+          buyer's text changed. */}
       {order.paymentMethod === "Cash on Delivery" && order.codConfirmed ? (
-        <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {t("cod.confirmed")}</p>
+        <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {buyerView ? t("cod.confirmedBuyer") : t("cod.confirmed")}</p>
       ) : order.paymentMethod === "Cash on Delivery" && order.status !== "Delivered" && order.status !== "Cancelled" ? (
         <div className="mt-2 rounded-lg bg-[var(--amber-bg)] px-3 py-2">
-          <p className="text-xs font-semibold text-[var(--text)]">⏳ {t("cod.awaiting")}</p>
+          <p className="text-xs font-semibold text-[var(--text)]">⏳ {buyerView ? t("cod.awaitingBuyer") : t("cod.awaiting")}</p>
           {codActor && (
             <div className="mt-1.5 flex flex-wrap gap-2">
               {waLink && (
@@ -2554,7 +2568,7 @@ function OrdersView({ user }: { user: User }) {
       <h2 className="font-display text-2xl font-bold text-[var(--text)]">{t("orders.title")}</h2>
       <div className="mt-4 flex flex-col gap-3">
         {list.map((o) => (
-          <OrderCard key={o.id} order={o} proofViewerId={user.id} reviewBuyerId={user.id} />
+          <OrderCard key={o.id} order={o} proofViewerId={user.id} reviewBuyerId={user.id} buyerView />
         ))}
       </div>
     </div>
@@ -10001,6 +10015,9 @@ export function App() {
   const iconGear = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" /></svg>);
   // New footer Cart icon: a shopping bag (replaces the old 🛒 emoji).
   const iconBag = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M5.5 8h13l-1.1 12.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8L5.5 8Z" /><path d="M8.5 10.5V6.8a3.5 3.5 0 0 1 7 0v3.7" /></svg>);
+  // Orders tab icon: clipboard with a check — original line art in the
+  // same stroke style as the other footer icons (no emoji).
+  const iconOrders = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><rect x="5" y="4.5" width="14" height="17" rx="2" /><path d="M9 4.5a2 2 0 0 1 6 0" /><path d="M9 13.5l2.2 2.2 4.3-4.7" /></svg>);
   // Drawer icons: professional outline style — the same 24×24 stroke
   // language top shops (Amazon / Shopify style) use: clean line art,
   // no emojis. Drawn here as original paths matching the footer set.
@@ -10022,11 +10039,13 @@ const NAV: NavItem[] =
         ]
       : user?.role === "buyer"
         ? [
-            // Buyers: Cart lives in the footer (moved out of the
-            // header and the drawer); seller signup still lives on
-            // the Account page: Register → "Apply as seller".
+            // Buyers: Cart and My Orders live in the footer (moved
+            // out of the header; My Orders also out of the drawer);
+            // seller signup still lives on the Account page:
+            // Register → "Apply as seller".
             { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
             { key: "cart", view: "cart", label: ui.t("nav.cart"), icon: iconBag },
+            { key: "orders", view: "orders", label: ui.t("menu.orders"), icon: iconOrders },
             { key: "support", view: "support", label: ui.t("nav.support"), icon: iconChat },
             { key: "account", view: "account", label: ui.t("nav.account"), icon: iconUser },
           ]
@@ -10475,7 +10494,11 @@ const NAV: NavItem[] =
                 )}
                 <div className="my-2 border-t border-[var(--border)]" />
                 {/* Drawer Cart removed: buyers reach the cart from the
-                    footer Cart tab instead. */}
+                    footer Cart tab instead. Drawer My Orders is also
+                    removed for buyers: they reach orders from the
+                    footer Orders tab instead. Sellers, admins and
+                    guests keep the drawer entry. */}
+                {user?.role !== "buyer" && (
                 <button
                   type="button"
                   onClick={() => (user?.role === "seller" ? goSellerTab("orders") : goView("orders"))}
@@ -10486,6 +10509,7 @@ const NAV: NavItem[] =
                   <span className="flex-1">{user?.role === "seller" ? ui.t("sd.tabOrders") : ui.t("menu.orders")}</span>
                   <NewBadge id="drawer-orders" />
                 </button>
+                )}
                 {user?.role === "seller" ? (
                   <button type="button" onClick={() => goSellerTab("home")} className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left font-semibold hover:bg-[var(--surface-alt)]">
                     {iconStore} <span>{ui.t("menu.sellerDash")}</span>
