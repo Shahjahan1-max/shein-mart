@@ -5834,7 +5834,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
   const [editing, setEditing] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [pform, setPform] = useState({ name: "", category: "Electronics", description: "", basePrice: "", oldPrice: "", profitPercent: "20", stock: "50" });
-  const [sform, setSform] = useState({ storeName: "", supportWhatsapp: "", supportEmail: "", defaultProfitPercent: "20" });
+  const [sform, setSform] = useState({ storeName: "", supportWhatsapp: "", supportEmail: "", supportTelegram: "", defaultProfitPercent: "20" });
   // Language & Prices (Settings section): per-language / per-currency ON/OFF
   const [lpForm, setLpForm] = useState({ langHindiEnabled: true, langArabicEnabled: true, currencyInrEnabled: true, currencyUsdEnabled: true, currencyUsdtEnabled: true });
   const [lpServerErr, setLpServerErr] = useState<string | null>(null);
@@ -5871,7 +5871,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
   // AdminView remounts each time the Admin Panel is opened, so saved
   // values are still picked up fresh on the next visit.
   const formsInitRef = useRef(false);
-  useEffect(() => { if (settings && !formsInitRef.current) { formsInitRef.current = true; setSform({ storeName: settings.storeName, supportWhatsapp: settings.supportWhatsapp, supportEmail: settings.supportEmail, defaultProfitPercent: String(settings.defaultProfitPercent) }); setDepForm({ usdtDepositAddress: settings.usdtDepositAddress ?? "", depositNetwork: settings.depositNetwork ?? "BEP20 (BNB Smart Chain)", localDepositNote: (settings.localDepositNote ?? "").trim() ? settings.localDepositNote : t("dep.local") }); setLpForm({ langHindiEnabled: settings.langHindiEnabled ?? true, langArabicEnabled: settings.langArabicEnabled ?? true, currencyInrEnabled: settings.currencyInrEnabled ?? true, currencyUsdEnabled: settings.currencyUsdEnabled ?? true, currencyUsdtEnabled: settings.currencyUsdtEnabled ?? true }); setPmForm({ upiEnabled: settings.paymentUpiEnabled ?? true, bankEnabled: settings.paymentBankEnabled ?? true, usdtEnabled: settings.paymentUsdtEnabled ?? true }); } }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (settings && !formsInitRef.current) { formsInitRef.current = true; setSform({ storeName: settings.storeName, supportWhatsapp: settings.supportWhatsapp, supportEmail: settings.supportEmail, supportTelegram: settings.supportTelegram ?? "", defaultProfitPercent: String(settings.defaultProfitPercent) }); setDepForm({ usdtDepositAddress: settings.usdtDepositAddress ?? "", depositNetwork: settings.depositNetwork ?? "BEP20 (BNB Smart Chain)", localDepositNote: (settings.localDepositNote ?? "").trim() ? settings.localDepositNote : t("dep.local") }); setLpForm({ langHindiEnabled: settings.langHindiEnabled ?? true, langArabicEnabled: settings.langArabicEnabled ?? true, currencyInrEnabled: settings.currencyInrEnabled ?? true, currencyUsdEnabled: settings.currencyUsdEnabled ?? true, currencyUsdtEnabled: settings.currencyUsdtEnabled ?? true }); setPmForm({ upiEnabled: settings.paymentUpiEnabled ?? true, bankEnabled: settings.paymentBankEnabled ?? true, usdtEnabled: settings.paymentUsdtEnabled ?? true }); } }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const invalidateAdmin = () => { queryClient.invalidateQueries({ queryKey: ["admin-overview"] }); queryClient.invalidateQueries({ queryKey: ["seller-applications"] }); queryClient.invalidateQueries({ queryKey: ["admin-wallet"] }); queryClient.invalidateQueries({ queryKey: ["seller-finance"] }); queryClient.invalidateQueries({ queryKey: ["wallet"] }); };
   const upsert = useMutation({ mutationFn: () => api.adminUpsertProduct({ adminId: user!.id, id: editing?.id ?? null, name: pform.name, category: pform.category, description: pform.description, basePrice: parseInt(pform.basePrice, 10) || 0, oldPrice: pform.oldPrice ? parseInt(pform.oldPrice, 10) : null, profitPercent: parseInt(pform.profitPercent, 10) || 0, stock: parseInt(pform.stock, 10) || 0, imageAsset: editing?.imageAsset ?? null }), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); setShowForm(false); setEditing(null); } });
@@ -6045,7 +6045,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
       saveLogo.mutate({ mode: "upload", dataBase64: enc.dataBase64, fileName: logoFile.name, contentType: enc.mimeType || logoFile.type });
     } catch { setLogoErr(t("theme.logoReadErr")); }
   }
-  const saveSettings = useMutation({ mutationFn: () => api.updateSettings({ userId: user!.id, storeName: sform.storeName, supportWhatsapp: sform.supportWhatsapp, supportEmail: sform.supportEmail, defaultProfitPercent: parseInt(sform.defaultProfitPercent, 10) || 20 }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings"] }) });
+  const saveSettings = useMutation({ mutationFn: () => api.updateSettings({ userId: user!.id, storeName: sform.storeName, supportWhatsapp: sform.supportWhatsapp, supportEmail: sform.supportEmail, supportTelegram: sform.supportTelegram, defaultProfitPercent: parseInt(sform.defaultProfitPercent, 10) || 20 }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings"] }) });
   const saveDepositSettings = useMutation({
     // An untouched (or cleared) Local Deposit Note is saved as "" so the
     // seller deposit page falls back to the built-in default line in the
@@ -7889,6 +7889,7 @@ function AdminView({ user, settings, onUserUpdated }: { user: User; settings: Ap
               <Field label={t("adm.defaultProfit")}><input type="number" min={0} max={200} value={sform.defaultProfitPercent} onChange={(e) => setSform({ ...sform, defaultProfitPercent: e.target.value })} className={inputCls} aria-label="Default profit percent" /></Field>
               <Field label={t("adm.waNumber")}><input value={sform.supportWhatsapp} onChange={(e) => setSform({ ...sform, supportWhatsapp: e.target.value })} placeholder="+92 3XX XXXXXXX / +91 98XXX XXXXX" className={inputCls} aria-label="Support WhatsApp number" /></Field>
               <Field label={t("adm.supportEmail")}><input value={sform.supportEmail} onChange={(e) => setSform({ ...sform, supportEmail: e.target.value })} placeholder="support@example.com" className={inputCls} aria-label="Support email" /></Field>
+              <Field label={t("adm.telegram")}><input value={sform.supportTelegram} onChange={(e) => setSform({ ...sform, supportTelegram: e.target.value })} placeholder="Telegram username, e.g. sheinmart_support" className={inputCls} aria-label="Support Telegram username" /></Field>
               <div className="sm:col-span-2"><button type="submit" disabled={saveSettings.isPending} className={primaryBtn}>{saveSettings.isSuccess ? t("adm.saved") : t("adm.saveSettings")}</button></div>
             </form>
             <p className="mt-3 rounded-lg bg-[var(--surface-alt)] px-3 py-2 text-xs text-[var(--dim)]">{t("adm.platformLinks")} · {t("links.note")}</p>
@@ -8686,6 +8687,18 @@ function SupportView({
     : whatsappDigits.length === 10
       ? `91${whatsappDigits}`
       : whatsappDigits;
+  // Telegram contact (Admin → Settings): the saved value may be a
+  // username (with or without @) or a full t.me link; both resolve
+  // to a t.me URL for the support page button.
+  const telegramRaw = (settings?.supportTelegram ?? "").trim();
+  const telegramLink = telegramRaw
+    ? /^https?:\/\//i.test(telegramRaw)
+      ? telegramRaw
+      : `https://t.me/${telegramRaw.replace(/^@/, "")}`
+    : "";
+  const telegramDisplay = telegramRaw && !/^https?:\/\//i.test(telegramRaw)
+    ? `@${telegramRaw.replace(/^@/, "")}`
+    : telegramRaw;
 
   if (chatOpen) {
     return <LiveChat user={user} onNeedAuth={onNeedAuth} focusSignal={focusSignal} onBack={() => setChatOpen(false)} />;
@@ -8704,7 +8717,7 @@ function SupportView({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <h3 className="font-display font-bold text-[var(--text)]">{t("sup.whatsappT")}</h3>
           {settings?.supportWhatsapp ? (
@@ -8735,6 +8748,24 @@ function SupportView({
             <p className="mt-1 text-sm text-[var(--dim)]">{t("sup.emailSoon")}</p>
           )}
           <p className="mt-2 text-xs text-[var(--dim)]">{t("sup.timings")}</p>
+        </div>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <h3 className="font-display font-bold text-[var(--text)]">{t("sup.telegramT")}</h3>
+          {telegramLink ? (
+            <>
+              <p className="mt-1 text-sm text-[var(--dim)]">{telegramDisplay}</p>
+              <a
+                href={telegramLink}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-block rounded-lg bg-[#229ED9] px-4 py-2.5 font-display text-sm font-bold text-white"
+              >
+                {t("sup.telegramBtn")}
+              </a>
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-[var(--dim)]">{t("sup.telegramSoon")}</p>
+          )}
         </div>
       </div>
 

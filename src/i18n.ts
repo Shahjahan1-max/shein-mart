@@ -808,6 +808,11 @@ export const STR = {
   "sup.whatsappSoon": {
     en: "The WhatsApp number will be added soon. Until then, use live chat above or open a ticket below.",
     hi: "WhatsApp नंबर जल्द जोड़ा जाएगा। तब तक ऊपर लाइव चैट करें या नीचे टिकट बनाएँ।", ar: "سيُضاف رقم WhatsApp قريبًا. حتى ذلك الحين، استخدم الدردشة المباشرة أعلاه أو افتح تذكرة أدناه."},
+  "sup.telegramT": { en: "✈️ Telegram Support", hi: "✈️ Telegram सहायता" , ar: "✈️ دعم Telegram"},
+  "sup.telegramBtn": { en: "Chat on Telegram", hi: "Telegram पर चैट करें" , ar: "الدردشة على Telegram"},
+  "sup.telegramSoon": {
+    en: "The Telegram contact will be added soon. Until then, use live chat above or open a ticket below.",
+    hi: "Telegram संपर्क जल्द जोड़ा जाएगा। तब तक ऊपर लाइव चैट करें या नीचे टिकट बनाएँ।", ar: "سيُضاف تواصل Telegram قريبًا. حتى ذلك الحين، استخدم الدردشة المباشرة أعلاه أو افتح تذكرة أدناه."},
   "sup.emailT": { en: "✉️ Email Support", hi: "✉️ ईमेल सहायता" , ar: "✉️ دعم البريد الإلكتروني"},
   "sup.emailSoon": {
     en: "The support email will be added soon. Live chat and the ticket system are available now.",
@@ -880,6 +885,7 @@ export const STR = {
   "adm.defaultProfit": { en: "Default profit % (new products)", hi: "डिफ़ॉल्ट मुनाफ़ा % (नए प्रोडक्ट)" , ar: "نسبة الربح الافتراضية % (للمنتجات الجديدة)"},
   "adm.waNumber": { en: "Support WhatsApp number", hi: "सहायता WhatsApp नंबर" , ar: "رقم WhatsApp للدعم"},
   "adm.supportEmail": { en: "Support email", hi: "सहायता ईमेल" , ar: "بريد الدعم الإلكتروني"},
+  "adm.telegram": { en: "Support Telegram username", hi: "सहायता Telegram यूज़रनेम" , ar: "اسم مستخدم Telegram للدعم"},
   "adm.saveSettings": { en: "Save Settings", hi: "सेटिंग्स सहेजें" , ar: "حفظ الإعدادات"},
   "adm.saved": { en: "Saved ✓", hi: "सहेजा गया ✓" , ar: "تم الحفظ ✓"},
   "adm.preview": { en: "Preview: base", hi: "झलक: मूल" , ar: "معاينة: الأساسي"},
