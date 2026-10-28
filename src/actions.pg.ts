@@ -5679,6 +5679,15 @@ export const Actions = {
       if (!target[0]) return { ok: false, error: "Account not found. It may already be deleted.", role: "" };
       if (target[0].role === "admin") return { ok: false, error: "Admin accounts cannot be deleted from here.", role: "" };
       const u = target[0];
+      // Rows that reference users.id MUST go before the user row itself:
+      // deleting the user first throws an FK violation and the whole
+      // delete fails. This is exactly why Admin deletes stopped working
+      // after login sessions, wallet events and notices were added —
+      // the handler never cleaned them (and sessions were only cleared
+      // AFTER the user delete, i.e. too late).
+      await invalidateUserSessions(db, u.id);
+      await db.delete(schema.passwordResetRequests).where(eq(schema.passwordResetRequests.userId, u.id));
+      await db.delete(schema.googleLoginCodes).where(eq(schema.googleLoginCodes.userId, u.id));
       let walletBal = 0;
       if (u.role === "seller") {
         const f = await computeSellerFinance(db, u.id);
@@ -5703,9 +5712,16 @@ export const Actions = {
         await db.delete(schema.sellerProducts).where(eq(schema.sellerProducts.sellerId, u.id));
         await db.delete(schema.walletTransactions).where(eq(schema.walletTransactions.sellerId, u.id));
         await db.delete(schema.sellerNotifications).where(eq(schema.sellerNotifications.sellerId, u.id));
+        await db.delete(schema.sellerWalletEvents).where(eq(schema.sellerWalletEvents.sellerId, u.id));
+        await db.delete(schema.sellerNotices).where(eq(schema.sellerNotices.sellerId, u.id));
         await db.delete(schema.chatMessages).where(eq(schema.chatMessages.userId, u.id));
         await db.delete(schema.cartItems).where(eq(schema.cartItems.buyerId, u.id));
         await db.update(schema.tickets).set({ userId: null }).where(eq(schema.tickets.userId, u.id));
+        // Orders STAY for money history (snapshotted above); only the
+        // live seller link is nulled so the user row can go. The Admin
+        // order view resolves the shop from the snapshot and flags the
+        // order sellerDeleted.
+        await db.update(schema.orders).set({ sellerId: null }).where(eq(schema.orders.sellerId, u.id));
         await db.delete(schema.users).where(eq(schema.users.id, u.id));
       } else {
         // Buyer: reassign orders to placeholder so order history + FK stay intact; order rows keep customerName/phone recorded at order time
@@ -5715,11 +5731,14 @@ export const Actions = {
         await db.update(schema.orders).set({ buyerId: ph[0]!.id }).where(eq(schema.orders.buyerId, u.id));
         await db.delete(schema.cartItems).where(eq(schema.cartItems.buyerId, u.id));
         await db.delete(schema.chatMessages).where(eq(schema.chatMessages.userId, u.id));
+        // A buyer who reviewed products blocks the delete the same way
+        // (productReviews.buyerId references users.id); account deletion
+        // removes their reviews with the account.
+        await db.delete(schema.productReviews).where(eq(schema.productReviews.buyerId, u.id));
         await db.update(schema.tickets).set({ userId: null }).where(eq(schema.tickets.userId, u.id));
         await db.delete(schema.users).where(eq(schema.users.id, u.id));
       }
       ctx.invalidateQueries();
-      await invalidateUserSessions(db, u.id);
       return { ok: true, error: null, role: u.role };
     },
   }),
