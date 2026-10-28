@@ -300,7 +300,29 @@ export const sellerNotifications = pgTable("seller_notifications", {
   createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
+})
+// Seller wallet credit events: one row each time money ARRIVES in a
+// seller's Available balance — a deposit approved, an Admin credit, or
+// an order completed (its profit / full value credited). Drives the
+// Wallet tab dot ONLY: these rows are never shown in the bell, the
+// notices banner, or dashboard tiles, so a credit has exactly one
+// signal. is_read flips to 1 when the seller opens the Wallet tab.
+export const sellerWalletEvents = pgTable("seller_wallet_events", {
+  id: serial("id").primaryKey(),
+  sellerId: integer("seller_id")
+    .notNull()
+    .references(() => users.id),
+  kind: text("kind").notNull(),
+  amount: integer("amount").notNull().default(0),
+  reference: text("reference").notNull().default(""),
+  orderId: integer("order_id"),
+  txId: integer("tx_id"),
+  isRead: integer("is_read").notNull().default(0),
+  createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
+;
 
 // Single-row editable store settings (store name, support contacts,
 // default profit %). Edited from the Admin panel. Also carries the

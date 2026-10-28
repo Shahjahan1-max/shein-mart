@@ -1914,6 +1914,58 @@ async function notifySellersOrderCompleted(db: Db, orderId: number): Promise<voi
   }
 }
 
+// Wallet-credit events (the Wallet tab dot): inserted at the exact
+// moment money ARRIVES in a seller's Available balance — never for
+// debits, holds, or rejections, and never into the bell, the notices
+// banner, or dashboard tiles, so a credit has exactly one signal.
+async function insertWalletEvent(db: Db, e: { sellerId: number; kind: "deposit_approved" | "admin_credit" | "order_completed"; amount: number; reference: string; orderId?: number | null; txId?: number | null }): Promise<void> {
+  if (!e.amount || e.amount <= 0) return;
+  await db.insert(schema.sellerWalletEvents).values({ sellerId: e.sellerId, kind: e.kind, amount: e.amount, reference: e.reference, orderId: e.orderId ?? null, txId: e.txId ?? null, isRead: 0 });
+}
+
+// Order completion's wallet share, mirroring computeSellerFinance:
+// sellers who paid the order cost from the wallet get the full order
+// value back; otherwise the profit only. Skips prepaid orders under
+// verification / rejected (they never credit) and sellers with no
+// attributed items, so no dot ever appears for money that never came.
+async function notifySellersWalletCredit(db: Db, orderId: number): Promise<void> {
+  try {
+    const ord = await db.select().from(schema.orders).where(eq(schema.orders.id, orderId)).limit(1);
+    if (!ord[0]) return;
+    if (ord[0].paymentStatus === "pending" || ord[0].paymentStatus === "rejected") return;
+    const items = await db.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, orderId));
+    const currentSellerIds = new Set<number>();
+    for (const it of items) {
+      const sellers = await db.select().from(schema.sellerProducts).where(eq(schema.sellerProducts.productId, it.productId));
+      for (const s of sellers) currentSellerIds.add(s.sellerId);
+    }
+    const attr = await loadOrderAttribution(db);
+    const sellerIds = attributedSellerIds(attr, orderId, [...currentSellerIds], ord[0].sellerId ?? null);
+    for (const sellerId of sellerIds) {
+      // attributedProductIds takes the seller's CURRENT PRODUCT ids
+      // (not seller ids) as its 4th argument — same as
+      // computeSellerFinance's myIds. Passing seller ids here silently
+      // emptied every order's item list, so no event was ever made.
+      const picks = await db.select().from(schema.sellerProducts).where(eq(schema.sellerProducts.sellerId, sellerId));
+      const sellerProductIds = new Set(picks.map((x) => x.productId));
+      const myIds = attributedProductIds(attr, orderId, sellerId, sellerProductIds, ord[0].sellerId ?? null);
+      const mine = items.filter((it) => myIds.has(it.productId));
+      if (mine.length === 0) continue;
+      const payRows = await db.select().from(schema.walletTransactions).where(eq(schema.walletTransactions.sellerId, sellerId));
+      const paid = payRows.some((r) => r.type === "order_payment" && r.status === "completed" && r.reference.match(/Order #(\d+)/)?.[1] === String(orderId));
+      const credit = paid
+        ? mine.reduce((s, it) => s + it.buyerPrice * it.qty, 0)
+        : mine.reduce((s, it) => s + it.profitAmount * it.qty, 0);
+      await insertWalletEvent(db, { sellerId, kind: "order_completed", amount: credit, reference: `Order #${orderId}`, orderId });
+    }
+  } catch (e) {
+    // Best-effort, like notifySellersOrderCompleted: the status change
+    // itself already succeeded. Log so a missing dot is traceable in
+    // the server logs instead of failing silently.
+    console.error("notifySellersWalletCredit failed for order", orderId, e);
+  }
+}
+
 // --- Shop from Other Platforms (external products) ---------------------
 // Real products sold on OTHER merchants' websites, fetched from a
 // product catalog on 24 Oct 2026. Prices are as listed on that date; the
@@ -3656,6 +3708,41 @@ export const Actions = {
     },
   }),
 
+  // Wallet dot: how many wallet-credit events the seller has not
+  // seen yet. Only the Wallet tab reads this; the bell reads
+  // sellerNotifications and the banner reads sellerNotices, so a
+  // credit never highlights anywhere else.
+  getWalletUnread: defineAction({
+    request: z.object({ sellerId: z.number() }),
+    response: z.object({ unreadCount: z.number() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const seller = await db.select().from(schema.users).where(eq(schema.users.id, args.sellerId)).limit(1);
+      if (!seller[0] || seller[0].role !== "seller") return { unreadCount: 0 };
+      const rows = await db
+        .select()
+        .from(schema.sellerWalletEvents)
+        .where(and(eq(schema.sellerWalletEvents.sellerId, args.sellerId), eq(schema.sellerWalletEvents.isRead, 0)));
+      return { unreadCount: rows.length };
+    },
+  }),
+
+  // Opening the Wallet tab marks its credit events seen, so the dot
+  // stays gone after a reload. Mirrors markSellerNotificationsSeen.
+  markWalletSeen: defineAction({
+    request: z.object({ sellerId: z.number() }),
+    response: z.object({ ok: z.literal(true) }),
+    async handler(ctx, args): Promise<{ ok: true }> {
+      const db = ctx.db<typeof schema>();
+      await db
+        .update(schema.sellerWalletEvents)
+        .set({ isRead: 1 })
+        .where(and(eq(schema.sellerWalletEvents.sellerId, args.sellerId), eq(schema.sellerWalletEvents.isRead, 0)));
+      ctx.invalidateQueries();
+      return { ok: true as const };
+    },
+  }),
+
   listBuyerOrders: defineAction({
     request: z.object({ buyerId: z.number() }),
     response: z.object({ orders: z.array(orderOut) }),
@@ -4219,6 +4306,7 @@ export const Actions = {
       // told their order is completed.
       if (args.status === "Delivered" && prev[0] && prev[0].status !== "Delivered") {
         await notifySellersOrderCompleted(db, args.orderId);
+        await notifySellersWalletCredit(db, args.orderId);
       }
       ctx.invalidateQueries();
       return { ok: true as const };
@@ -4250,6 +4338,7 @@ export const Actions = {
       if (args.decision === "approve") {
         await db.update(schema.orders).set({ status: "Delivered" }).where(eq(schema.orders.id, args.orderId));
         await notifySellersOrderCompleted(db, args.orderId);
+        await notifySellersWalletCredit(db, args.orderId);
       } else {
         await db.update(schema.orders).set({ status: "Pending" }).where(eq(schema.orders.id, args.orderId));
       }
@@ -4897,6 +4986,7 @@ export const Actions = {
       if (!seller[0] || seller[0].role !== "seller") return { ok: false, error: "Seller not found.", id: null, newBalance: 0 };
       if (!args.amountInr || args.amountInr <= 0) return { ok: false, error: "Amount must be more than zero.", id: null, newBalance: 0 };
       const inserted = await db.insert(schema.walletTransactions).values({ sellerId: args.sellerId, type: "admin_credit", amount: args.amountInr, method: "Customer Service Credit", reference: "Added by Customer Service", note: args.note?.trim() || "Manual credit", status: "completed" }).returning({ id: schema.walletTransactions.id });
+      await insertWalletEvent(db, { sellerId: args.sellerId, kind: "admin_credit", amount: args.amountInr, reference: "Customer Service Credit", txId: inserted[0]!.id });
       const f = await computeSellerFinance(db, args.sellerId);
       ctx.invalidateQueries();
       return { ok: true, error: null, id: inserted[0]!.id, newBalance: f.availableBalance };
@@ -5279,6 +5369,12 @@ export const Actions = {
         .update(schema.walletTransactions)
         .set({ status })
         .where(eq(schema.walletTransactions.id, args.txId));
+      // Deposit approved = money arrived: the Wallet dot's event.
+      // Withdrawal approvals pay money OUT and rejections add nothing,
+      // so neither creates an event.
+      if (args.decision === "approve" && tx[0].type === "deposit") {
+        await insertWalletEvent(db, { sellerId: tx[0].sellerId, kind: "deposit_approved", amount: tx[0].amount, reference: "Deposit", txId: tx[0].id });
+      }
       // A rejection is told to the customer (with the reason, if given) as
       // a general notice on their account — nothing is deducted.
       if (args.decision === "reject") {

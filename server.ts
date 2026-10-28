@@ -107,6 +107,13 @@ CREATE TABLE IF NOT EXISTS seller_notifications (
   amount INTEGER NOT NULL DEFAULT 0, is_read INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS seller_wallet_events (
+  id SERIAL PRIMARY KEY, seller_id INTEGER NOT NULL REFERENCES users(id),
+  kind TEXT NOT NULL, amount INTEGER NOT NULL DEFAULT 0,
+  reference TEXT NOT NULL DEFAULT '', order_id INTEGER, tx_id INTEGER,
+  is_read INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS settings (
   id INTEGER PRIMARY KEY, store_name TEXT NOT NULL DEFAULT 'sheinstore',
   support_whatsapp TEXT NOT NULL DEFAULT '', support_email TEXT NOT NULL DEFAULT '',
