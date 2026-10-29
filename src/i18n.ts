@@ -1512,6 +1512,18 @@ export const STR = {
   "bgen.srcCurated": { en: "Main catalog", hi: "मुख्य कैटलॉग" },
   "bgen.srcBulk": { en: "Bulk-added", hi: "थोक में जुड़े" },
   "bgen.badge": { en: "Bulk-added", hi: "थोक में जुड़ा" },
+  // Trusted import + kitchen photo fix
+  "imp.title": { en: "Import Trusted Products — Real Store Data", hi: "भरोसेमंद प्रोडक्ट्स इंपोर्ट करें — असली स्टोर डेटा" , ar: "استيراد منتجات موثوقة — بيانات متاجر حقيقية"},
+  "imp.sub": { en: "Adds the 50 verified products from trusted stores (5 per category) with their real photos and merchant prices. Names already in the catalog are skipped, so running it again is safe.", hi: "भरोसेमंद स्टोर्स के 50 वेरिफाइड प्रोडक्ट्स (हर कैटेगरी से 5) उनकी असली तस्वीरों और कीमतों के साथ जोड़ता है। पहले से मौजूद नाम छोड़ दिए जाते हैं, इसलिए दोबारा चलाना सुरक्षित है।" , ar: "يضيف 50 منتجًا موثّقًا من متاجر موثوقة (5 لكل فئة) بصورها وأسعارها الحقيقية. يتم تخطي الأسماء الموجودة مسبقًا، لذا إعادة التشغيل آمنة."},
+  "imp.fixSub": { en: "Also fixes the 7 Home & Kitchen products that showed a wrong or shared photo.", hi: "साथ ही उन 7 किचन प्रोडक्ट्स की तस्वीरें ठीक करता है जिन पर गलत या साझा तस्वीर लगी थी।" , ar: "ويصلح أيضًا صور 7 منتجات للمطبخ كانت تظهر بصورة خاطئة أو مشتركة."},
+  "imp.btn": { en: "＋ Import 50 Trusted Products", hi: "＋ 50 भरोसेमंद प्रोडक्ट्स इंपोर्ट करें" , ar: "＋ استيراد 50 منتجًا موثوقًا"},
+  "imp.importing": { en: "Importing products… please wait", hi: "प्रोडक्ट इंपोर्ट हो रहे हैं… कृपया प्रतीक्षा करें" , ar: "جارٍ استيراد المنتجات… يرجى الانتظار"},
+  "imp.done": { en: "new products imported", hi: "नए प्रोडक्ट इंपोर्ट हुए" , ar: "منتجات جديدة مستوردة"},
+  "imp.skipped": { en: "already in catalog", hi: "पहले से कैटलॉग में" , ar: "موجودة مسبقًا في الكتالوج"},
+  "imp.fixBtn": { en: "Fix 7 Kitchen Photos", hi: "7 किचन तस्वीरें ठीक करें" , ar: "إصلاح 7 صور للمطبخ"},
+  "imp.fixing": { en: "Fixing photos… please wait", hi: "तस्वीरें ठीक हो रही हैं… कृपया प्रतीक्षा करें" , ar: "جارٍ إصلاح الصور… يرجى الانتظار"},
+  "imp.fixed": { en: "kitchen photos fixed", hi: "किचन तस्वीरें ठीक हुईं" , ar: "تم إصلاح صور المطبخ"},
+  "imp.missing": { en: "not found", hi: "नहीं मिलीं" , ar: "غير موجودة"},
 
   // Seller verification by Admin
   "verif.badge": { en: "Verified ✓", hi: "सत्यापित ✓" , ar: "موثّق ✓"},

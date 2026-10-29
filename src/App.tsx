@@ -6337,6 +6337,9 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   const [bgenMode, setBgenMode] = useState<"add" | "target">("add");
   const [bgenValue, setBgenValue] = useState("");
   const [bgenResult, setBgenResult] = useState<ApiResponse<typeof api, "adminBulkGenerateProducts"> | null>(null);
+  // One-click trusted import + kitchen photo fix (Products section)
+  const [importResult, setImportResult] = useState<ApiResponse<typeof api, "adminImportTrustedProducts"> | null>(null);
+  const [kitchenResult, setKitchenResult] = useState<ApiResponse<typeof api, "adminFixKitchenPhotos"> | null>(null);
   const [prodSourceFilter, setProdSourceFilter] = useState<"all" | "curated" | "bulk">("all");
   // Theme & Design drafts (saved to settings on Apply)
   const [schemeDraft, setSchemeDraft] = useState<string | null>(null);
@@ -6570,6 +6573,27 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
       }
     },
     onError: (e) => setBgenResult({ ok: false, error: String(e), added: 0, totalNow: products.data?.products.length ?? 0, perCategory: [] }),
+  });
+  const importTrusted = useMutation({
+    mutationFn: () => api.adminImportTrustedProducts({ adminId: user!.id }),
+    onSuccess: (r) => {
+      setImportResult(r);
+      if (r.ok) {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+        queryClient.invalidateQueries({ queryKey: ["admin-overview"] });
+      }
+    },
+    onError: (e) => setImportResult({ ok: false, error: String(e), inserted: 0, skipped: 0, totalNow: products.data?.products.length ?? 0 }),
+  });
+  const fixKitchen = useMutation({
+    mutationFn: () => api.adminFixKitchenPhotos({ adminId: user!.id }),
+    onSuccess: (r) => {
+      setKitchenResult(r);
+      if (r.ok) {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+      }
+    },
+    onError: (e) => setKitchenResult({ ok: false, error: String(e), updated: 0, missing: 0 }),
   });
   const quickSend = useMutation({
     mutationFn: (args: { productId: number; qty: number }) => api.adminQuickSendSellerOrder({
@@ -7344,6 +7368,39 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           <div role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
             <p className="font-bold">✓ {bgenResult.added} {t("bgen.done")} · {t("bgen.totalNow")} {bgenResult.totalNow}</p>
             {bgenResult.perCategory.length > 0 && <p className="mt-1 text-[13px]">{bgenResult.perCategory.map((c) => `${c.category}: ${c.added}`).join(" · ")}</p>}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  // --- Products section: trusted import + kitchen photo fix card ---
+  function renderTrustedImportCard() {
+    const total = products.data?.products.length ?? 0;
+    return (
+      <section aria-label={t("imp.title")} className="mt-3 rounded-2xl border-2 border-[var(--gold)]/60 bg-[var(--surface)] p-4">
+        <h4 className="flex flex-wrap items-center gap-2 font-display text-base font-bold text-[var(--text)]">✓ {t("imp.title")}</h4>
+        <p className="mt-1 text-sm text-[var(--dim)]">{t("imp.sub")}</p>
+        <p className="mt-2 text-sm text-[var(--dim)]">{t("imp.fixSub")}</p>
+        <p className="mt-2 text-sm text-[var(--text)]">{t("bgen.currentTotal")}: <strong className="font-display">{total}</strong></p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" aria-label={t("imp.btn")} disabled={importTrusted.isPending} onClick={() => { setImportResult(null); importTrusted.mutate(); }} className={goldBtn}>
+            {importTrusted.isPending ? t("imp.importing") : t("imp.btn")}
+          </button>
+          <button type="button" aria-label={t("imp.fixBtn")} disabled={fixKitchen.isPending} onClick={() => { setKitchenResult(null); fixKitchen.mutate(); }} className={goldBtn}>
+            {fixKitchen.isPending ? t("imp.fixing") : t("imp.fixBtn")}
+          </button>
+        </div>
+        {importResult && !importResult.ok && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {importResult.error}</p>}
+        {importResult && importResult.ok && (
+          <div role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+            <p className="font-bold">✓ {importResult.inserted} {t("imp.done")} · {importResult.skipped} {t("imp.skipped")} · {t("bgen.totalNow")} {importResult.totalNow}</p>
+          </div>
+        )}
+        {kitchenResult && !kitchenResult.ok && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {kitchenResult.error}</p>}
+        {kitchenResult && kitchenResult.ok && (
+          <div role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+            <p className="font-bold">✓ {kitchenResult.updated} {t("imp.fixed")} · {kitchenResult.missing} {t("imp.missing")}</p>
           </div>
         )}
       </section>
@@ -8465,6 +8522,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
             <div className="flex items-center justify-between"><h3 className="font-display text-lg font-bold text-[var(--text)]">{t("adm.products")} ({products.data?.products.length ?? 0})</h3><button type="button" onClick={startNew} className={primaryBtn}>{t("adm.addProduct")}</button></div>
             {renderPriceRefreshCard()}
             {renderBulkGenerateCard()}
+            {renderTrustedImportCard()}
             {/* Bulk Profit % lives in its own Profit % section now */}
             <div className="mt-3 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-[var(--gold)]/60 bg-[var(--amber-bg)] px-4 py-3">
               <span aria-hidden className="text-xl">📊</span>
