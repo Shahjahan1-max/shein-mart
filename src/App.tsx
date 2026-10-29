@@ -4550,18 +4550,6 @@ function AccountView({
           </button>
         </p>
       )}
-      {!(mode === "register" && role === "seller") && (
-        <div className="mt-4">
-          <PrefsCard
-            lang={lang}
-            currency={currency}
-            enabledLangs={enabledLangs}
-            enabledCurrencies={enabledCurrencies}
-            onLangChange={onLangChange}
-            onCurrencyChange={onCurrencyChange}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -10670,7 +10658,7 @@ const NAV: NavItem[] =
             <p className="text-sm text-[var(--dim)]">{ui.t("auth.googleSigningInSub")}</p>
           </div>
         )}
-        <header ref={headerRef} className="site-header sticky top-0 z-40 border-b-2 border-[#D9C08A] bg-[#FBF7F0] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe dark:border-white/15 dark:bg-[#0F1E2E]">
+        <header ref={headerRef} className="site-header sticky top-0 z-40 border-b-2 border-[var(--gold)] bg-[var(--bg)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
           <div className={`hdr-row mx-auto flex ${containerW} flex-nowrap items-center gap-x-1.5 px-3 sm:px-4 py-2.5`}>
             <button
               type="button"
@@ -10803,14 +10791,14 @@ const NAV: NavItem[] =
                 type="button"
                 onClick={() => setView("shop")}
                 aria-current={view === "shop" ? "page" : undefined}
-                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${view === "shop" ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-white text-[var(--accent)] hover:shadow-md dark:bg-white/10"}`}
+                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${view === "shop" ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-[var(--surface)] text-[var(--accent)] hover:shadow-md"}`}
               >
                 {dBag} {ui.t("nav.shop")}
               </button>
               <button
                 type="button"
                 onClick={goCollectionsTop}
-                className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[15px] font-bold text-[var(--accent)] shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] dark:bg-white/10"
+                className="flex items-center gap-2 rounded-full bg-[var(--surface)] px-5 py-2.5 text-[15px] font-bold text-[var(--accent)] shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
               >
                 {aGrid} {ui.t("menu.categories")}
               </button>
@@ -10819,14 +10807,14 @@ const NAV: NavItem[] =
                 type="button"
                 onClick={() => (user?.role === "seller" ? goSellerTab("home") : goBecomeSeller())}
                 aria-current={user?.role === "seller" && view === "seller" ? "page" : undefined}
-                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${user?.role === "seller" && view === "seller" ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-white text-[var(--accent)] hover:shadow-md dark:bg-white/10"}`}
+                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${user?.role === "seller" && view === "seller" ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-[var(--surface)] text-[var(--accent)] hover:shadow-md"}`}
               >
                 {aStore} {user?.role === "seller" ? ui.t("acc.sellerDash") : ui.t("menu.becomeSeller")}
               </button>
               )}
               <span className="flex-1" />
               {view !== "account" && (
-              <label className="flex min-w-0 max-w-xs flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-white px-4 py-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--gold)] dark:bg-white/10">
+              <label className="flex min-w-0 max-w-xs flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--gold)]">
                 <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-4 w-4 shrink-0 text-[var(--dim)]">
                   <circle cx="11" cy="11" r="7" />
                   <path d="m20 20-3.5-3.5" />
@@ -10846,7 +10834,7 @@ const NAV: NavItem[] =
           {view !== "account" && layoutDesign === "classic" && (
             <div className="px-3 pb-2.5 sm:px-4 md:hidden">
               <div className={`mx-auto ${containerW}`}>
-                <label className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-4 py-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--gold)] dark:bg-white/10">
+                <label className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--gold)]">
                   <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-4 w-4 shrink-0 text-[var(--dim)]">
                     <circle cx="11" cy="11" r="7" />
                     <path d="m20 20-3.5-3.5" />
