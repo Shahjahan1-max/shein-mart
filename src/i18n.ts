@@ -82,6 +82,7 @@ export const STR = {
     en: "Search products… (e.g. watch, kurta, lipstick)",
     hi: "प्रोडक्ट खोजें… (जैसे घड़ी, कुर्ता, लिपस्टिक)", ar: "ابحث عن المنتجات… (مثال: ساعة، كورتا، أحمر شفاه)"},
   "shop.clearSearch": { en: "Clear search", hi: "खोज साफ़ करें" , ar: "مسح البحث"},
+  "shop.loadMore": { en: "Load more", hi: "और देखें" , ar: "عرض المزيد"},
   "shop.loading": { en: "Loading products…", hi: "प्रोडक्ट लोड हो रहे हैं…" , ar: "جارٍ تحميل المنتجات…"},
   "shop.loadError": {
     en: "Products could not be loaded. Please try again.",

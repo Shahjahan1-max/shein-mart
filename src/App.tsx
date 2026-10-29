@@ -36,6 +36,18 @@ for (const [path, url] of Object.entries(_assetModules)) {
   IMAGE_MAP[path.split("/").pop() as string] = url;
 }
 
+// Speed fix 2026-10-29: product photos are shipped as WebP (same stems,
+// .webp extension) while the DB still stores the original .jpg/.png
+// imageAsset values. Prefer the WebP file, fall back to the exact stored
+// name (covers already-.webp values and any photo without a WebP copy),
+// and return undefined for unknown names so callers keep their existing
+// fallback behaviour (category photo, then initial-letter tile).
+function resolveProductImage(name: string | null | undefined): string | undefined {
+  if (!name) return undefined;
+  const webp = name.replace(/\.[^.]+$/, ".webp");
+  return IMAGE_MAP[webp] ?? IMAGE_MAP[name];
+}
+
 const CATEGORIES = [
   "All",
   "Electronics",
@@ -344,7 +356,7 @@ function ProductImage({
   // from its own category when the caller supplies one (ShopView does,
   // from the catalog). The initial-letter tile is only the last resort
   // for surfaces without a category photo (cart/order rows).
-  const src = product.imageAsset ? IMAGE_MAP[product.imageAsset] : undefined;
+  const src = resolveProductImage(product.imageAsset);
   const [failed, setFailed] = useState(false);
   const [fallbackFailed, setFallbackFailed] = useState(false);
   // If this product's photo was replaced/renamed, restart with the new src.
@@ -1007,6 +1019,12 @@ function ShopView({
     ? "mt-3 grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6"
     : "mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
   const [notice, setNotice] = useState<string | null>(null);
+  // Speed fix 2026-10-29: the main grid renders only the first 40
+  // products; "Load more" reveals 40 more at a time. Featured, Fresh
+  // Arrivals and collection cards are untouched, as are ordering,
+  // filtering and counts.
+  const [visibleCount, setVisibleCount] = useState(40);
+  useEffect(() => { setVisibleCount(40); }, [category, search]);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Added-to-cart confirmation: a floating bar pinned above the bottom
   // navigation, visible wherever the buyer has scrolled to — the old
@@ -1066,7 +1084,8 @@ function ShopView({
   const categoryPhoto = useMemo(() => {
     const map: Record<string, string> = {};
     for (const p of allProducts.data?.products ?? []) {
-      if (!map[p.category] && p.imageAsset && IMAGE_MAP[p.imageAsset]) map[p.category] = IMAGE_MAP[p.imageAsset];
+      const photo = resolveProductImage(p.imageAsset);
+      if (!map[p.category] && photo) map[p.category] = photo;
     }
     return map;
   }, [allProducts.data]);
@@ -1078,7 +1097,7 @@ function ShopView({
   // — and the detail page its click opens — rotates.
   const heroProducts = useMemo(() => {
     const list = allProducts.data?.products ?? [];
-    return list.filter((p) => p.imageAsset && IMAGE_MAP[p.imageAsset]);
+    return list.filter((p) => resolveProductImage(p.imageAsset) !== undefined);
   }, [allProducts.data]);
   const [heroIndex, setHeroIndex] = useState(0);
   useEffect(() => {
@@ -1539,7 +1558,7 @@ function ShopView({
       )}
       {products.data && products.data.products.length > 0 && (
         <div className={gridCls}>
-          {rotatedProducts.map((p) => (
+          {rotatedProducts.slice(0, visibleCount).map((p) => (
             <ProductCard
               key={p.id}
               product={p}
@@ -1552,6 +1571,11 @@ function ShopView({
               fallbackImage={categoryPhoto[p.category]} dense={gridCols === 3}
             />
           ))}
+        </div>
+      )}
+      {products.data && rotatedProducts.length > visibleCount && (
+        <div className="mt-4 text-center">
+          <button type="button" onClick={() => setVisibleCount((n) => Math.min(rotatedProducts.length, n + 40))} className={primaryBtn + " px-5 py-2.5"}>{t("shop.loadMore")}</button>
         </div>
       )}
 
