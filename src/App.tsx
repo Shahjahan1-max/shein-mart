@@ -6210,11 +6210,11 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   const [bulkApplied, setBulkApplied] = useState<string | null>(null);
   const [bulkConfirming, setBulkConfirming] = useState(false);
 
-  const overview = useQuery({ queryKey: ["admin-overview", user?.id], queryFn: () => api.adminOverview({ adminId: user!.id }), enabled: !!user && user.role === "admin" });
+  const overview = useQuery({ queryKey: ["admin-overview", user?.id], queryFn: () => api.adminOverview({ adminId: user!.id }), enabled: !!user && user.role === "admin", refetchInterval: 15000 });
   const products = useQuery({ queryKey: ["products", { category: "All", search: "" }], queryFn: () => api.listProducts({ category: "All", search: "" }), enabled: !!user && user.role === "admin" });
-  const applications = useQuery({ queryKey: ["seller-applications", user?.id], queryFn: () => api.listSellerApplications({ adminId: user!.id }), enabled: !!user && user.role === "admin" });
+  const applications = useQuery({ queryKey: ["seller-applications", user?.id], queryFn: () => api.listSellerApplications({ adminId: user!.id }), enabled: !!user && user.role === "admin", refetchInterval: 15000 });
   const chatThreads = useQuery({ queryKey: ["admin-chats", user?.id], queryFn: () => api.adminChatThreads({ adminId: user!.id }), enabled: !!user && user.role === "admin", refetchInterval: 8000 });
-  const walletRequests = useQuery({ queryKey: ["admin-wallet", user?.id], queryFn: () => api.adminWalletRequests({ adminId: user!.id }), enabled: !!user && user.role === "admin" });
+  const walletRequests = useQuery({ queryKey: ["admin-wallet", user?.id], queryFn: () => api.adminWalletRequests({ adminId: user!.id }), enabled: !!user && user.role === "admin", refetchInterval: 15000 });
   const adminAccounts = useQuery({ queryKey: ["admin-accounts", user?.id], queryFn: () => api.listAdminAccounts({ adminId: user!.id }), enabled: !!user && user.role === "admin" });
   const resetRequests = useQuery({ queryKey: ["password-reset-requests", user?.id], queryFn: () => api.listPasswordResetRequests({ adminId: user!.id }), enabled: !!user && user.role === "admin" });
   const [resetPwDraft, setResetPwDraft] = useState<Record<number, { newPassword: string; confirmPassword: string }>>({});
@@ -7557,6 +7557,17 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   // Order totals by status — computed from the same real orders list the
   // Admin Orders section shows, so the counts always match the records
   // and update the moment any status changes.
+  const newOrderIdSet = new Set(activity.data?.newOrderIds ?? []);
+  const newWalletIdSet = new Set(activity.data?.newWalletIds ?? []);
+  // Every admin order list reads from this, not raw ov.orders: an
+  // unseen (new) order always lands at the top of its list as a NEW
+  // item, then newest first — so a fresh notification is never buried.
+  const ordersNewFirst = [...ov.orders].sort((a, b) => {
+    const an = newOrderIdSet.has(a.id) ? 1 : 0;
+    const bn = newOrderIdSet.has(b.id) ? 1 : 0;
+    if (an !== bn) return bn - an;
+    return (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+  });
   const ordCounts = {
     total: ov.orders.length,
     completed: ov.orders.filter((o) => o.status === "Delivered").length,
@@ -7568,16 +7579,14 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   // deliberately identical to ordCounts, so a card's number always
   // equals the number of orders its click shows.
   const ordersByCard = {
-    pending: ov.orders.filter((o) => o.status === "Pending" || o.status === "Confirmed"),
-    shipment: ov.orders.filter((o) => o.status === "Shipped"),
-    completed: ov.orders.filter((o) => o.status === "Delivered"),
+    pending: ordersNewFirst.filter((o) => o.status === "Pending" || o.status === "Confirmed"),
+    shipment: ordersNewFirst.filter((o) => o.status === "Shipped"),
+    completed: ordersNewFirst.filter((o) => o.status === "Delivered"),
   };
   const sellerInfoByOrder = new Map((ov.orderSellerInfo ?? []).map((x) => [x.orderId, x]));
   const deletedByOrder = new Map((ov.orderDeletedInfo ?? []).map((x) => [x.orderId, x]));
   const buyerStatById = new Map((ov.buyerStats ?? []).map((x) => [x.userId, x]));
   const actCounts = activity.data?.counts ?? { orders: 0, chats: 0, wallet: 0, tickets: 0, resets: 0, total: 0 };
-  const newOrderIdSet = new Set(activity.data?.newOrderIds ?? []);
-  const newWalletIdSet = new Set(activity.data?.newWalletIds ?? []);
   const newTicketIdSet = new Set(activity.data?.newTicketIds ?? []);
   const newResetIdSet = new Set(activity.data?.newResetIds ?? []);
   const awaitingChat = new Set((chatThreads.data?.threads ?? []).filter((x) => x.awaitingReply).map((x) => x.userId));
@@ -7633,7 +7642,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
         ...blank(),
       });
     }
-    for (const o of ov.orders) {
+    for (const o of ordersNewFirst) {
       const key = orderShopKey(o);
       let g = map.get(key);
       if (!g) {
@@ -7667,13 +7676,16 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
       if (!g.latestAt || o.createdAt > g.latestAt) g.latestAt = o.createdAt;
       if (newOrderIdSet.has(o.id)) g.newCount += 1;
     }
-    // Shops with Shipment orders waiting for approval first, then by
-    // latest order date; shops with no orders yet sort last.
+    // Shops with unseen (new) orders first, then shops with
+    // Shipment orders waiting for approval, then by latest order
+    // date; shops with no orders yet sort last.
     return [...map.values()].sort((a, b) => {
       const aHas = a.total > 0 ? 1 : 0;
       const bHas = b.total > 0 ? 1 : 0;
       if (aHas !== bHas) return bHas - aHas;
       if (aHas === 0) return a.shopName.localeCompare(b.shopName);
+      const nw = (b.newCount > 0 ? 1 : 0) - (a.newCount > 0 ? 1 : 0);
+      if (nw !== 0) return nw;
       const ship = (b.shipment > 0 ? 1 : 0) - (a.shipment > 0 ? 1 : 0);
       if (ship !== 0) return ship;
       return (b.latestAt ?? "").localeCompare(a.latestAt ?? "");
@@ -7872,19 +7884,21 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                   <h3 className="font-display text-lg font-extrabold text-[var(--text)]">{t("adm.recentOrders")}</h3>
                   <button type="button" onClick={() => setSection("orders")} className="shrink-0 text-sm font-bold text-[var(--gold)]">{t("adm.viewAll")} →</button>
                 </div>
-                {(ov.orders ?? []).length === 0 ? (
+                {ordersNewFirst.length === 0 ? (
                   <p className="mt-3 text-sm text-[var(--dim)]">{t("adm.noOrders")}</p>
                 ) : (
                   <div className="mt-3 flex flex-col gap-2">
-                    {ov.orders.slice(0, 5).map((o) => {
+                    {ordersNewFirst.slice(0, 5).map((o) => {
                       const buyer = (ov.users ?? []).find((u) => u.id === o.buyerId);
+                      const isNewRecent = newOrderIdSet.has(o.id);
                       return (
-                        <div key={o.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2.5 text-sm">
+                        <div key={o.id} className={`flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2.5 text-sm ${isNewRecent ? "border-[var(--gold)] bg-[var(--amber-bg)] ring-1 ring-[var(--gold)]/50" : "border-[var(--border)]"}`}>
                           <strong className="text-[var(--text)]">#{o.id}</strong>
+                          {isNewRecent && <NewBadge />}
                           <span className="min-w-0 flex-1 truncate text-[var(--dim)]">{buyer?.name ?? "—"}</span>
                           <span className="text-xs text-[var(--dim)]">{new Date(o.createdAt).toLocaleDateString()}</span>
                           <StatusBadge status={o.status} />
-                          <button type="button" aria-label={`View order ${o.id}`} onClick={() => setSection("orders")} className="text-xs font-bold text-[var(--gold)]">→</button>
+                          <button type="button" aria-label={`View order ${o.id}`} onClick={() => { if (isNewRecent) markSeen.mutate({ kind: "order", refId: o.id }); setOrdersShopKey(orderShopKey(o)); setOrdersShowAll(false); setSection("orders"); }} className="text-xs font-bold text-[var(--gold)]">→</button>
                         </div>
                       );
                     })}
@@ -8544,7 +8558,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               <div className="mt-3">
                 <button type="button" aria-label={t("aord.backToShops")} onClick={() => { setOrdersShowAll(false); setOrdersCardFilter(null); }} className={ghostBtn + " px-3 py-2 text-xs"}>{t("aord.backToShops")}</button>
                 <h4 className="mt-3 font-display font-bold text-[var(--text)]">{t("aord.allOrdersTitle")} ({ov.orders.length})</h4>
-                <div className="mt-3 flex flex-col gap-3">{ov.orders.map((o) => renderAdminOrderRow(o))}</div>
+                <div className="mt-3 flex flex-col gap-3">{ordersNewFirst.map((o) => renderAdminOrderRow(o))}</div>
               </div>
             ) : (
               <div className="mt-3">
@@ -8615,7 +8629,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
             <h4 className="mt-6 font-display font-bold text-[var(--text)]">{t("adm.walletRequests")} ({(walletRequests.data?.requests ?? []).filter((r) => r.status === "pending").length} pending)</h4>
             <p className="mt-1 text-xs leading-snug text-[var(--dim)]">{t("act.noDeleteNote")}</p>
             {payOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">✓ {payOk}</p>}
-            {(walletRequests.data?.requests ?? []).length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noWalletRequests")}</p> : <div className="mt-3 flex flex-col gap-2">{(walletRequests.data?.requests ?? []).map((r) => (<div key={r.id} onClick={() => { if (newWalletIdSet.has(r.id)) markSeen.mutate({ kind: "wallet", refId: r.id }); }} className={`rounded-xl border bg-[var(--surface)] p-3 ${newWalletIdSet.has(r.id) ? "border-[var(--gold)] ring-2 ring-[var(--gold)]/60" : "border-[var(--border)]"}`}><div className="flex flex-wrap items-center gap-2"><span aria-hidden>{r.type === "deposit" ? "⬇️" : r.type === "admin_credit" ? "💰" : r.type === "admin_withdraw" ? "🏦" : "⬆️"}</span><strong>{r.type === "deposit" ? t("w.typeDeposit") : r.type === "admin_credit" ? t("w.typeAdminCredit") : r.type === "admin_withdraw" ? t("wp.typeAdminWithdrawRow") : t("w.typeWithdraw")} · {fmt(r.amount)}</strong><StatusBadge status={r.status} />{newWalletIdSet.has(r.id) && <NewBadge />}<span className="ml-auto text-xs text-[var(--dim)]">{new Date(r.createdAt).toLocaleString()}</span></div><p className="mt-1 text-sm text-[var(--dim)]">{r.sellerName}{r.storeName ? ` · ${r.storeName}` : ""} · {r.method}{r.reference ? ` · ${r.reference}` : ""}{r.details ? ` · ${r.details}` : ""}{r.note ? ` · ${r.note}` : ""}{r.hasScreenshot ? ` · 📷 ${t("dep.shotAttached")}` : ""}</p>{r.hasScreenshot && <div className="mt-1.5"><DepositScreenshotView txId={r.id} adminId={user.id} /></div>}{r.status === "paid" && <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">✓ {t("status.paid")}{r.paidAt ? ` · ${t("wp.paidOn")}: ${new Date(r.paidAt).toLocaleString()}` : ""}{r.paymentReference ? ` · ${t("wp.paymentRefWord")}: ${r.paymentReference}` : ""}</p>}{r.status === "pending" && r.type === "withdraw" && <div className="mt-2 flex flex-wrap gap-2"><button type="button" aria-label={`Pay and withdraw wallet request ${r.id}`} disabled={payWithdraw.isPending} onClick={(e) => { e.stopPropagation(); setPayTargetId(payTargetId === r.id ? null : r.id); setPayErr(null); setPayOk(null); setPayRef(""); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">💸 {t("wp.payBtn")}</button><button type="button" aria-label={`Reject wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "reject" }); }} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✕ {t("adm.reject")}</button></div>}{r.status === "pending" && r.type !== "withdraw" && <div className="mt-2 flex gap-2"><button type="button" aria-label={`Approve wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "approve" }); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✓ {t("adm.approve")}</button><button type="button" aria-label={`Reject wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "reject" }); }} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✕ {t("adm.reject")}</button></div>}{payTargetId === r.id && r.status === "pending" && r.type === "withdraw" && <div onClick={(e) => e.stopPropagation()}><PayWithdrawPanel request={r} paymentRef={payRef} onPaymentRefChange={setPayRef} busy={payWithdraw.isPending} error={payErr} onConfirm={() => payWithdraw.mutate({ txId: r.id, paymentReference: payRef })} onCancel={() => { setPayTargetId(null); setPayErr(null); }} /></div>}</div>))}</div>}
+            {(walletRequests.data?.requests ?? []).length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noWalletRequests")}</p> : <div className="mt-3 flex flex-col gap-2">{[...(walletRequests.data?.requests ?? [])].sort((a, b) => { const an = newWalletIdSet.has(a.id) ? 1 : 0; const bn = newWalletIdSet.has(b.id) ? 1 : 0; if (an !== bn) return bn - an; return (b.createdAt ?? "").localeCompare(a.createdAt ?? ""); }).map((r) => (<div key={r.id} onClick={() => { if (newWalletIdSet.has(r.id)) markSeen.mutate({ kind: "wallet", refId: r.id }); }} className={`rounded-xl border bg-[var(--surface)] p-3 ${newWalletIdSet.has(r.id) ? "border-[var(--gold)] ring-2 ring-[var(--gold)]/60" : "border-[var(--border)]"}`}><div className="flex flex-wrap items-center gap-2"><span aria-hidden>{r.type === "deposit" ? "⬇️" : r.type === "admin_credit" ? "💰" : r.type === "admin_withdraw" ? "🏦" : "⬆️"}</span><strong>{r.type === "deposit" ? t("w.typeDeposit") : r.type === "admin_credit" ? t("w.typeAdminCredit") : r.type === "admin_withdraw" ? t("wp.typeAdminWithdrawRow") : t("w.typeWithdraw")} · {fmt(r.amount)}</strong><StatusBadge status={r.status} />{newWalletIdSet.has(r.id) && <NewBadge />}<span className="ml-auto text-xs text-[var(--dim)]">{new Date(r.createdAt).toLocaleString()}</span></div><p className="mt-1 text-sm text-[var(--dim)]">{r.sellerName}{r.storeName ? ` · ${r.storeName}` : ""} · {r.method}{r.reference ? ` · ${r.reference}` : ""}{r.details ? ` · ${r.details}` : ""}{r.note ? ` · ${r.note}` : ""}{r.hasScreenshot ? ` · 📷 ${t("dep.shotAttached")}` : ""}</p>{r.hasScreenshot && <div className="mt-1.5"><DepositScreenshotView txId={r.id} adminId={user.id} /></div>}{r.status === "paid" && <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">✓ {t("status.paid")}{r.paidAt ? ` · ${t("wp.paidOn")}: ${new Date(r.paidAt).toLocaleString()}` : ""}{r.paymentReference ? ` · ${t("wp.paymentRefWord")}: ${r.paymentReference}` : ""}</p>}{r.status === "pending" && r.type === "withdraw" && <div className="mt-2 flex flex-wrap gap-2"><button type="button" aria-label={`Pay and withdraw wallet request ${r.id}`} disabled={payWithdraw.isPending} onClick={(e) => { e.stopPropagation(); setPayTargetId(payTargetId === r.id ? null : r.id); setPayErr(null); setPayOk(null); setPayRef(""); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">💸 {t("wp.payBtn")}</button><button type="button" aria-label={`Reject wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "reject" }); }} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✕ {t("adm.reject")}</button></div>}{r.status === "pending" && r.type !== "withdraw" && <div className="mt-2 flex gap-2"><button type="button" aria-label={`Approve wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "approve" }); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✓ {t("adm.approve")}</button><button type="button" aria-label={`Reject wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "reject" }); }} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✕ {t("adm.reject")}</button></div>}{payTargetId === r.id && r.status === "pending" && r.type === "withdraw" && <div onClick={(e) => e.stopPropagation()}><PayWithdrawPanel request={r} paymentRef={payRef} onPaymentRefChange={setPayRef} busy={payWithdraw.isPending} error={payErr} onConfirm={() => payWithdraw.mutate({ txId: r.id, paymentReference: payRef })} onCancel={() => { setPayTargetId(null); setPayErr(null); }} /></div>}</div>))}</div>}
           </div>)}
 
           {section === "support" && (<div>
