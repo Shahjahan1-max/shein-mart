@@ -1027,6 +1027,22 @@ function ShopView({
     queryKey: ["products", { category, search }],
     queryFn: () => api.listProducts({ category, search }),
   });
+  // Per-visit catalog rotation (user request 2026-10-29): the main grid
+  // starts at a random offset on every ShopView mount, so the products
+  // on top move down and lower products come up on each new visit or
+  // refresh. The seed is fixed for the mount, so the order stays stable
+  // while browsing (a category/search change only swaps the data, it
+  // never re-shuffles), and it is display-only - ids, prices, stock
+  // and all actions are untouched. Featured / Fresh Arrivals /
+  // Collections / hero keep their own defined orders.
+  const [gridRotationSeed] = useState(() => Math.floor(Math.random() * 100000));
+  const rotatedProducts = useMemo(() => {
+    const list = products.data?.products ?? [];
+    if (list.length < 2) return list;
+    const start = gridRotationSeed % list.length;
+    if (start === 0) return list;
+    return [...list.slice(start), ...list.slice(0, start)];
+  }, [products.data, gridRotationSeed]);
 
   const allProducts = useQuery({
     queryKey: ["products", { category: "All", search: "" }],
@@ -1496,7 +1512,7 @@ function ShopView({
       )}
       {products.data && products.data.products.length > 0 && (
         <div className={gridCls}>
-          {products.data.products.map((p) => (
+          {rotatedProducts.map((p) => (
             <ProductCard
               key={p.id}
               product={p}
