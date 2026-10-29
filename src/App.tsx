@@ -10652,7 +10652,7 @@ const NAV: NavItem[] =
 
         {/* Hamburger side drawer */}
         {drawerOpen && (
-          <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={ui.t("menu.title")}>
+          <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={ui.t("menu.title")}>
             <button
               type="button"
               aria-label={ui.t("menu.close")}
