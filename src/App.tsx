@@ -10688,7 +10688,7 @@ const NAV: NavItem[] =
       if (!el) { setCollectionsInView(false); return; }
       const r = el.getBoundingClientRect();
       const h = window.innerHeight;
-      setCollectionsInView(r.top < h * 0.4 && r.bottom > h * 0.3);
+      setCollectionsInView(r.top < h * 0.5 && r.bottom > h * 0.25);
     };
     const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
     update();
