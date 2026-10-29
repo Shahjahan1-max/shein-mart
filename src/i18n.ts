@@ -223,6 +223,7 @@ export const STR = {
   "menu.cart": { en: "Cart", hi: "कार्ट" , ar: "سلة التسوق"},
   "menu.orders": { en: "My Orders", hi: "मेरे ऑर्डर" , ar: "طلباتي"},
   "menu.becomeSeller": { en: "Become a Seller", hi: "विक्रेता बनें" , ar: "كن بائعًا"},
+  "menu.becomeSellerSub": { en: "Start selling", hi: "बेचना शुरू करें", ar: "ابدأ البيع" },
   "menu.sellerDash": { en: "Seller Dashboard", hi: "विक्रेता डैशबोर्ड" , ar: "لوحة تحكم البائع"},
   "menu.wallet": { en: "Wallet", hi: "वॉलेट" , ar: "المحفظة"},
   "menu.support": { en: "Customer Support", hi: "ग्राहक सहायता" , ar: "دعم العملاء"},

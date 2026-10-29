@@ -3693,6 +3693,7 @@ const aPhone = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="current
 const aGlobe = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z" /></svg>);
 const aStore = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M4 8 5.5 3h13L20 8" /><path d="M4 8v12h16V8" /><path d="M9 20v-5h6v5" /></svg>);
 const aUser = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></svg>);
+const aIdCard = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="10" r="2" /><path d="M5.5 16c0.8-1.6 1.8-2.2 3-2.2s2.2 0.6 3 2.2" /><path d="M14.5 9.5h4M14.5 13h4" /></svg>);
 const aGear = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" /></svg>);
 const aLogout = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M15 4h4v16h-4" /><path d="M3 12h11M10 8l4 4-4 4" /></svg>);
 const aImage = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.5" /><path d="m5 19 5-5 3 3 2-2 4 4" /></svg>);
@@ -3944,7 +3945,7 @@ function AccountView({
     const loginId = user.email ?? (user.phone ? fmtPhone(user.phone, user.country) : "");
     const handleUpdated = (u: NonNullable<User>) => (onUserUpdated ?? onAuth)(u);
     const menuRowCls =
-      "flex min-h-[52px] w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--surface-alt)] focus-visible:bg-[var(--surface-alt)]";
+      "flex min-h-[64px] w-full items-center gap-3 rounded-2xl border border-[#DCE9E6] bg-white px-4 py-3 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0E4F53]";
     if (section === "profile") {
       // ---- Profile section (its own view inside Account) ----
       // ONLY here: change profile photo, change store logo (sellers)
@@ -4083,38 +4084,49 @@ function AccountView({
     // No upload blocks or forms are dumped here — editing lives inside
     // the Profile section above.
     return (
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
-        <div className="flex items-center gap-3">
-          <SellerMediaImage
-            sellerId={user.id}
-            kind="photo"
-            hasFile={user.hasPhotoFile}
-            fallbackText={user.name}
-            className="h-14 w-14 shrink-0 rounded-full text-xl"
-          />
-          <div className="min-w-0">
-            <h2 className="font-display text-2xl font-bold leading-tight text-[var(--text)]">
-              {user.name}
-              <VerifiedNamePill user={user} />
-            </h2>
-            {user.role === "seller" && user.storeName && (
-              <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[var(--text)]">
-                {aStore} <span className="min-w-0 truncate">{user.storeName}</span>
+      <div>
+        <div className="rounded-3xl bg-[#E2F1EE] p-5 sm:p-6">
+          <div className="flex items-center gap-4">
+            {user.hasPhotoFile ? (
+              <SellerMediaImage
+                sellerId={user.id}
+                kind="photo"
+                hasFile={user.hasPhotoFile}
+                fallbackText={user.name}
+                className="h-16 w-16 shrink-0 rounded-full text-2xl ring-4 ring-white sm:h-20 sm:w-20"
+              />
+            ) : (
+              <span aria-hidden className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#0E4F53] font-display text-3xl font-extrabold text-white ring-4 ring-white sm:h-20 sm:w-20">
+                {(user.name ?? "?").trim().charAt(0).toUpperCase()}
+              </span>
+            )}
+            <div className="min-w-0">
+              <h2 className="font-display text-3xl font-extrabold leading-tight text-[#0E4F53]">
+                {t("menu.myAccount")}
+              </h2>
+              <p className="mt-1 text-sm font-semibold text-[#3D6B68]">
+                <span className="capitalize">{user.role}</span> {t("acc.accountWord")}
               </p>
-            )}
-            <p className="text-sm text-[var(--dim)]">
-              {t("acc.loginId")}: {loginId} ·{" "}
-              <span className="font-semibold capitalize">{user.role}</span> {t("acc.accountWord")}
-            </p>
-            {user.country && (
-              <p className="flex items-center gap-1.5 text-sm text-[var(--dim)]">{aGlobe} {user.country}</p>
-            )}
+              <p className="mt-0.5 truncate text-sm font-semibold text-[#0E4F53]">
+                {user.name}
+                <VerifiedNamePill user={user} />
+              </p>
+            </div>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-[var(--dim)]">
+          <span>{t("acc.loginId")}: {loginId}</span>
+          {user.role === "seller" && user.storeName && (
+            <span className="flex items-center gap-1">{aStore} <span className="min-w-0 truncate">{user.storeName}</span></span>
+          )}
+          {user.country && (
+            <span className="flex items-center gap-1">{aGlobe} {user.country}</span>
+          )}
         </div>
         <VerificationBanner user={user} />
         <nav
           aria-label={t("acc.profile")}
-          className="mt-4 divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)]"
+          className="mt-4 flex flex-col gap-3"
         >
           <button
             type="button"
@@ -4122,12 +4134,12 @@ function AccountView({
             aria-label={t("acc.profile")}
             className={menuRowCls}
           >
-            <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)]">{aUser}</span>
+            <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E2F1EE] text-[#0E4F53]">{aIdCard}</span>
             <span className="min-w-0 flex-1">
-              <span className="block font-display text-[15px] font-bold text-[var(--text)]">
+              <span className="block font-display text-[17px] font-bold text-[#0E4F53]">
                 {t("acc.profile")}
               </span>
-              <span className="block truncate text-xs text-[var(--dim)]">
+              <span className="block truncate text-[13px] text-[#5F7370]">
                 {user.role === "seller"
                   ? t("acc.profileSubSeller")
                   : user.role === "admin"
@@ -4135,7 +4147,7 @@ function AccountView({
                     : t("acc.profileSubBuyer")}
               </span>
             </span>
-            <span aria-hidden className="shrink-0 text-lg text-[var(--dim)] rtl:-scale-x-100">›</span>
+            <span aria-hidden className="shrink-0 text-xl text-[#94A8A4] rtl:-scale-x-100">›</span>
           </button>
           <button
             type="button"
@@ -4143,16 +4155,16 @@ function AccountView({
             aria-label={t("pref.title")}
             className={menuRowCls}
           >
-            <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)]">{aGlobe}</span>
+            <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E2F1EE] text-[#0E4F53]">{aGlobe}</span>
             <span className="min-w-0 flex-1">
-              <span className="block font-display text-[15px] font-bold text-[var(--text)]">
+              <span className="block font-display text-[17px] font-bold text-[#0E4F53]">
                 {t("pref.title")}
               </span>
-              <span className="block truncate text-xs text-[var(--dim)]">
+              <span className="block truncate text-[13px] text-[#5F7370]">
                 {t("pref.sub")}
               </span>
             </span>
-            <span aria-hidden className="shrink-0 text-lg text-[var(--dim)] rtl:-scale-x-100">›</span>
+            <span aria-hidden className="shrink-0 text-xl text-[#94A8A4] rtl:-scale-x-100">›</span>
           </button>
           {user.role === "seller" && (
             <button
@@ -4161,13 +4173,13 @@ function AccountView({
               aria-label={t("acc.sellerDash")}
               className={menuRowCls}
             >
-              <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)]">{aStore}</span>
+              <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E2F1EE] text-[#0E4F53]">{aStore}</span>
               <span className="min-w-0 flex-1">
-                <span className="block font-display text-[15px] font-bold text-[var(--text)]">
+                <span className="block font-display text-[17px] font-bold text-[#0E4F53]">
                   {t("acc.sellerDash")}
                 </span>
               </span>
-              <span aria-hidden className="shrink-0 text-lg text-[var(--dim)] rtl:-scale-x-100">›</span>
+              <span aria-hidden className="shrink-0 text-xl text-[#94A8A4] rtl:-scale-x-100">›</span>
             </button>
           )}
           {user.role === "buyer" && (
@@ -4177,13 +4189,16 @@ function AccountView({
               aria-label={t("menu.becomeSeller")}
               className={menuRowCls}
             >
-              <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)]">{aStore}</span>
+              <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E2F1EE] text-[#0E4F53]">{aStore}</span>
               <span className="min-w-0 flex-1">
-                <span className="block font-display text-[15px] font-bold text-[var(--text)]">
+                <span className="block font-display text-[17px] font-bold text-[#0E4F53]">
                   {t("menu.becomeSeller")}
                 </span>
+                <span className="block truncate text-[13px] text-[#5F7370]">
+                  {t("menu.becomeSellerSub")}
+                </span>
               </span>
-              <span aria-hidden className="shrink-0 text-lg text-[var(--dim)] rtl:-scale-x-100">›</span>
+              <span aria-hidden className="shrink-0 text-xl text-[#94A8A4] rtl:-scale-x-100">›</span>
             </button>
           )}
           {user.role === "admin" && (
@@ -4193,13 +4208,13 @@ function AccountView({
               aria-label={t("acc.adminPanel")}
               className={menuRowCls}
             >
-              <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent-strong)]">{aGear}</span>
+              <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E2F1EE] text-[#0E4F53]">{aGear}</span>
               <span className="min-w-0 flex-1">
-                <span className="block font-display text-[15px] font-bold text-[var(--text)]">
+                <span className="block font-display text-[17px] font-bold text-[#0E4F53]">
                   {t("acc.adminPanel")}
                 </span>
               </span>
-              <span aria-hidden className="shrink-0 text-lg text-[var(--dim)] rtl:-scale-x-100">›</span>
+              <span aria-hidden className="shrink-0 text-xl text-[#94A8A4] rtl:-scale-x-100">›</span>
             </button>
           )}
           <button
@@ -4208,12 +4223,13 @@ function AccountView({
             aria-label={t("acc.signOut")}
             className={menuRowCls}
           >
-            <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-300">{aLogout}</span>
+            <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#E2F1EE] text-[#D64545]">{aLogout}</span>
             <span className="min-w-0 flex-1">
-              <span className="block font-display text-[15px] font-bold text-rose-600">
+              <span className="block font-display text-[17px] font-bold text-[#D64545]">
                 {t("acc.signOut")}
               </span>
             </span>
+            <span aria-hidden className="shrink-0 text-xl text-[#94A8A4] rtl:-scale-x-100">›</span>
           </button>
         </nav>
       </div>
