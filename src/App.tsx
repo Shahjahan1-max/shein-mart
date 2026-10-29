@@ -5029,6 +5029,74 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
 
 type SellerTab = "home" | "products" | "orders" | "wallet" | "my";
 
+/* Seller bottom bar (mobile/tablet only, FIXED to the viewport bottom
+   with safe-area clearance): the single bottom navigation for sellers -
+   Shop + Home / Products / Orders / Wallet, with the orders
+   pending-shipment badge and the wallet gold dot. Used by SellerView
+   itself AND by the App on every other view for sellers, so a seller
+   never sees the old app navigation (which lacked Orders) on any
+   screen. Desktop uses the sidebar / header pills instead (lg:hidden). */
+function SellerBottomBar({
+  active,
+  onShop,
+  onTab,
+  pendingShipment,
+  walletUnread,
+}: {
+  active: "shop" | SellerTab | null;
+  onShop?: () => void;
+  onTab: (tab: SellerTab) => void;
+  pendingShipment: number;
+  walletUnread: number;
+}) {
+  const { t } = useUi();
+  const allItems: Array<{
+    id: "shop" | SellerTab;
+    label: string;
+    icon: ReactNode;
+    badge?: number;
+    dot?: boolean;
+  }> = [
+    { id: "shop", label: t("nav.shop"), icon: aStore },
+    { id: "home", label: t("sd.tabHome"), icon: aHome },
+    { id: "products", label: t("sd.tabProducts"), icon: aBag },
+    { id: "orders", label: t("sd.tabOrders"), icon: aReceipt, badge: pendingShipment },
+    { id: "wallet", label: t("sd.tabWallet"), icon: aWallet, dot: walletUnread > 0 },
+  ];
+  // The Shop entry needs a destination; without one it is omitted
+  // rather than rendered as a dead button.
+  const items = onShop ? allItems : allItems.filter((it) => it.id !== "shop");
+  return (
+    <nav
+      aria-label="Seller dashboard navigation"
+      className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-1/2 z-40 flex w-[calc(100%-1.5rem)] max-w-xl -translate-x-1/2 justify-around rounded-full border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg lg:hidden"
+    >
+      {items.map((it) => {
+        const isActive = active === it.id;
+        const badge = it.badge ?? 0;
+        return (
+          <button
+            key={it.id}
+            type="button"
+            aria-label={it.id === "orders" && badge > 0 ? `${it.label}, ${badge} pending shipment` : it.id === "wallet" && it.dot ? `${it.label}, ${t("sd.newWalletActivity")}` : it.label}
+            aria-current={isActive ? "page" : undefined}
+            onClick={() => (it.id === "shop" ? onShop?.() : onTab(it.id))}
+            className={`relative flex flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+              isActive ? "text-[var(--accent)]" : badge > 0 ? "text-[var(--alert)]" : "text-[var(--dim)]"
+            }`}
+          >
+            <span className="relative leading-none">{it.icon}
+              {badge > 0 && <span className="absolute -right-3 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--alert)] px-0.5 text-[10px] font-bold text-[var(--alert-ink)]">{badge > 99 ? "99+" : badge}</span>}
+              {it.dot && <span aria-hidden className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
+            </span>
+            {it.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 function SellerView({
   user,
   onSignOut,
@@ -5050,7 +5118,7 @@ function SellerView({
   onGoSupport?: () => void;
   onGoShop?: () => void;
 }) {
-  const { t, fmt, layout } = useUi();
+  const { t, fmt } = useUi();
   const queryClient = useQueryClient();
   const [tab, setTabState] = useState<SellerTab>(initialTab ?? "home");
   const setTab = (next: SellerTab) => {
@@ -5268,17 +5336,11 @@ function SellerView({
     { label: t("sd.logisticsRating"), value: t("sd.notRated") },
     { label: t("sd.overallRating"), value: t("sd.notRated") },
   ];
-  // The seller section's own bottom menu: Home / Products / Orders /
-  // Wallet ONLY. There is deliberately NO account entry here — Account
-  // lives in the app's bottom navigation and the ☰ drawer, and the
-  // profile/photo view itself stays reachable from there. (The "my"
-  // tab id still exists for the set-temporary-password route only.)
-  const tabs: Array<{ id: SellerTab; label: string; icon: ReactNode }> = [
-    { id: "home", label: t("sd.tabHome"), icon: aHome },
-    { id: "products", label: t("sd.tabProducts"), icon: aBag },
-    { id: "orders", label: t("sd.tabOrders"), icon: aReceipt },
-    { id: "wallet", label: t("sd.tabWallet"), icon: aWallet },
-  ];
+  // The seller bottom bar is the shared SellerBottomBar component
+  // (fixed, mobile/tablet only) - it is also rendered by the App on
+  // every other view for sellers, so sellers never see the old app
+  // navigation on any screen. (The "my" tab id still exists for the
+  // set-temporary-password route and the sidebar My Profile entry.)
   // Sidebar row style (desktop seller nav): the active row is the navy
   // accent pill with a gold left bar, matching the drawer active style.
   const sideCls = (active: boolean) =>
@@ -5334,7 +5396,7 @@ function SellerView({
           )}
         </nav>
       </aside>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 pb-24 lg:pb-0">
       {/* My Store card: the store LOGO leads. The seller's own profile
           photo is deliberately NOT repeated here - the site header's
           account button is the single profile entry (user report
@@ -5863,48 +5925,15 @@ function SellerView({
         </div>
       )}
 
-      {/* Seller bottom navigation (mobile/tablet only - desktop uses the
-          sidebar above): Shop + Home / Products / Orders / Wallet in ONE
-          bar. The app-level navigation is hidden on the seller view, so
-          this is the single bottom bar here - nothing overlaps it. */}
-      <nav
-        aria-label="Seller dashboard navigation"
-        className="sticky bottom-3 z-30 mt-6 flex justify-around rounded-full border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg lg:hidden"
-      >
-        {onGoShop && (
-          <button
-            type="button"
-            aria-label={t("nav.shop")}
-            onClick={onGoShop}
-            className="relative flex flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[11px] font-semibold text-[var(--dim)]"
-          >
-            <span className="relative leading-none">{aStore}</span>
-            {t("nav.shop")}
-          </button>
-        )}
-        {tabs.map((tb) => {
-          const badge = tb.id === "orders" ? d.pendingShipment : 0;
-          const showWalletDot = tb.id === "wallet" && walletUnread > 0;
-          return (
-          <button
-            key={tb.id}
-            type="button"
-            aria-label={showWalletDot ? `${tb.label}, ${t("sd.newWalletActivity")}` : badge > 0 ? `${tb.label}, ${badge} pending shipment` : tb.label}
-            aria-current={tab === tb.id ? "page" : undefined}
-            onClick={() => setTab(tb.id)}
-            className={`relative flex flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[11px] font-semibold ${
-              tab === tb.id ? "text-[var(--accent)]" : badge > 0 ? "text-[var(--alert)]" : "text-[var(--dim)]"
-            }`}
-          >
-            <span className="relative leading-none">{tb.icon}
-              {badge > 0 && <span className="absolute -right-3 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--alert)] px-0.5 text-[10px] font-bold text-[var(--alert-ink)]">{badge > 99 ? "99+" : badge}</span>}
-              {showWalletDot && <span aria-hidden className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
-            </span>
-            {tb.label}
-          </button>
-          );
-        })}
-      </nav>
+      {/* Seller bottom bar: the shared fixed bar (see SellerBottomBar) -
+          one bar for sellers on every screen. */}
+      <SellerBottomBar
+        active={tab}
+        onShop={onGoShop}
+        onTab={setTab}
+        pendingShipment={d.pendingShipment}
+        walletUnread={walletUnread}
+      />
     </div>
     </div>
   );
@@ -11228,7 +11257,17 @@ const NAV: NavItem[] =
           </div>
         </footer>
 
-        {view !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
+        {user?.role === "seller" && view !== "seller" && view !== "admin" && (
+          <SellerBottomBar
+            active={view === "shop" ? "shop" : null}
+            onShop={() => setView("shop")}
+            onTab={goSellerTab}
+            pendingShipment={sellerPending}
+            walletUnread={walletUnread}
+          />
+        )}
+
+        {view !== "seller" && user?.role !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
         <nav
           aria-label="Main navigation"
           className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] shadow-[0_-6px_20px_rgba(15,23,42,0.08)] pb-safe sm:hidden"
@@ -11258,7 +11297,7 @@ const NAV: NavItem[] =
         </nav>
 
         )}
-        {view !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
+        {view !== "seller" && user?.role !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
         <nav
           aria-label="Desktop navigation"
           className="scrollbar-none fixed bottom-5 left-1/2 z-40 hidden max-w-[calc(100vw-1.5rem)] -translate-x-1/2 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_8px_28px_rgba(15,23,42,0.12)] sm:flex"
