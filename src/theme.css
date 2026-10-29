@@ -529,3 +529,21 @@ button:disabled:active {
 @keyframes sell-twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.15); } }
 .sell-progress { animation: sell-progress 3s linear both; }
 @keyframes sell-progress { from { width: 0%; } to { width: 100%; } }
+
+/* Featured products marquee (user request 2026-10-29): the Featured row
+   scrolls continuously right-to-left, looping seamlessly. The track
+   holds two identical halves; each half ends with padding equal to the
+   gap, so a -50% shift lands exactly on the second half. Soft edge fade
+   on the strip; pauses on hover/focus so a card can be tapped. */
+.feat-marquee {
+  -webkit-mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+  mask-image: linear-gradient(to right, transparent, black 4%, black 96%, transparent);
+}
+.feat-marquee-track { animation: feat-marquee 30s linear infinite; }
+@keyframes feat-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.feat-marquee:hover .feat-marquee-track,
+.feat-marquee:focus-within .feat-marquee-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .feat-marquee { overflow-x: auto; }
+  .feat-marquee-track { animation: none; transform: none; }
+}

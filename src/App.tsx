@@ -1418,20 +1418,44 @@ function ShopView({
             {t("feat.title")}
           </h2>
           <p className="mt-1 text-sm text-[var(--dim)]">{t("feat.sub")}</p>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {featuredProducts.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                user={user}
-                onAddToCart={handleAddToCart}
-                onBuyNow={(pp) => handleAddToCartQty(pp, 1, true)}
-                onOpen={openDetail}
-                onAddToMyStore={handleAddToMyStore}
-                inMyStore={myStoreIds.has(p.id)}
-                fallbackImage={categoryPhoto[p.category]}
-              />
-            ))}
+          {/* Featured marquee: continuous right-to-left scroll, looping
+              seamlessly. Only this row animates; the second copy is
+              aria-hidden + inert so each product is met once. */}
+          <div className="feat-marquee mt-5 overflow-hidden">
+            <div className="feat-marquee-track flex w-max">
+              <div className="flex gap-3 pr-3">
+                {featuredProducts.map((p) => (
+                  <div key={p.id} className="w-[240px] shrink-0 sm:w-[280px] [&>article]:h-full">
+                    <ProductCard
+                      product={p}
+                      user={user}
+                      onAddToCart={handleAddToCart}
+                      onBuyNow={(pp) => handleAddToCartQty(pp, 1, true)}
+                      onOpen={openDetail}
+                      onAddToMyStore={handleAddToMyStore}
+                      inMyStore={myStoreIds.has(p.id)}
+                      fallbackImage={categoryPhoto[p.category]}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 pr-3" aria-hidden="true" inert>
+                {featuredProducts.map((p) => (
+                  <div key={`feat-dup-${p.id}`} className="w-[240px] shrink-0 sm:w-[280px] [&>article]:h-full">
+                    <ProductCard
+                      product={p}
+                      user={user}
+                      onAddToCart={handleAddToCart}
+                      onBuyNow={(pp) => handleAddToCartQty(pp, 1, true)}
+                      onOpen={openDetail}
+                      onAddToMyStore={handleAddToMyStore}
+                      inMyStore={myStoreIds.has(p.id)}
+                      fallbackImage={categoryPhoto[p.category]}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
       )}
