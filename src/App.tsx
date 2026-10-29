@@ -3692,6 +3692,7 @@ const aMail = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentC
 const aPhone = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="7" y="3" width="10" height="18" rx="2" /><path d="M11 18.5h2" /></svg>);
 const aGlobe = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z" /></svg>);
 const aStore = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M4 8 5.5 3h13L20 8" /><path d="M4 8v12h16V8" /><path d="M9 20v-5h6v5" /></svg>);
+const aGrid = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></svg>);
 const aUser = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></svg>);
 const aIdCard = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="10" r="2" /><path d="M5.5 16c0.8-1.6 1.8-2.2 3-2.2s2.2 0.6 3 2.2" /><path d="M14.5 9.5h4M14.5 13h4" /></svg>);
 const aGear = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" /></svg>);
@@ -10669,14 +10670,14 @@ const NAV: NavItem[] =
             <p className="text-sm text-[var(--dim)]">{ui.t("auth.googleSigningInSub")}</p>
           </div>
         )}
-        <header ref={headerRef} className="site-header sticky top-0 z-40 border-b-2 border-[var(--accent)] bg-[var(--accent-soft)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
+        <header ref={headerRef} className="site-header sticky top-0 z-40 border-b-2 border-[#D9C08A] bg-[#FBF7F0] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe dark:border-white/15 dark:bg-[#0F1E2E]">
           <div className={`hdr-row mx-auto flex ${containerW} flex-nowrap items-center gap-x-1.5 px-3 sm:px-4 py-2.5`}>
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label={ui.t("menu.open")}
               aria-expanded={drawerOpen}
-              className="hdr-drawer shrink-0 rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] min-h-11 py-0.5 text-lg"
+              className="hdr-drawer shrink-0 rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] min-h-11 py-0.5 text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
             >
               ☰
             </button>
@@ -10763,7 +10764,7 @@ const NAV: NavItem[] =
                 aria-label={theme === "dark" ? ui.t("theme.toLight") : ui.t("theme.toDark")}
                 aria-pressed={theme === "dark"}
                 title={theme === "dark" ? ui.t("theme.light") : ui.t("theme.dark")}
-                className="hdr-toggle flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] sm:h-12 sm:w-12"
+                className="hdr-toggle flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] sm:h-12 sm:w-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
               >
                 {theme === "dark" ? iconSun : iconMoon}
               </button>
@@ -10772,7 +10773,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="My account"
-                  className="hdr-user max-w-[26vw] shrink-0 truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-[var(--accent-ink)] min-h-11 py-0.5 text-sm"
+                  className="hdr-user max-w-[26vw] shrink-0 truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-[var(--accent-ink)] min-h-11 py-0.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
                 >
                   {user.name.split(" ")[0]}
                 </button>
@@ -10781,7 +10782,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="Sign in or register"
-                  className="hdr-signin flex min-h-10 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3.5 text-sm font-bold text-[var(--accent-ink)] shadow-sm hover:brightness-110 sm:min-h-11 sm:px-5 sm:text-[15px]"
+                  className="hdr-signin flex min-h-10 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3.5 text-sm font-bold text-[var(--accent-ink)] shadow-sm hover:brightness-110 sm:min-h-11 sm:px-5 sm:text-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
                 >
                   {iconUser}
                   {ui.t("header.signIn")}
@@ -10796,35 +10797,36 @@ const NAV: NavItem[] =
           {layoutDesign === "classic" && (
             <nav
               aria-label="Store sections"
-              className={`topnav-row mx-auto hidden ${containerW} items-center gap-1 px-3 pb-2.5 sm:px-4 lg:flex`}
+              className={`topnav-row mx-auto hidden ${containerW} items-center gap-2 px-3 pb-2.5 sm:px-4 md:flex`}
             >
               <button
                 type="button"
                 onClick={() => setView("shop")}
                 aria-current={view === "shop" ? "page" : undefined}
-                className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${view === "shop" ? "text-[var(--accent)]" : "text-[var(--dim)] hover:bg-[var(--surface-alt)]"}`}
+                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${view === "shop" ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-white text-[var(--accent)] hover:shadow-md dark:bg-white/10"}`}
               >
-                {ui.t("nav.shop")}
+                {dBag} {ui.t("nav.shop")}
               </button>
               <button
                 type="button"
                 onClick={goCollectionsTop}
-                className="rounded-full px-3.5 py-1.5 text-sm font-semibold text-[var(--dim)] hover:bg-[var(--surface-alt)]"
+                className="flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[15px] font-bold text-[var(--accent)] shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] dark:bg-white/10"
               >
-                {ui.t("menu.categories")}
+                {aGrid} {ui.t("menu.categories")}
               </button>
               {user?.role !== "admin" && (
               <button
                 type="button"
                 onClick={() => (user?.role === "seller" ? goSellerTab("home") : goBecomeSeller())}
-                className="rounded-full px-3.5 py-1.5 text-sm font-semibold text-[var(--dim)] hover:bg-[var(--surface-alt)]"
+                aria-current={user?.role === "seller" && view === "seller" ? "page" : undefined}
+                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${user?.role === "seller" && view === "seller" ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-white text-[var(--accent)] hover:shadow-md dark:bg-white/10"}`}
               >
-                {user?.role === "seller" ? ui.t("acc.sellerDash") : ui.t("menu.becomeSeller")}
+                {aStore} {user?.role === "seller" ? ui.t("acc.sellerDash") : ui.t("menu.becomeSeller")}
               </button>
               )}
               <span className="flex-1" />
               {view !== "account" && (
-              <label className="flex min-w-0 max-w-xs flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
+              <label className="flex min-w-0 max-w-xs flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-white px-4 py-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--gold)] dark:bg-white/10">
                 <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-4 w-4 shrink-0 text-[var(--dim)]">
                   <circle cx="11" cy="11" r="7" />
                   <path d="m20 20-3.5-3.5" />
@@ -10840,6 +10842,26 @@ const NAV: NavItem[] =
               </label>
               )}
             </nav>
+          )}
+          {view !== "account" && layoutDesign === "classic" && (
+            <div className="px-3 pb-2.5 sm:px-4 md:hidden">
+              <div className={`mx-auto ${containerW}`}>
+                <label className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-4 py-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--gold)] dark:bg-white/10">
+                  <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-4 w-4 shrink-0 text-[var(--dim)]">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-3.5-3.5" />
+                  </svg>
+                  <input
+                    value={shopSearch}
+                    onChange={(e) => setShopSearch(e.target.value)}
+                    onFocus={() => { if (view !== "shop") setView("shop"); }}
+                    placeholder={ui.t("shop.searchPlaceholder")}
+                    aria-label={ui.t("shop.searchPlaceholder")}
+                    className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--dim)]"
+                  />
+                </label>
+              </div>
+            </div>
           )}
           {/* Layout designs 2 & 3 put the product Search in the top
               header itself: Design 2 (Menu) as a compact row under the
