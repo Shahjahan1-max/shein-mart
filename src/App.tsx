@@ -5536,39 +5536,6 @@ function SellerView({
       {tab === "home" && (
         <h1 className="mb-4 font-display text-3xl font-extrabold tracking-tight text-[var(--text)]">{t("sd.sellerOverview")}</h1>
       )}
-      {/* My Store card: the store LOGO leads. The seller's own profile
-          photo is deliberately NOT repeated here - the site header's
-          account button is the single profile entry (user report
-          2026-10-29: the card showed the same seller twice). */}
-      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm sm:p-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <SellerMediaImage
-          sellerId={user.id}
-          kind="logo"
-          hasFile={user.hasLogoFile}
-          fallbackText={user.storeName ?? user.name}
-          className="h-14 w-14 shrink-0 rounded-2xl text-xl"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--dim)]">
-            {t("sd.merchant")}
-          </p>
-          <h2 className="flex items-center gap-2 font-display text-xl font-extrabold leading-tight text-[var(--accent)]">
-            <span className="truncate">{user.storeName ?? "My Store"}</span>
-            <VerifiedBadge />
-          </h2>
-          {user.storeDescription && (
-            <p className="line-clamp-1 text-xs text-[var(--dim)]">{user.storeDescription}</p>
-          )}
-        </div>
-        {d.pendingShipment > 0 && (
-          <span className="ml-auto inline-flex shrink-0 animate-pulse items-center gap-1 rounded-full bg-[var(--alert)] px-2.5 py-1 text-[11px] font-bold text-[var(--alert-ink)]">
-            ● {d.pendingShipment} {t("notif.pendingAlert")}
-          </span>
-        )}
-      </div>
-      </div>
-
       {(notices.data?.notices ?? []).length > 0 && (
         <div className="mt-3 flex flex-col gap-2">
           {(notices.data?.notices ?? []).map((n) => (
