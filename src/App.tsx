@@ -3770,7 +3770,8 @@ function AccountView({
   storeName,
   externalError,
   headerLogoUrl,
-  sellerConvertSignal,
+  convertIntentUserId,
+  onConvertIntentConsumed,
 }: {
   user: User;
   onAuth: (u: NonNullable<User>, token?: string) => void;
@@ -3779,7 +3780,8 @@ function AccountView({
   onGoAdmin: () => void;
   onGoSupport?: () => void;
   onUserUpdated?: (u: NonNullable<User>) => void;
-  sellerConvertSignal?: number;
+  convertIntentUserId?: number | null;
+  onConvertIntentConsumed?: () => void;
   onLangChange: (l: Lang) => void;
   onCurrencyChange: (c: Currency) => void;
   storeName: string;
@@ -3799,20 +3801,10 @@ function AccountView({
   const [authTouched, setAuthTouched] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
   const [showAuthPw, setShowAuthPw] = useState(false);
-  // Buyer → seller shift entry: App bumps sellerConvertSignal when a
-  // signed-in buyer taps any Become a Seller entry. The ref seeds
-  // from the signal on first mount so a stale value never opens the
-  // form for a different buyer who signs in later.
   const [showConvertForm, setShowConvertForm] = useState(false);
-  const convertSignalSeen = useRef(sellerConvertSignal ?? 0);
-  useEffect(() => {
-    if (!sellerConvertSignal || sellerConvertSignal === convertSignalSeen.current) return;
-    convertSignalSeen.current = sellerConvertSignal;
-    // Back to the menu section too: the form branch lives under it,
-    // so a buyer sitting on Profile/Preferences still lands on the
-    // form instead of their current section.
-    if (user?.role === "buyer") { setShowConvertForm(true); setSection("menu"); }
-  }, [sellerConvertSignal, user?.role]);
+  // Buyer → seller shift entry: the intent (convertIntentUserId, set
+  // by App) is consumed during render just below, after the section
+  // state exists — so the first paint is already the seller form.
   // Notice shown on the sign-in page after a registration completes
   // (buyer register, or a seller application) — the account is NOT
   // auto-logged-in; the customer signs in from here instead.
@@ -3831,6 +3823,20 @@ function AccountView({
   useEffect(() => {
     if (user?.mustChangePassword) setSection("profile");
   }, [user?.mustChangePassword]);
+  // Consumed during render, NOT in an effect: the old effect ran only
+  // after the first paint, and its ref seeded from the already-bumped
+  // signal on a fresh mount — so the first click landed on the
+  // account menu/profile and the form needed a second click. Now the
+  // first paint after the click IS the seller form. The intent is
+  // cleared by effect once mounted, so a later account visit (or a
+  // different buyer) never auto-opens the form.
+  if (convertIntentUserId != null && user?.role === "buyer" && convertIntentUserId === user.id && !showConvertForm) {
+    setShowConvertForm(true);
+    setSection("menu");
+  }
+  useEffect(() => {
+    if (convertIntentUserId != null) onConvertIntentConsumed?.();
+  }, [convertIntentUserId]);
   const forgotMut = useMutation({ mutationFn: () => api.requestPasswordReset({ identifier: forgotId.trim(), storeName: forgotStore.trim() || undefined, lang }), onSuccess: () => { setForgotSent(true); setForgotErr(null); }, onError: () => { setForgotSent(true); setForgotErr(null); } });
   const hasAdmin = useQuery({
     queryKey: ["has-admin"],
@@ -9873,7 +9879,7 @@ export function App() {
   const [supportVisit, setSupportVisit] = useState(0);
   const [supportStartInChat, setSupportStartInChat] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [sellerConvertSignal, setSellerConvertSignal] = useState(0);
+  const [convertIntentUserId, setConvertIntentUserId] = useState<number | null>(null);
   // Drawer Categories section: collapsed by default, expands on tap.
   const [drawerCatsOpen, setDrawerCatsOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -10353,6 +10359,7 @@ const NAV: NavItem[] =
     api.logout({}).catch(() => {});
     clearSessionToken();
     setUser(null);
+    setConvertIntentUserId(null);
     localStorage.removeItem(SESSION_KEY);
     // Forget the saved tab too, so a signed-out refresh lands on the
     // home page instead of a members-only tab's sign-in prompt.
@@ -10444,7 +10451,7 @@ const NAV: NavItem[] =
   function goBecomeSeller() {
     if (!user) { setView("account"); return; }
     if (user.role === "seller") { goSellerTab("home"); return; }
-    if (user.role === "buyer") { setSellerConvertSignal((v) => v + 1); setView("account"); return; }
+    if (user.role === "buyer") { setConvertIntentUserId(user.id); setView("account"); return; }
     setView("account");
   }
 
@@ -10881,7 +10888,8 @@ const NAV: NavItem[] =
               onGoAdmin={() => setView("admin")}
               onGoSupport={goSupportChat}
               onUserUpdated={handleUserUpdated}
-              sellerConvertSignal={sellerConvertSignal}
+              convertIntentUserId={convertIntentUserId}
+              onConvertIntentConsumed={() => setConvertIntentUserId(null)}
               onLangChange={changeLang}
               onCurrencyChange={changeCurrency}
               storeName={storeName}
