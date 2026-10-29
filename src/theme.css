@@ -514,3 +514,18 @@ button:disabled:active {
   to { opacity: 1; }
 }
 .hero-fade { animation: hero-fade 0.6s ease; }
+
+/* Seller intro animation (Become a Seller click): storefront + rising
+   sales bars, floating coins, twinkling stars, and a 3-second progress
+   bar that matches the auto-advance timer in App.tsx. Pure CSS/SVG —
+   no third-party assets. */
+.sell-anim-pop { animation: sell-pop 0.45s ease both; }
+@keyframes sell-pop { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.sell-bar { transform-box: fill-box; transform-origin: bottom; animation: sell-rise 0.8s ease both; }
+@keyframes sell-rise { from { transform: scaleY(0.15); } to { transform: scaleY(1); } }
+.sell-coin { animation: sell-float 2.4s ease-in infinite; }
+@keyframes sell-float { 0% { transform: translateY(8px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-44px); opacity: 0; } }
+.sell-spark { animation: sell-twinkle 1.6s ease-in-out infinite; }
+@keyframes sell-twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.15); } }
+.sell-progress { animation: sell-progress 3s linear both; }
+@keyframes sell-progress { from { width: 0%; } to { width: 100%; } }

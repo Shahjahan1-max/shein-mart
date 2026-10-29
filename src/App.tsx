@@ -3823,17 +3823,25 @@ function AccountView({
   useEffect(() => {
     if (user?.mustChangePassword) setSection("profile");
   }, [user?.mustChangePassword]);
-  // Consumed during render, NOT in an effect: the old effect ran only
-  // after the first paint, and its ref seeded from the already-bumped
-  // signal on a fresh mount — so the first click landed on the
-  // account menu/profile and the form needed a second click. Now the
-  // first paint after the click IS the seller form. The intent is
-  // cleared by effect once mounted, so a later account visit (or a
-  // different buyer) never auto-opens the form.
-  if (convertIntentUserId != null && user?.role === "buyer" && convertIntentUserId === user.id && !showConvertForm) {
-    setShowConvertForm(true);
+  // Consumed during render, NOT in an effect (an effect would paint
+  // the menu/profile first): the first paint after a Become a Seller
+  // click IS the encouraging intro animation, and the seller form
+  // opens from it — via Continue or automatically after 3 s. The
+  // intent is cleared by effect once mounted, so a later account
+  // visit (or a different buyer) never auto-opens anything.
+  const [showConvertIntro, setShowConvertIntro] = useState(false);
+  if (convertIntentUserId != null && user?.role === "buyer" && convertIntentUserId === user.id && !showConvertForm && !showConvertIntro) {
+    setShowConvertIntro(true);
     setSection("menu");
   }
+  // Intro auto-advance: the form opens on its own once the animation
+  // has played; Continue jumps straight there, Maybe later closes
+  // the intro onto the account menu.
+  useEffect(() => {
+    if (!showConvertIntro) return;
+    const t = window.setTimeout(() => { setShowConvertIntro(false); setShowConvertForm(true); }, 3000);
+    return () => window.clearTimeout(t);
+  }, [showConvertIntro]);
   useEffect(() => {
     if (convertIntentUserId != null) onConvertIntentConsumed?.();
   }, [convertIntentUserId]);
@@ -4005,6 +4013,45 @@ function AccountView({
         </div>
       );
     }
+    // ---- Seller intro animation: shown on every Become a Seller
+    // click before the form — a short, professional encouragement
+    // (storefront + rising sales + floating coins), then the form
+    // opens via Continue or automatically. Maybe later drops back
+    // to the account menu.
+    if (showConvertIntro && user.role === "buyer") {
+      return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={t("conv.introTitle")}>
+          <div className="sell-anim-pop w-full max-w-md rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 text-center shadow-2xl">
+            <div className="relative mx-auto h-36 w-full max-w-xs" aria-hidden>
+              <svg viewBox="0 0 240 140" className="h-full w-full text-[var(--text)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="28" y="50" width="114" height="12" rx="6" fill="currentColor" stroke="none" className="text-[var(--gold)]" />
+                <rect x="34" y="62" width="102" height="63" rx="6" />
+                <rect x="48" y="76" width="26" height="22" rx="2" />
+                <rect x="88" y="76" width="26" height="49" rx="2" />
+                <g className="text-[var(--gold)]">
+                  <rect x="160" y="95" width="12" height="30" rx="2" fill="currentColor" stroke="none" className="sell-bar" style={{ animationDelay: "0.1s" }} />
+                  <rect x="178" y="80" width="12" height="45" rx="2" fill="currentColor" stroke="none" className="sell-bar" style={{ animationDelay: "0.3s" }} />
+                  <rect x="196" y="60" width="12" height="65" rx="2" fill="currentColor" stroke="none" className="sell-bar" style={{ animationDelay: "0.5s" }} />
+                  <path d="M158 88 178 66 190 76 212 42" />
+                  <path d="M204 42h8v8" />
+                </g>
+              </svg>
+              <span className="sell-coin absolute left-[16%] top-[10%] flex h-8 w-8 items-center justify-center rounded-full bg-[var(--gold)] text-sm font-extrabold text-white" style={{ animationDelay: "0s" }}>S</span>
+              <span className="sell-coin absolute left-[38%] top-[2%] flex h-6 w-6 items-center justify-center rounded-full bg-[var(--gold)] text-xs font-extrabold text-white" style={{ animationDelay: "0.7s" }}>S</span>
+              <span className="sell-coin absolute right-[14%] top-[16%] flex h-7 w-7 items-center justify-center rounded-full bg-[var(--gold)] text-xs font-extrabold text-white" style={{ animationDelay: "1.2s" }}>S</span>
+              <svg viewBox="0 0 24 24" className="sell-spark absolute right-[28%] top-[26%] h-4 w-4 text-[var(--gold)]" fill="currentColor" style={{ animationDelay: "0.4s" }}><path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4L12 2Z" /></svg>
+              <svg viewBox="0 0 24 24" className="sell-spark absolute left-[30%] top-[22%] h-3 w-3 text-[var(--gold)]" fill="currentColor" style={{ animationDelay: "1s" }}><path d="M12 2l2.2 6.6L21 11l-6.8 2.4L12 20l-2.2-6.6L3 11l6.8-2.4L12 2Z" /></svg>
+            </div>
+            <h3 className="mt-2 font-display text-2xl font-extrabold text-[var(--text)]">{t("conv.introTitle")}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--dim)]">{t("conv.introSub")}</p>
+            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[var(--surface-alt)]"><div className="sell-progress h-full rounded-full bg-[var(--gold)]" /></div>
+            <p className="mt-1.5 text-xs text-[var(--dim)]">{t("conv.auto")}</p>
+            <button type="button" onClick={() => { setShowConvertIntro(false); setShowConvertForm(true); }} className={primaryBtn + " mt-3 w-full justify-center px-4 py-2.5"}>{t("conv.continue")} →</button>
+            <button type="button" onClick={() => setShowConvertIntro(false)} className="mt-2 w-full py-1.5 text-sm font-semibold text-[var(--dim)]">{t("conv.later")}</button>
+          </div>
+        </div>
+      );
+    }
     // ---- Buyer → seller shift: the seller application form, opened
     // from any Become a Seller entry (drawer / topnav / homepage /
     // Account menu). The buyer sees only the REMAINING info — their
@@ -4126,7 +4173,7 @@ function AccountView({
           {user.role === "buyer" && (
             <button
               type="button"
-              onClick={() => setShowConvertForm(true)}
+              onClick={() => setShowConvertIntro(true)}
               aria-label={t("menu.becomeSeller")}
               className={menuRowCls}
             >
@@ -7551,6 +7598,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   if (!user) return <EmptyState title={t("adm.signInT")} text={t("adm.signInD")} />;
   if (user.role !== "admin") return <EmptyState title={t("adm.title")} text={t("adm.onlyAdmin")} />;
   if (overview.isPending) return <p className="py-10 text-center text-[var(--dim)]">{t("adm.loading")}</p>;
+  if (overview.isError) return <p className="py-10 text-center text-[var(--dim)]">{t("adm.loadError")}</p>;
   const ov = overview.data!;
   const apps = applications.data?.applications ?? [];
   const pendingSellerCount = apps.filter((a) => a.verificationStatus === "pending").length;
@@ -7558,7 +7606,6 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   const selectedSellerPicks = (sellerProductsList.data?.rows ?? []).filter((r) => r.sellerId === selectedSellerId);
   const selectedBuyer = ov.users.find((u) => u.id === selectedBuyerId && u.role === "buyer") ?? null;
   const selectedBuyerOrders = selectedBuyer ? ov.orders.filter((o) => o.buyerId === selectedBuyer.id) : [];
-  const buyersCount = ov.users.filter((u) => u.role === "buyer").length;
   const sellersCount = ov.users.filter((u) => u.role === "seller").length;
   // Order totals by status — computed from the same real orders list the
   // Admin Orders section shows, so the counts always match the records
@@ -7581,6 +7628,20 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
     shipped: ov.orders.filter((o) => o.status === "Shipped").length,
     cancelled: ov.orders.filter((o) => o.status === "Cancelled").length,
   };
+  // Dashboard delta lines (preview style, real data only): orders
+  // carry createdAt, so a true last-7-days vs prior-7-days % change
+  // is computable; products and users carry no usable date in the
+  // overview payload, so those cards get honest count sub-lines
+  // instead of a % line. Seller applications do carry createdAt.
+  const dayMs = 86400000;
+  const nowMs = Date.now();
+  const inLast7 = (iso?: string | null) => { if (!iso) return false; const ms = new Date(iso).getTime(); return ms > nowMs - 7 * dayMs && ms <= nowMs; };
+  const inPrior7 = (iso?: string | null) => { if (!iso) return false; const ms = new Date(iso).getTime(); return ms > nowMs - 14 * dayMs && ms <= nowMs - 7 * dayMs; };
+  const ordersLast7 = ov.orders.filter((o) => inLast7(o.createdAt)).length;
+  const ordersPrior7 = ov.orders.filter((o) => inPrior7(o.createdAt)).length;
+  const ordersDeltaPct = ordersPrior7 > 0 ? Math.round(((ordersLast7 - ordersPrior7) / ordersPrior7) * 100) : null;
+  const sellersNew7 = (applications.data?.applications ?? []).filter((a) => inLast7(a.createdAt)).length;
+  const productCategoryCount = [...new Set((products.data?.products ?? []).map((pr) => pr.category))].length;
   // The same buckets as lists, for the stat-card filter — predicates
   // deliberately identical to ordCounts, so a card's number always
   // equals the number of orders its click shows.
@@ -7816,14 +7877,15 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           </div>
           <nav className="flex flex-col gap-5">
             {[
-              { title: "Overview", ids: ["overview"] },
-              { title: "Management", ids: ["sellers", "users", "products", "sellerProducts", "external", "orders"] },
+              { title: "", ids: ["overview", "sellers", "users", "products"] },
+              { title: "Product Management", ids: ["sellerProducts", "external"] },
+              { title: "Operations", ids: ["orders"] },
               { title: "Finance", ids: ["wallet", "profit"] },
               { title: "Support", ids: ["support"] },
               { title: "System", ids: ["theme", "settings"] },
             ].map((g) => (
               <div key={g.title}>
-                <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#8B8F94]">{g.title}</p>
+                {g.title !== "" && (<p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#8B8F94]">{g.title}</p>)}
                 <div className="flex flex-col gap-0.5">
                   {sections.filter((sec) => g.ids.includes(sec.id)).map((sec) => (
                     <button key={sec.id} type="button" aria-label={sec.label} aria-current={section === sec.id ? "page" : undefined} onClick={() => { setSection(sec.id); setAdminNavOpen(false); }}
@@ -7868,21 +7930,78 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           </div>
           {deleteMsg && <p role="status" className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">{deleteMsg}</p>}
           {section === "overview" && (<div>
-            <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)] sm:text-4xl">{t("adm.welcomeTitle")}</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--dim)] sm:text-base">{t("adm.welcomeSub")}</p>
+            <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)] sm:text-4xl">{t("adm.welcomeBack")}</h2>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               {[
-                { label: t("adm.sellers"), value: String(sellersCount), go: "sellers" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>) },
-                { label: t("adm.buyers"), value: String(buyersCount), go: "users" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>) },
-                { label: t("adm.products"), value: String(ov.totalProducts), go: "products" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="M3.3 7 12 12l8.7-5" /><path d="M12 22V12" /></svg>) },
-                { label: t("adm.totalOrders"), value: String(ordCounts.total), go: "orders" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>) },
+                { label: t("adm.totalOrders"), value: String(ordCounts.total), go: "orders" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>), delta: ordersDeltaPct !== null ? `${ordersDeltaPct >= 0 ? "+" : ""}${ordersDeltaPct}% ${t("adm.delta7")}` : ordersLast7 > 0 ? `${ordersLast7} ${t("adm.newIn7")}` : null, trend: ordersDeltaPct !== null ? (ordersDeltaPct >= 0 ? "up" : "down") : null },
+                { label: t("adm.products"), value: String(ov.totalProducts), go: "products" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="M3.3 7 12 12l8.7-5" /><path d="M12 22V12" /></svg>), delta: productCategoryCount > 0 ? `${productCategoryCount} ${t("adm.categories")}` : null, trend: null },
+                { label: t("adm.sellers"), value: String(sellersCount), go: "sellers" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>), delta: `${sellersNew7} ${t("adm.newIn7")}`, trend: null },
+                { label: t("act.title"), value: String(actCounts.total), go: "overview" as AdminSection, action: () => { setSection("overview"); window.setTimeout(() => document.getElementById("admin-activity")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150); }, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7" /><path d="M13.7 21a2 2 0 0 1-3.4 0" /></svg>), delta: null, trend: null },
               ].map((c) => (
-                <button key={c.label} type="button" aria-label={`${c.label}: ${c.value}`} onClick={() => setSection(c.go)} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left shadow-sm transition-shadow hover:shadow-md">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-strong)]">{c.icon}</span>
+                <button key={c.label} type="button" aria-label={`${c.label}: ${c.value}`} onClick={() => { if ((c as { action?: () => void }).action) (c as { action: () => void }).action(); else setSection(c.go); }} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 text-left shadow-sm transition-shadow hover:shadow-md">
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-strong)]">{c.icon}</span>
+                    {c.trend ? (<span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent-soft)] text-sm font-bold text-[var(--accent-strong)]">{c.trend === "up" ? "↑" : "↓"}</span>) : (<span aria-hidden className="text-[var(--gold)]">→</span>)}
+                  </span>
                   <span className="mt-3 block text-xs font-semibold text-[var(--dim)]">{c.label}</span>
-                  <span className="mt-0.5 flex items-center justify-between gap-2"><span className="font-display text-2xl font-extrabold text-[var(--text)]">{c.value}</span><span aria-hidden className="text-[var(--gold)]">→</span></span>
+                  <span className="mt-0.5 block font-display text-2xl font-extrabold text-[var(--text)]">{c.value}</span>
+                  {c.delta && (<span className="mt-1 block text-xs text-[var(--dim)]">{c.delta}</span>)}
                 </button>
               ))}
+            </div>
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              <section aria-label={t("adm.latestActivity")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 lg:col-span-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="flex items-center gap-2 font-display text-lg font-extrabold text-[var(--text)]">🔔 {t("adm.latestActivity")}</h3>
+                  <button type="button" onClick={() => { setSection("overview"); window.setTimeout(() => document.getElementById("admin-activity")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150); }} className="shrink-0 text-sm font-bold text-[var(--gold)]">{t("adm.viewAll")} →</button>
+                </div>
+                <p className="mt-1 text-sm text-[var(--dim)]">{t("adm.latestActivitySub")}</p>
+                {activity.isPending ? (
+                  <p className="mt-3 text-sm text-[var(--dim)]">{t("common.loading")}</p>
+                ) : (activity.data?.events ?? []).length === 0 ? (
+                  <p className="mt-3 text-sm text-[var(--dim)]">{t("act.none")}</p>
+                ) : (
+                  <div className="mt-3 flex flex-col gap-2">
+                    {(activity.data?.events ?? []).slice(0, 5).map((ev) => {
+                      const icon = ev.kind === "order" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>) : ev.kind === "wallet" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="6" width="18" height="14" rx="2" /><path d="M3 10h18" /><path d="M16 15h.01" /></svg>) : ev.kind === "chat" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M4 5h16v11H9l-5 4V5Z" /></svg>) : ev.kind === "ticket" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M13 6v12" strokeDasharray="2 2" /></svg>) : (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><circle cx="7.5" cy="15.5" r="4" /><path d="M10.5 12.5 20 3" /><path d="M16 7l2.5 2.5M18.5 4.5l1.5 1.5" /></svg>);
+                      const title = ev.kind === "order" ? t("adm.actOrder") : ev.kind === "wallet" ? t("adm.actWallet") : ev.kind === "chat" ? t("adm.actChat") : ev.kind === "ticket" ? t("adm.actTicket") : t("adm.actReset");
+                      const statusLabel = ev.status === "awaiting" ? t("adm.awaiting") : ev.status;
+                      const pillCls = ["Delivered", "approved", "paid"].includes(ev.status) ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" : ev.status === "Shipped" ? "bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200" : ["rejected", "Cancelled"].includes(ev.status) ? "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200" : "bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200";
+                      return (
+                        <div key={`${ev.kind}:${ev.refId}`} className={`flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2.5 ${ev.isNew ? "border-[var(--gold)] bg-[var(--amber-bg)]" : "border-[var(--border)]"}`}>
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-strong)]">{icon}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-bold text-[var(--text)]">{title}{ev.isNew && (<span className="ml-2"><NewBadge /></span>)}</span>
+                            <span className="block truncate text-xs text-[var(--dim)]">{ev.customerName} · {ev.detail}</span>
+                          </span>
+                          <span className="text-xs text-[var(--dim)]">{new Date(ev.createdAt).toLocaleString()}</span>
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${pillCls}`}>{statusLabel}</span>
+                          <button type="button" aria-label={`Open activity for ${ev.customerName}`} onClick={() => openActivity(ev)} className="shrink-0 rounded-lg bg-[#20262C] px-3 py-1.5 text-xs font-bold text-white">{t("act.open")}</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+              <section aria-label={t("adm.quickActions")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
+                <h3 className="flex items-center gap-2 font-display text-lg font-extrabold text-[var(--text)]"><svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" /></svg> {t("adm.quickActions")}</h3>
+                <div className="mt-3 flex flex-col gap-3">
+                  {[
+                    { label: t("adm.manageOrders"), sub: t("adm.manageOrdersSub"), go: "orders" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>) },
+                    { label: t("adm.manageProducts"), sub: t("adm.manageProductsSub"), go: "products" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="M3.3 7 12 12l8.7-5" /><path d="M12 22V12" /></svg>) },
+                    { label: t("adm.viewSellers"), sub: t("adm.viewSellersSub"), go: "sellers" as AdminSection, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>) },
+                  ].map((q) => (
+                    <button key={q.label} type="button" aria-label={q.label} onClick={() => setSection(q.go)} className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] p-3 text-left transition-shadow hover:shadow-md">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-strong)]">{q.icon}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-bold text-[var(--text)]">{q.label}</span>
+                        <span className="block truncate text-xs text-[var(--dim)]">{q.sub}</span>
+                      </span>
+                      <span aria-hidden className="shrink-0 text-lg text-[var(--dim)] rtl:-scale-x-100">›</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
             </div>
             <div className="mt-6 grid gap-4 lg:grid-cols-2">
               <section aria-label={t("adm.recentOrders")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
