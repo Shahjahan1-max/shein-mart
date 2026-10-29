@@ -8,7 +8,7 @@
 // otherwise the profit stays with the main store.
 
 import { defineAction, z, type ActionsModule, type Ctx } from "./space-shim";
-import { and, asc, desc, eq, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, ne, sql } from "drizzle-orm";
 import * as schema from "./schema.pg";
 import { createHash, randomBytes } from "node:crypto";
 
@@ -61,9 +61,59 @@ function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
+// Login brute-force guard: per-process in-memory state. Render runs a
+// single instance of this service, so one process sees every attempt;
+// if the service ever scales to multiple instances this must move to
+// the database or a shared store.
+const LOGIN_MAX_FAILURES = 5;
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
+function loginLockoutKey(identifier: string): string {
+  return identifier.trim().toLowerCase();
+}
+function isLoginLocked(key: string): boolean {
+  const rec = loginFailures.get(key);
+  if (!rec) return false;
+  if (rec.count < LOGIN_MAX_FAILURES) return false;
+  if (rec.lockedUntil > Date.now()) return true;
+  // Lockout window passed: start a fresh count.
+  loginFailures.delete(key);
+  return false;
+}
+function recordLoginFailure(key: string): void {
+  const rec = loginFailures.get(key) ?? { count: 0, lockedUntil: 0 };
+  rec.count += 1;
+  if (rec.count >= LOGIN_MAX_FAILURES) rec.lockedUntil = Date.now() + LOGIN_LOCKOUT_MS;
+  loginFailures.set(key, rec);
+}
+function clearLoginFailures(key: string): void {
+  loginFailures.delete(key);
+}
+
+// Session lifetime: 30 days. On issue, expired sessions for the user
+// are pruned and live sessions are capped at 10 (oldest dropped first),
+// so old devices cannot pile up forever. The dispatcher additionally
+// enforces expiry on every request (server.ts).
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_MAX_PER_USER = 10;
 async function issueSessionToken(db: Db, userId: number): Promise<string> {
   const token = randomBytes(32).toString("hex");
-  await db.insert(schema.userSessions).values({ userId, tokenHash: hashToken(token) });
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  await db
+    .delete(schema.userSessions)
+    .where(and(eq(schema.userSessions.userId, userId), lt(schema.userSessions.expiresAt, new Date())));
+  const live = await db
+    .select({ id: schema.userSessions.id })
+    .from(schema.userSessions)
+    .where(eq(schema.userSessions.userId, userId))
+    .orderBy(asc(schema.userSessions.createdAt));
+  if (live.length >= SESSION_MAX_PER_USER) {
+    const excess = live.slice(0, live.length - (SESSION_MAX_PER_USER - 1));
+    for (const row of excess) {
+      await db.delete(schema.userSessions).where(eq(schema.userSessions.id, row.id));
+    }
+  }
+  await db.insert(schema.userSessions).values({ userId, tokenHash: hashToken(token), expiresAt });
   return token;
 }
 
@@ -1083,6 +1133,18 @@ function toChatOut(m: ChatRow) {
 // max 3 MB — the same validation style as the seller document uploads.
 // Returns either the stored blob metadata or a written error.
 const CHAT_ATTACHMENT_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+// Magic-bytes check: the declared content-type must match the file's
+// actual bytes, so a mislabeled upload cannot be served under a type
+// it is not (defense in depth alongside the blob nosniff header).
+function sniffFileType(bytes: Uint8Array): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return "image/gif";
+  if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return "image/webp";
+  if (bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d) return "application/pdf";
+  return null;
+}
+
 async function storeChatAttachment(
   ctx: Ctx,
   att: { fileName: string; contentType: string; dataBase64: string },
@@ -1100,6 +1162,9 @@ async function storeChatAttachment(
     return { ok: false, error: "The file could not be read. Please try again." };
   }
   if (bytes.length === 0) return { ok: false, error: "The selected file is empty." };
+  if (sniffFileType(bytes) !== att.contentType) {
+    return { ok: false, error: "The file's contents do not match its type — please choose a genuine JPG, PNG or PDF file." };
+  }
   if (bytes.length > 3 * 1024 * 1024) {
     return { ok: false, error: "File is too large — maximum 3 MB. Please choose a smaller photo or document." };
   }
@@ -1140,6 +1205,9 @@ async function storeDepositScreenshot(
     return { ok: false, error: "The screenshot could not be read. Please try again." };
   }
   if (bytes.length === 0) return { ok: false, error: "The selected screenshot file is empty." };
+  if (sniffFileType(bytes) !== att.contentType) {
+    return { ok: false, error: "The screenshot's contents do not match its type — please attach a genuine JPG or PNG image." };
+  }
   if (bytes.length > DEPOSIT_SCREENSHOT_MAX) {
     return { ok: false, error: "Screenshot is too large — maximum 3 MB. Please choose a smaller image." };
   }
@@ -2022,6 +2090,14 @@ async function notifySellersWalletCredit(db: Db, orderId: number): Promise<void>
       const credit = paid
         ? mine.reduce((s, it) => s + it.buyerPrice * it.qty, 0)
         : mine.reduce((s, it) => s + it.profitAmount * it.qty, 0);
+      // Idempotency: one order_completed event per (seller, order), ever.
+      // Without this, Delivered -> Pending -> Delivered credited twice.
+      const already = await db
+        .select({ id: schema.sellerWalletEvents.id })
+        .from(schema.sellerWalletEvents)
+        .where(and(eq(schema.sellerWalletEvents.sellerId, sellerId), eq(schema.sellerWalletEvents.kind, "order_completed"), eq(schema.sellerWalletEvents.orderId, orderId)))
+        .limit(1);
+      if (already.length > 0) continue;
       await insertWalletEvent(db, { sellerId, kind: "order_completed", amount: credit, reference: `Order #${orderId}`, orderId });
     }
   } catch (e) {
@@ -2197,10 +2273,85 @@ const KITCHEN_PHOTO_FIXES: Record<number, string> = {
   304: "kitchen-304-containers.jpg",
   314: "kitchen-314-dinnerset.jpg",
 };
+// Age signal for a blob key. Every blob key this backend generates embeds
+// Date.now() as the first dash-segment of its last path segment
+// (seller-docs/<kind>/<ms>-..., chat-attachments/<ms>-...,
+// deposit-screenshots/<ms>-..., header-logo/<ms>-...). The blobs table
+// has NO created_at column, so this is the only age signal available;
+// keys that do not match (seeded/legacy keys) return null and are NEVER
+// deleted by cleanup.
+function blobKeyTimestamp(key: string): number | null {
+  const last = key.split("/").pop() ?? "";
+  const ms = Number(last.split("-")[0]);
+  return Number.isFinite(ms) && ms > 0 ? ms : null;
+}
+
+// Lazy orphan-blob cleanup. uploadSellerDocument must stay PUBLIC: the
+// guest seller-signup form uploads documents BEFORE the account exists
+// (frontend FileNameField -> registerSeller with the returned keys), so
+// a token gate would break every guest signup at the document step.
+// Instead, each upload deletes at most 100 blob rows that are BOTH older
+// than 24h AND referenced by no owning row, so abandoned guest uploads
+// cannot accumulate forever while in-flight signups (minutes old) and
+// every attached file are always safe. Best-effort: any failure here is
+// swallowed so cleanup can never break an upload.
+async function cleanupOrphanBlobs(ctx: Ctx): Promise<void> {
+  try {
+    const db = ctx.db<typeof schema>();
+    const referenced = new Set<string>();
+    const collect = (rows: Array<Record<string, unknown>>, field: string) => {
+      for (const r of rows) {
+        const v = r[field];
+        if (typeof v === "string" && v) referenced.add(v);
+      }
+    };
+    const [u, o, c, w, s] = await Promise.all([
+      db.select({ photoBlobKey: schema.users.photoBlobKey, storeLogoBlobKey: schema.users.storeLogoBlobKey, docFrontBlobKey: schema.users.docFrontBlobKey, docBackBlobKey: schema.users.docBackBlobKey }).from(schema.users),
+      db.select({ paymentProofBlobKey: schema.orders.paymentProofBlobKey }).from(schema.orders),
+      db.select({ attachmentBlobKey: schema.chatMessages.attachmentBlobKey }).from(schema.chatMessages),
+      db.select({ screenshotBlobKey: schema.walletTransactions.screenshotBlobKey }).from(schema.walletTransactions),
+      db.select({ headerLogoBlobKey: schema.settings.headerLogoBlobKey, headerLogoUrl: schema.settings.headerLogoUrl }).from(schema.settings),
+    ]);
+    for (const r of u) {
+      collect([r], "photoBlobKey");
+      collect([r], "storeLogoBlobKey");
+      collect([r], "docFrontBlobKey");
+      collect([r], "docBackBlobKey");
+    }
+    collect(o, "paymentProofBlobKey");
+    collect(c, "attachmentBlobKey");
+    collect(w, "screenshotBlobKey");
+    for (const r of s) {
+      if (typeof r.headerLogoBlobKey === "string" && r.headerLogoBlobKey) referenced.add(r.headerLogoBlobKey);
+      // A pasted header-logo URL may itself point at a blob; keep that
+      // blob alive too (single settings row, cheap to parse).
+      if (typeof r.headerLogoUrl === "string") {
+        const m = r.headerLogoUrl.match(/\/blobs\/([^?#]+)/);
+        if (m) {
+          try { referenced.add(decodeURIComponent(m[1])); } catch { /* malformed URL, ignore */ }
+        }
+      }
+    }
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const all = await db.select({ key: schema.blobs.key }).from(schema.blobs);
+    let deleted = 0;
+    for (const row of all) {
+      if (deleted >= 100) break;
+      if (referenced.has(row.key)) continue;
+      const ts = blobKeyTimestamp(row.key);
+      if (ts === null || ts > cutoff) continue;
+      await ctx.blobs.delete(row.key);
+      deleted++;
+    }
+  } catch {
+    // Orphan cleanup must never fail an upload.
+  }
+}
+
 export const Actions = {
   seedCatalog: defineAction({
-    auth: "public",
-    request: z.object({}),
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number() }),
     response: z.object({ seeded: z.boolean(), count: z.number() }),
     async handler(ctx) {
       const db = ctx.db<typeof schema>();
@@ -2228,12 +2379,15 @@ export const Actions = {
 
   // One-time India catalog sync (the owner asked for INR pricing at Indian
   // market levels and a much bigger catalog with a Cosmetics section).
-  // Matches catalog entries by name: existing products are re-priced to the
-  // INR values, missing ones are inserted. Products the admin added or
-  // renamed are left untouched, and re-running changes nothing further.
+  // INSERT-ONLY since the 2026-10-29 security fix: it must NEVER overwrite
+  // an existing product's price, description, category or image — admin
+  // edits to starter products used to be reverted by this action (and by
+  // the frontend's auto-call on every first load). Missing starter
+  // products are inserted; everything already present is left untouched.
+  // Admin-only: the old public tag let anyone trigger the sync.
   ensureIndiaCatalog: defineAction({
-    auth: "public",
-    request: z.object({}),
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number() }),
     response: z.object({
       ok: z.literal(true),
       updated: z.number(),
@@ -2247,44 +2401,22 @@ export const Actions = {
       await getSettingsRow(db);
       const existing = await db.select().from(schema.products);
       const byName = new Map(existing.map((p) => [p.name, p]));
-      let updated = 0;
+      // "updated" stays 0 by design: existing products are never touched.
+      const updated = 0;
       let inserted = 0;
       for (const entry of STARTER_PRODUCTS) {
-        const found = byName.get(entry.name);
-        if (found) {
-          if (
-            found.basePrice !== entry.basePrice ||
-            found.oldPrice !== entry.oldPrice ||
-            found.category !== entry.category ||
-            found.imageAsset !== entry.imageAsset
-          ) {
-            await db
-              .update(schema.products)
-              .set({
-                basePrice: entry.basePrice,
-                oldPrice: entry.oldPrice,
-                profitPercent: entry.profitPercent,
-                category: entry.category,
-                description: entry.description,
-                imageAsset: entry.imageAsset,
-                imageSourceUrl: entry.imageSourceUrl,
-              })
-              .where(eq(schema.products.id, found.id));
-            updated += 1;
-          }
-        } else {
-          try {
-            await db.insert(schema.products).values(entry);
-            inserted += 1;
-          } catch (e) {
-            // A concurrent first load (or the post-submit sync) inserted
-            // this product first; the unique name index turns the duplicate
-            // into a no-op instead of a second row.
-            if (!String(e).includes("UNIQUE")) throw e;
-          }
+        if (byName.has(entry.name)) continue;
+        try {
+          await db.insert(schema.products).values(entry);
+          inserted += 1;
+        } catch (e) {
+          // A concurrent first load (or the post-submit sync) inserted
+          // this product first; the unique name index turns the duplicate
+          // into a no-op instead of a second row.
+          if (!String(e).includes("UNIQUE")) throw e;
         }
       }
-      if (updated > 0 || inserted > 0) ctx.invalidateQueries();
+      if (inserted > 0) ctx.invalidateQueries();
       const all = await db
         .select({ id: schema.products.id })
         .from(schema.products);
@@ -2388,11 +2520,12 @@ export const Actions = {
         if (!/^https?:\/\//i.test(url)) return { ok: false, error: "The image URL must start with http:// or https://.", headerLogoUrl: "" };
         patch.headerLogoBlobKey = null; patch.headerLogoContentType = null; patch.headerLogoSize = null; patch.headerLogoUrl = url;
       } else {
-        const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
-        if (!allowed.includes(args.contentType ?? "")) return { ok: false, error: "Only JPG, PNG, WEBP, GIF or SVG images are allowed.", headerLogoUrl: "" };
+        const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+        if (!allowed.includes(args.contentType ?? "")) return { ok: false, error: "Only JPG, PNG, WEBP or GIF images are allowed.", headerLogoUrl: "" };
         let bytes: Uint8Array;
         try { bytes = new Uint8Array(Buffer.from(args.dataBase64 ?? "", "base64")); } catch { return { ok: false, error: "The file could not be read. Please try again.", headerLogoUrl: "" }; }
         if (bytes.length === 0) return { ok: false, error: "The selected file is empty.", headerLogoUrl: "" };
+        if (sniffFileType(bytes) !== args.contentType) return { ok: false, error: "The file's contents do not match its type — please upload a genuine JPG, PNG, WEBP or GIF image.", headerLogoUrl: "" };
         if (bytes.length > 3 * 1024 * 1024) return { ok: false, error: "File is too large — maximum 3 MB.", headerLogoUrl: "" };
         const safe = (args.fileName ?? "logo").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
         const key = `header-logo/${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${safe}`;
@@ -2942,7 +3075,7 @@ export const Actions = {
     request: z.object({
       name: z.string().min(2).max(80),
       email: z.string().max(120).optional(),
-      password: z.string().min(4).max(100),
+      password: z.string().min(8).max(100),
       role: z.enum(["buyer", "seller"]),
       storeName: z.string().max(80).optional(),
       phone: z.string().max(30).optional(),
@@ -3059,7 +3192,7 @@ export const Actions = {
       name: z.string().min(2).max(80),
       country: z.string().max(60).optional(),
       email: z.string().max(120).optional(),
-      password: z.string().min(4).max(100),
+      password: z.string().min(8).max(100),
       phone: z.string().min(7).max(25),
       address: z.string().min(5).max(300),
       city: z.string().min(2).max(60),
@@ -3366,6 +3499,18 @@ export const Actions = {
           user: null,
         };
       }
+      // Brute-force guard: 5 failures on one identifier locks it for 15
+      // minutes. The lockout message is the only place the response
+      // differs — every other failure below returns the same generic
+      // error, so the response never reveals whether the account exists.
+      const lockKey = loginLockoutKey(identifier);
+      if (isLoginLocked(lockKey)) {
+        return {
+          ok: false,
+          error: "Too many failed sign-in attempts — please try again in 15 minutes.",
+          user: null,
+        };
+      }
       let u: UserRow | undefined;
       if (identifier.includes("@")) {
         const rows = await db
@@ -3375,9 +3520,10 @@ export const Actions = {
           .limit(1);
         u = rows[0];
         if (!u) {
+          recordLoginFailure(lockKey);
           return {
             ok: false,
-            error: "No account found with this email. Please check it or register first.",
+            error: "Invalid login ID or password.",
             user: null,
           };
         }
@@ -3392,17 +3538,19 @@ export const Actions = {
         }
         u = await findUserByPhone(db, candidates);
         if (!u) {
+          recordLoginFailure(lockKey);
           return {
             ok: false,
-            error:
-              "No account found with this mobile number. Please check it or register first.",
+            error: "Invalid login ID or password.",
             user: null,
           };
         }
       }
       if (!(await verifyPassword(args.password, u.password))) {
-        return { ok: false, error: "Wrong password. Please try again.", user: null };
+        recordLoginFailure(lockKey);
+        return { ok: false, error: "Invalid login ID or password.", user: null };
       }
+      clearLoginFailures(lockKey);
       if (!isHashedPassword(u.password)) {
         const hashed = await hashPassword(args.password);
         await db.update(schema.users).set({ password: hashed }).where(eq(schema.users.id, u.id));
@@ -3446,61 +3594,6 @@ export const Actions = {
 
   // The very first admin account is created explicitly by the store owner
   // from the sign-in screen; after one admin exists this action refuses.
-  createAdmin: defineAction({
-    auth: "public",
-    request: z.object({
-      name: z.string().min(2).max(80),
-      email: z.string().email().max(120),
-      password: z.string().min(4).max(100),
-    }),
-    response: z.object({
-      ok: z.boolean(),
-      error: z.string().nullable(),
-      user: userOut.nullable(),
-      token: z.string().nullable().optional(),
-    }),
-    async handler(ctx, args) {
-      const db = ctx.db<typeof schema>();
-      const admins = await db
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.role, "admin"))
-        .limit(1);
-      if (admins[0]) {
-        return {
-          ok: false,
-          error: "An admin account already exists. Sign in with it instead.",
-          user: null,
-        };
-      }
-      const email = args.email.trim().toLowerCase();
-      const dupe = await db
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.email, email))
-        .limit(1);
-      if (dupe[0]) {
-        return {
-          ok: false,
-          error: "This email is already registered.",
-          user: null,
-        };
-      }
-      const inserted = await db
-        .insert(schema.users)
-        .values({
-          name: args.name.trim(),
-          email,
-          password: await hashPassword(args.password),
-          role: "admin",
-        })
-        .returning();
-      ctx.invalidateQueries();
-      const token = await issueSessionToken(db, inserted[0]!.id);
-      return { ok: true, error: null, user: toUserOut(inserted[0]!), token };
-    },
-  }),
-
   hasAdmin: defineAction({
     auth: "public",
     request: z.object({}),
@@ -3513,29 +3606,6 @@ export const Actions = {
         .where(eq(schema.users.role, "admin"))
         .limit(1);
       return { hasAdmin: admins.length > 0 };
-    },
-  }),
-
-  // One-way upgrade: any legacy account still holding a non-hashed value
-  // gets it hashed in place (hashing the existing value keeps the same
-  // login password working). Idempotent; returns only a count, never any
-  // password or hash value.
-  ensurePasswordHashes: defineAction({
-    auth: "public",
-    request: z.object({}),
-    response: z.object({ upgraded: z.number() }),
-    async handler(ctx) {
-      const db = ctx.db<typeof schema>();
-      const all = await db.select({ id: schema.users.id, password: schema.users.password }).from(schema.users);
-      let upgraded = 0;
-      for (const row of all) {
-        if (!isHashedPassword(row.password)) {
-          await db.update(schema.users).set({ password: await hashPassword(row.password) }).where(eq(schema.users.id, row.id));
-          upgraded += 1;
-        }
-      }
-      if (upgraded > 0) ctx.invalidateQueries();
-      return { upgraded };
     },
   }),
 
@@ -3608,6 +3678,8 @@ export const Actions = {
     response: z.object({ products: z.array(productOut) }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.sellerId)).limit(1);
+      if (!me[0] || me[0].role !== "seller") throw new Error("Only seller accounts can list their store products.");
       const picks = await db
         .select()
         .from(schema.sellerProducts)
@@ -3930,8 +4002,11 @@ export const Actions = {
       // items include a product from a seller's store credits that item's
       // profit to the seller. Orders placed directly here keep sellerId
       // null (main-store sale).
-      const inserted = await db
-        .insert(schema.orders)
+      let orderId = 0;
+      try {
+        await db.transaction(async (tx) => {
+          const inserted = await tx
+            .insert(schema.orders)
         .values({
           buyerId: args.buyerId,
           sellerId: null,
@@ -3955,33 +4030,52 @@ export const Actions = {
           status: "Pending",
         })
         .returning({ id: schema.orders.id });
-      const orderId = inserted[0]!.id;
-      for (const line of lines) {
-        await db.insert(schema.orderItems).values({ orderId, ...line });
-        const p = await db
-          .select()
-          .from(schema.products)
-          .where(eq(schema.products.id, line.productId))
-          .limit(1);
-        if (p[0]) {
-          await db
-            .update(schema.products)
-            .set({ stock: Math.max(0, p[0].stock - line.qty) })
-            .where(eq(schema.products.id, line.productId));
-        }
-      }
+          orderId = inserted[0]!.id;
+          for (const line of lines) {
+            await tx.insert(schema.orderItems).values({ orderId, ...line });
+            // Atomic guard against the oversell race: the decrement only
+            // applies when stock still covers the quantity AT THIS
+            // MOMENT. Zero affected rows means another checkout took the
+            // last units in between — throwing rolls the whole order
+            // back (insert + items + earlier decrements), so the buyer
+            // gets the written over-stock refusal instead of a second
+            // order on the same last unit.
+            const dec = await tx
+              .update(schema.products)
+              .set({ stock: sql`${schema.products.stock} - ${line.qty}` })
+              .where(and(eq(schema.products.id, line.productId), gte(schema.products.stock, line.qty)))
+              .returning({ id: schema.products.id });
+            if (dec.length === 0) throw new Error(`OVERSOLD:${line.productId}`);
+          }
       // Create a notification for every seller whose product is in this
       // order — EXCEPT for prepaid orders still behind the payment
       // verification gate: sellers are attributed + notified only when
       // the Admin verifies the payment (adminReviewOrderPayment), so an
       // unverified order never reaches a seller's Pending list, wallet
       // figures or notifications.
-      if (!pm.startsWith("Prepaid — ")) {
-        await notifySellersOfOrder(db, orderId, lines);
+          if (!pm.startsWith("Prepaid — ")) {
+            await notifySellersOfOrder(tx as unknown as Db, orderId, lines);
+          }
+          await tx.delete(schema.cartItems).where(eq(schema.cartItems.buyerId, args.buyerId));
+        });
+      } catch (e) {
+        const m = String(e).match(/OVERSOLD:(\d+)/);
+        if (m) {
+          const pid = parseInt(m[1]!, 10);
+          const p = await db.select().from(schema.products).where(eq(schema.products.id, pid)).limit(1);
+          return {
+            ok: false,
+            error: p[0]
+              ? p[0].stock > 0
+                ? `Only ${p[0].stock} left in stock for "${p[0].name}" — please reduce its quantity in your cart and try again.`
+                : `"${p[0].name}" is out of stock — please remove it from your cart and try again.`
+              : "An item in your cart is no longer in stock — please check your cart and try again.",
+            orderId: null,
+            total: 0,
+          };
+        }
+        throw e;
       }
-      await db
-        .delete(schema.cartItems)
-        .where(eq(schema.cartItems.buyerId, args.buyerId));
       ctx.invalidateQueries();
       return { ok: true, error: null, orderId, total };
     },
@@ -4372,6 +4466,8 @@ export const Actions = {
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.sellerId)).limit(1);
+      if (!me[0] || me[0].role !== "seller") throw new Error("Only seller accounts can view the seller dashboard.");
       const picks = await db
         .select()
         .from(schema.sellerProducts)
@@ -4724,6 +4820,17 @@ export const Actions = {
         .from(schema.orders)
         .where(eq(schema.orders.id, args.orderId))
         .limit(1);
+      // Delivered is TERMINAL (2026-10-29 security fix): a delivered
+      // order can never move back (that re-credited wallet profit), and
+      // Delivered is only reachable from Shipment — the Admin route is
+      // Pending -> Shipped -> approve -> Delivered. Re-setting Delivered
+      // on an already-Delivered order is a harmless no-op below.
+      if (prev[0] && prev[0].status === "Delivered" && args.status !== "Delivered") {
+        throw new Error(`Order #${args.orderId} is already Delivered — a delivered order cannot be moved back.`);
+      }
+      if (prev[0] && args.status === "Delivered" && prev[0].status !== "Delivered" && prev[0].status !== "Shipped") {
+        throw new Error(`Order #${args.orderId} cannot be marked Delivered from ${prev[0].status} — move it to Shipment first, then approve it.`);
+      }
       // Payment gate: an order whose prepaid payment is still under
       // verification cannot be moved through the delivery flow — the
       // Admin must Verify or Reject the payment first (cancelling it
@@ -4809,6 +4916,39 @@ export const Actions = {
       } else {
         await db.update(schema.orders).set({ status: "Pending" }).where(eq(schema.orders.id, args.orderId));
       }
+      ctx.invalidateQueries();
+      return { ok: true, error: null };
+    },
+  }),
+
+  // Buyer self-cancel (added 2026-10-29: the help text promised buyers
+  // could cancel from My Orders, but no buyer cancel path existed).
+  // Pending orders only. COD Pending and unverified-prepaid Pending may
+  // cancel (the order never reached a seller); verified-prepaid Pending
+  // must go through Customer Service, because money already changed
+  // hands. Stock is restored exactly like the admin cancel paths do.
+  // Money is NEVER touched here: no wallet movement, no refund (none
+  // exists). The order row stays with status Cancelled, so it shows in
+  // the seller's Order History exactly like other cancellations.
+  cancelBuyerOrder: defineAction({
+    auth: { arg: "buyerId", role: "buyer" },
+    request: z.object({ orderId: z.number(), buyerId: z.number() }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const ord = await db.select().from(schema.orders).where(eq(schema.orders.id, args.orderId)).limit(1);
+      if (!ord[0]) return { ok: false, error: "Order not found — it may have been removed." };
+      if (ord[0].buyerId !== args.buyerId) return { ok: false, error: "This order does not belong to your account." };
+      if (ord[0].status !== "Pending") return { ok: false, error: `Order #${args.orderId} is ${ord[0].status} — only Pending orders can be cancelled here.` };
+      if (ord[0].paymentStatus === "verified") return { ok: false, error: `Order #${args.orderId} has a verified payment — please contact Customer Service to cancel it.` };
+      const items = await db.select().from(schema.orderItems).where(eq(schema.orderItems.orderId, args.orderId));
+      for (const it of items) {
+        const p = await db.select().from(schema.products).where(eq(schema.products.id, it.productId)).limit(1);
+        if (p[0]) {
+          await db.update(schema.products).set({ stock: p[0].stock + it.qty }).where(eq(schema.products.id, it.productId));
+        }
+      }
+      await db.update(schema.orders).set({ status: "Cancelled" }).where(eq(schema.orders.id, args.orderId));
       ctx.invalidateQueries();
       return { ok: true, error: null };
     },
@@ -5140,6 +5280,38 @@ export const Actions = {
 
   // Serves one chat attachment to the thread's own customer or to an
   // Admin — nobody else can fetch another customer's chat files.
+  // Ownership check for signed blob URLs: is this blob referenced by a
+  // row the user owns? (Seller documents, deposit screenshots, chat
+  // attachments, order payment proofs.) Header-logo blobs are public by
+  // design and handled separately; anything unreferenced is admin-only.
+  getBlobSignedUrl: defineAction({
+    auth: { any: true },
+    request: z.object({ key: z.string().min(1).max(500) }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable(), url: z.string().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const key = args.key;
+      const me = ctx.auth
+        ? await db.select().from(schema.users).where(eq(schema.users.id, ctx.auth.userId)).limit(1)
+        : [];
+      if (!me[0]) return { ok: false, error: "Sign in required.", url: null };
+      if (key.startsWith("header-logo/")) {
+        return { ok: true, error: null, url: await ctx.blobs.signUrl(key) };
+      }
+      if (me[0].role === "admin") {
+        return { ok: true, error: null, url: await ctx.blobs.signUrl(key) };
+      }
+      const u = me[0];
+      const owned =
+        [u.photoBlobKey, u.storeLogoBlobKey, u.docFrontBlobKey, u.docBackBlobKey].includes(key) ||
+        (await db.select({ id: schema.walletTransactions.id }).from(schema.walletTransactions).where(and(eq(schema.walletTransactions.sellerId, u.id), eq(schema.walletTransactions.screenshotBlobKey, key))).limit(1)).length > 0 ||
+        (await db.select({ id: schema.chatMessages.id }).from(schema.chatMessages).where(and(eq(schema.chatMessages.userId, u.id), eq(schema.chatMessages.attachmentBlobKey, key))).limit(1)).length > 0 ||
+        (await db.select({ id: schema.orders.id }).from(schema.orders).where(and(eq(schema.orders.buyerId, u.id), eq(schema.orders.paymentProofBlobKey, key))).limit(1)).length > 0;
+      if (!owned) return { ok: false, error: "This file does not belong to your account.", url: null };
+      return { ok: true, error: null, url: await ctx.blobs.signUrl(key) };
+    },
+  }),
+
   getChatAttachmentUrl: defineAction({
     auth: { arg: "requesterId" },
     request: z.object({ requesterId: z.number(), messageId: z.number() }),
@@ -5370,7 +5542,12 @@ export const Actions = {
     },
   }),
 
+
   uploadSellerDocument: defineAction({
+    // PUBLIC by necessity: guest seller signup uploads documents BEFORE
+    // the account exists (FileNameField -> registerSeller with the blob
+    // keys). Storage abuse is bounded instead by lazy orphan cleanup:
+    // each upload deletes <=100 blobs older than 24h with no owning row.
     auth: "public",
     request: z.object({
       fileName: z.string().min(1).max(200),
@@ -5380,11 +5557,13 @@ export const Actions = {
     }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable(), blobKey: z.string().nullable(), fileName: z.string(), contentType: z.string(), size: z.number() }),
     async handler(ctx, args) {
+      await cleanupOrphanBlobs(ctx);
       const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
       if (!allowed.includes(args.contentType)) return { ok: false, error: "Only JPG, PNG, WEBP, GIF or PDF files are allowed.", blobKey: null, fileName: args.fileName, contentType: args.contentType, size: 0 };
       let bytes: Uint8Array;
       try { bytes = new Uint8Array(Buffer.from(args.dataBase64, "base64")); } catch { return { ok: false, error: "The file could not be read. Please try again.", blobKey: null, fileName: args.fileName, contentType: args.contentType, size: 0 }; }
       if (bytes.length === 0) return { ok: false, error: "The selected file is empty.", blobKey: null, fileName: args.fileName, contentType: args.contentType, size: 0 };
+      if (sniffFileType(bytes) !== args.contentType) return { ok: false, error: "The file's contents do not match its type — please choose a genuine JPG, PNG, WEBP, GIF or PDF file.", blobKey: null, fileName: args.fileName, contentType: args.contentType, size: 0 };
       if (bytes.length > 3 * 1024 * 1024) return { ok: false, error: "File is too large — maximum 3 MB. Please choose a smaller photo or scan.", blobKey: null, fileName: args.fileName, contentType: args.contentType, size: bytes.length };
       const safe = args.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
       const key = `seller-docs/${args.kind}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}-${safe}`;
@@ -5415,6 +5594,26 @@ export const Actions = {
           throw new Error("Buyers can only change their profile photo here.");
       } else if (seller[0].role !== "seller") {
         throw new Error("Seller not found.");
+      }
+      // A supplied blob key must be a real, unattached seller-docs blob:
+      // it must exist in blob storage, live under seller-docs/, and not
+      // already belong to another user's documents — otherwise anyone
+      // with a leaked key could attach someone else's document to their
+      // own account.
+      for (const key of [args.photoBlobKey, args.storeLogoBlobKey, args.docFrontBlobKey, args.docBackBlobKey]) {
+        if (!key) continue;
+        if (!key.startsWith("seller-docs/")) throw new Error("That upload is not a seller document — please upload the file again.");
+        const brow = await db.select({ key: schema.blobs.key }).from(schema.blobs).where(eq(schema.blobs.key, key)).limit(1);
+        if (!brow[0]) throw new Error("That upload was not found — please upload the file again.");
+        const other = await db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .where(and(
+            ne(schema.users.id, args.sellerId),
+            sql`${schema.users.photoBlobKey} = ${key} OR ${schema.users.storeLogoBlobKey} = ${key} OR ${schema.users.docFrontBlobKey} = ${key} OR ${schema.users.docBackBlobKey} = ${key}`,
+          ))
+          .limit(1);
+        if (other[0]) throw new Error("That upload already belongs to another account — please upload the file again.");
       }
       const patch: Record<string, unknown> = {};
       if (args.photoBlobKey) { patch.photoBlobKey = args.photoBlobKey; patch.photoContentType = args.photoContentType ?? null; patch.photoSize = args.photoSize ?? null; if (args.photoFileName) patch.photoFileName = args.photoFileName; }
@@ -5978,7 +6177,7 @@ export const Actions = {
     request: z.object({
       adminId: z.number(),
       sellerId: z.number(),
-      amountInr: z.number().int().min(-100000000).max(100000000),
+      amountInr: z.number().int().min(1).max(100000000),
       note: z.string().max(300).optional(),
     }),
     response: z.object({ ok: z.boolean(), error: z.string().nullable(), id: z.number().nullable(), newBalance: z.number() }),
@@ -6037,6 +6236,18 @@ export const Actions = {
       // the handler never cleaned them (and sessions were only cleared
       // AFTER the user delete, i.e. too late).
       await invalidateUserSessions(db, u.id);
+      // Blob keys owned by this account (documents/photo/logo + chat
+      // attachments + wallet screenshots) are collected BEFORE the rows
+      // go, then deleted after: order payment proofs are NOT deleted —
+      // orders stay as money history and keep their proof references.
+      const ownBlobKeys: string[] = [];
+      for (const k of [u.photoBlobKey, u.storeLogoBlobKey, u.docFrontBlobKey, u.docBackBlobKey]) if (k) ownBlobKeys.push(k);
+      {
+        const chats = await db.select({ attachmentBlobKey: schema.chatMessages.attachmentBlobKey }).from(schema.chatMessages).where(eq(schema.chatMessages.userId, u.id));
+        for (const c of chats) if (c.attachmentBlobKey) ownBlobKeys.push(c.attachmentBlobKey);
+        const shots = await db.select({ screenshotBlobKey: schema.walletTransactions.screenshotBlobKey }).from(schema.walletTransactions).where(eq(schema.walletTransactions.sellerId, u.id));
+        for (const s of shots) if (s.screenshotBlobKey) ownBlobKeys.push(s.screenshotBlobKey);
+      }
       await db.delete(schema.passwordResetRequests).where(eq(schema.passwordResetRequests.userId, u.id));
       await db.delete(schema.googleLoginCodes).where(eq(schema.googleLoginCodes.userId, u.id));
       let walletBal = 0;
@@ -6074,6 +6285,7 @@ export const Actions = {
         // order sellerDeleted.
         await db.update(schema.orders).set({ sellerId: null }).where(eq(schema.orders.sellerId, u.id));
         await db.delete(schema.users).where(eq(schema.users.id, u.id));
+        for (const k of ownBlobKeys) await ctx.blobs.delete(k);
       } else {
         // Buyer: reassign orders to placeholder so order history + FK stay intact; order rows keep customerName/phone recorded at order time
         await db.insert(schema.deletedAccounts).values({ originalUserId: u.id, name: u.name, storeName: u.storeName, email: u.email, phone: u.phone, role: u.role, walletBalance: 0 });
@@ -6088,6 +6300,7 @@ export const Actions = {
         await db.delete(schema.productReviews).where(eq(schema.productReviews.buyerId, u.id));
         await db.update(schema.tickets).set({ userId: null }).where(eq(schema.tickets.userId, u.id));
         await db.delete(schema.users).where(eq(schema.users.id, u.id));
+        for (const k of ownBlobKeys) await ctx.blobs.delete(k);
       }
       ctx.invalidateQueries();
       return { ok: true, error: null, role: u.role };
@@ -6195,7 +6408,7 @@ export const Actions = {
       creatorPassword: z.string().max(100),
       name: z.string().max(80),
       email: z.string().max(120),
-      password: z.string().max(100),
+      password: z.string().min(8).max(100),
     }),
     response: z.object({
       ok: z.boolean(),
@@ -6222,8 +6435,8 @@ export const Actions = {
       if (!email || !isValidEmail(email)) {
         return { ok: false, error: "New Admin Gmail looks wrong — please enter a valid Gmail/email address like name@gmail.com.", user: null };
       }
-      if (!args.password || args.password.length < 4) {
-        return { ok: false, error: "New Admin Password is too short — please use at least 4 characters.", user: null };
+      if (!args.password || args.password.length < 8) {
+        return { ok: false, error: "New Admin Password is too short — please use at least 8 characters.", user: null };
       }
       const dupe = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
       if (dupe[0]) {
@@ -6260,8 +6473,8 @@ export const Actions = {
       if (!(await verifyPassword(args.currentPassword, me[0].password))) {
         return { ok: false, error: "Current Password is wrong — the password was not changed. Please enter the current password for this Gmail's account." };
       }
-      if (!args.newPassword || args.newPassword.length < 4) {
-        return { ok: false, error: "New Password is too short — please use at least 4 characters." };
+      if (!args.newPassword || args.newPassword.length < 8) {
+        return { ok: false, error: "New Password is too short — please use at least 8 characters." };
       }
       if (args.newPassword === args.currentPassword) {
         return { ok: false, error: "New Password is the same as the current password. Please choose a different new password." };
@@ -6299,7 +6512,7 @@ export const Actions = {
       if (!target) return { ok: false, error: "Admin account not found. It may already have been removed." };
       if (!args.actorPassword) return { ok: false, error: "Your Current Password is required — please enter your own password to authorize this reset." };
       if (!(await verifyPassword(args.actorPassword, me[0].password))) return { ok: false, error: "Your Current Password is wrong — the password was not reset. Please enter the password for your own admin account." };
-      if (!args.newPassword || args.newPassword.length < 4) return { ok: false, error: "New Password is too short — please use at least 4 characters." };
+      if (!args.newPassword || args.newPassword.length < 8) return { ok: false, error: "New Password is too short — please use at least 8 characters." };
       await db.update(schema.users).set({ password: await hashPassword(args.newPassword) }).where(eq(schema.users.id, args.targetAdminId));
       await invalidateUserSessions(db, args.targetAdminId);
       ctx.invalidateQueries();
@@ -6440,7 +6653,7 @@ export const Actions = {
         const protectedId = visibleAdmins[0]?.id ?? null;
         if (protectedId === null || args.adminId !== protectedId) return { ok: false, error: "You do not have permission to do this." };
       }
-      if (!args.newPassword || args.newPassword.length < 4) return { ok: false, error: "New Password is too short — please use at least 4 characters." };
+      if (!args.newPassword || args.newPassword.length < 8) return { ok: false, error: "New Password is too short — please use at least 8 characters." };
       const target = await db.select().from(schema.users).where(eq(schema.users.id, reqRows[0].userId)).limit(1);
       if (!target[0]) return { ok: false, error: "Account not found. It may have been removed." };
       await db.update(schema.users).set({ password: await hashPassword(args.newPassword), mustChangePassword: 1 }).where(eq(schema.users.id, reqRows[0].userId));
@@ -6463,7 +6676,7 @@ export const Actions = {
       const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
       if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only an Admin can set a customer password.", accountName: null, loginId: null };
       const actor = me[0];
-      if (args.newPassword.length < 4) return { ok: false, error: "New Password must be at least 4 characters.", accountName: null, loginId: null };
+      if (args.newPassword.length < 8) return { ok: false, error: "New Password must be at least 8 characters.", accountName: null, loginId: null };
       if (args.newPassword !== args.confirmPassword) return { ok: false, error: "New Password and Confirm Password do not match.", accountName: null, loginId: null };
       const rows = await db.select().from(schema.users).where(eq(schema.users.id, args.userId)).limit(1);
       const target = rows[0];
@@ -6488,7 +6701,7 @@ export const Actions = {
       if (me[0].email === "deleted-placeholder@system.local") return { ok: false, error: "You do not have permission to do this." };
       if (!args.currentPassword) return { ok: false, error: "Current Password is required — please enter your current password." };
       if (!(await verifyPassword(args.currentPassword, me[0].password))) return { ok: false, error: "Current Password is wrong — the password was not changed. Please enter the current password for your account." };
-      if (!args.newPassword || args.newPassword.length < 4) return { ok: false, error: "New Password is too short — please use at least 4 characters." };
+      if (!args.newPassword || args.newPassword.length < 8) return { ok: false, error: "New Password is too short — please use at least 8 characters." };
       if (await verifyPassword(args.newPassword, me[0].password)) return { ok: false, error: "New Password is the same as the current password. Please choose a different new password." };
       await db.update(schema.users).set({ password: await hashPassword(args.newPassword), mustChangePassword: 0 }).where(eq(schema.users.id, args.userId));
       await invalidateUserSessions(db, args.userId, ctx.auth?.tokenHash ?? null);
@@ -6819,8 +7032,14 @@ export const Actions = {
       const db = ctx.db<typeof schema>();
       const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
       if (!me[0] || me[0].role !== "admin") return { ok: false, error: "You do not have permission to do this.", deletedCount: 0 };
-      const rows = await db.select({ id: schema.chatMessages.id }).from(schema.chatMessages).where(eq(schema.chatMessages.userId, args.userId));
+      const rows = await db.select({ id: schema.chatMessages.id, attachmentBlobKey: schema.chatMessages.attachmentBlobKey }).from(schema.chatMessages).where(eq(schema.chatMessages.userId, args.userId));
       await db.delete(schema.chatMessages).where(eq(schema.chatMessages.userId, args.userId));
+      // The thread's attachments die with it: otherwise the blob bytes
+      // stay reachable forever under their (signed, but once-issued)
+      // URLs even though the owning rows are gone.
+      for (const r of rows) {
+        if (r.attachmentBlobKey) await ctx.blobs.delete(r.attachmentBlobKey);
+      }
       // Clear the thread's activity entry as well.
       const existing = await db.select().from(schema.adminActivityMarks).where(and(eq(schema.adminActivityMarks.kind, "chat"), eq(schema.adminActivityMarks.refId, args.userId))).limit(1);
       if (existing[0]) {
@@ -7162,8 +7381,8 @@ export const Actions = {
   // empty), with the real merchant listings above. Idempotent — later
   // Admin edits/deletes are never overwritten.
   seedExternalProducts: defineAction({
-    auth: "public",
-    request: z.object({}),
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number() }),
     response: z.object({ seeded: z.boolean(), count: z.number() }),
     async handler(ctx) {
       const db = ctx.db<typeof schema>();

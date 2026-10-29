@@ -331,13 +331,16 @@ export const sellerWalletEvents = pgTable("seller_wallet_events", {
 // Login sessions: one row per login. Only the SHA-256 hash of the token
 // is stored — a database leak never yields a usable session. The raw
 // token is returned to the client exactly once, at login, and is never
-// logged or stored anywhere else.
+// logged or stored anywhere else. expiresAt enforces the 30-day session
+// lifetime (2026-10-29 security fix); rows created before it existed
+// fall back to createdAt + 30 days in the dispatcher.
 export const userSessions = pgTable("user_sessions", {
   id: serial("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
     .references(() => users.id),
   tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { precision: 3, withTimezone: true, mode: "date" }),
   createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),

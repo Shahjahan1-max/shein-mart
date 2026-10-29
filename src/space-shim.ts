@@ -56,6 +56,12 @@ export function defineAction<T extends ActionDef>(def: T): T {
 export type BlobStore = {
   put: (key: string, bytes: Uint8Array, opts: { contentType: string }) => Promise<void>;
   getUrl: (key: string) => Promise<string>;
+  // Signed, 15-minute URL for a private blob (see server.ts). getUrl
+  // already returns signed URLs for private prefixes; signUrl is the
+  // direct form used by the getBlobSignedUrl action after its ownership
+  // check. delete removes the blob row (account/chat-thread cleanup).
+  signUrl: (key: string) => Promise<string>;
+  delete: (key: string) => Promise<void>;
 };
 
 export type Ctx = {
