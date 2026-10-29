@@ -10813,7 +10813,7 @@ const NAV: NavItem[] =
               </button>
               )}
               <span className="flex-1" />
-              {view !== "account" && (
+              {view === "shop" && (
               <label className="flex min-w-0 max-w-xs flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--gold)]">
                 <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="h-4 w-4 shrink-0 text-[var(--dim)]">
                   <circle cx="11" cy="11" r="7" />
@@ -10831,7 +10831,7 @@ const NAV: NavItem[] =
               )}
             </nav>
           )}
-          {view !== "account" && layoutDesign === "classic" && (
+          {view === "shop" && layoutDesign === "classic" && (
             <div className="px-3 pb-2.5 sm:px-4 md:hidden">
               <div className={`mx-auto ${containerW}`}>
                 <label className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 shadow-sm focus-within:ring-2 focus-within:ring-[var(--gold)]">
@@ -10855,7 +10855,7 @@ const NAV: NavItem[] =
               header itself: Design 2 (Menu) as a compact row under the
               brand row, Design 3 (Top Search) as a big full-width row.
               It drives the same shop search and jumps to the shop. */}
-          {view !== "account" && (layoutDesign === "menu" || layoutDesign === "topsearch") && (
+          {view === "shop" && (layoutDesign === "menu" || layoutDesign === "topsearch") && (
             <div className={`border-t border-[var(--border)] px-3 transition-all duration-300 sm:px-4 ${layoutDesign === "topsearch" ? "py-2" : "py-1"}`}>
               <div className={`mx-auto ${containerW}`}>
                 <label className="block">
