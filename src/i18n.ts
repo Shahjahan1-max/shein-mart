@@ -618,6 +618,9 @@ export const STR = {
   "sd.buyerPrice": { en: "Buyer price", hi: "खरीदार दाम" , ar: "سعر المشتري"},
   "sd.profit": { en: "Profit", hi: "मुनाफ़ा" , ar: "الربح"},
   "sd.remove": { en: "Remove", hi: "हटाएँ" , ar: "إزالة"},
+  "sd.noMatch": { en: "No products match your search.", hi: "आपकी खोज से कोई प्रोडक्ट नहीं मिला।" , ar: "لا توجد منتجات مطابقة لبحثك."},
+  "sd.backToShop": { en: "Back to Shop", hi: "दुकान पर वापस जाएँ" , ar: "العودة إلى المتجر"},
+  "sd.myProfile": { en: "My Profile", hi: "मेरी प्रोफ़ाइल" , ar: "ملفي الشخصي"},
   "sd.loading": { en: "Loading dashboard…", hi: "डैशबोर्ड लोड हो रहा है…" , ar: "جارٍ تحميل لوحة التحكم…"},
   "sd.signInT": { en: "Seller account needed", hi: "विक्रेता खाता चाहिए" , ar: "حساب بائع مطلوب"},
   "sd.signInD": {

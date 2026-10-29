@@ -3693,6 +3693,12 @@ const aPhone = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="current
 const aGlobe = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z" /></svg>);
 const aStore = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M4 8 5.5 3h13L20 8" /><path d="M4 8v12h16V8" /><path d="M9 20v-5h6v5" /></svg>);
 const aGrid = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></svg>);
+const aHome = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M3 11 12 4l9 7" /><path d="M5.5 9.5V20h13V9.5" /><path d="M9.5 20v-5h5v5" /></svg>);
+const aBag = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M5.5 8h13l-1 12.5h-11L5.5 8Z" /><path d="M9 10V6.5a3 3 0 0 1 6 0V10" /></svg>);
+const aReceipt = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M6 3h12v18l-2-1.5L14 21l-2-1.5L10 21l-2-1.5L6 21V3Z" /><path d="M9 8h6M9 12h6" /></svg>);
+const aWallet = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="3" y="6" width="18" height="14" rx="2" /><path d="M3 10h18" /><path d="M16 15h2" /></svg>);
+const aChat = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M4 5h16v11H9l-5 4V5Z" /><path d="M8 9h8M8 12h5" /></svg>);
+const aArrowLeft = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M19 12H5" /><path d="M11 6l-6 6 6 6" /></svg>);
 const aUser = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" /></svg>);
 const aIdCard = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="8.5" cy="10" r="2" /><path d="M5.5 16c0.8-1.6 1.8-2.2 3-2.2s2.2 0.6 3 2.2" /><path d="M14.5 9.5h4M14.5 13h4" /></svg>);
 const aGear = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" /></svg>);
@@ -5032,6 +5038,7 @@ function SellerView({
   onGoAccount,
   onBecomeSeller,
   onGoSupport,
+  onGoShop,
 }: {
   user: User;
   onSignOut: () => void;
@@ -5041,6 +5048,7 @@ function SellerView({
   onGoAccount?: () => void;
   onBecomeSeller?: () => void;
   onGoSupport?: () => void;
+  onGoShop?: () => void;
 }) {
   const { t, fmt, layout } = useUi();
   const queryClient = useQueryClient();
@@ -5050,6 +5058,8 @@ function SellerView({
     onTabChange?.(next);
   };
   const [expanded, setExpanded] = useState(false);
+  // Local product search filter (Products tab) - client-side only, no API change.
+  const [productFilter, setProductFilter] = useState("");
   // Products tab shows ONLY the seller's own added products (with
   // Remove) — no add-catalog below it. Products are added from the
   // Shop, whose seller cards add directly to the seller's own store.
@@ -5263,31 +5273,86 @@ function SellerView({
   // lives in the app's bottom navigation and the ☰ drawer, and the
   // profile/photo view itself stays reachable from there. (The "my"
   // tab id still exists for the set-temporary-password route only.)
-  const tabs: Array<{ id: SellerTab; label: string; icon: string }> = [
-    { id: "home", label: t("sd.tabHome"), icon: "🏠" },
-    { id: "products", label: t("sd.tabProducts"), icon: "🛍️" },
-    { id: "orders", label: t("sd.tabOrders"), icon: "🧾" },
-    { id: "wallet", label: t("sd.tabWallet"), icon: "👛" },
+  const tabs: Array<{ id: SellerTab; label: string; icon: ReactNode }> = [
+    { id: "home", label: t("sd.tabHome"), icon: aHome },
+    { id: "products", label: t("sd.tabProducts"), icon: aBag },
+    { id: "orders", label: t("sd.tabOrders"), icon: aReceipt },
+    { id: "wallet", label: t("sd.tabWallet"), icon: aWallet },
   ];
+  // Sidebar row style (desktop seller nav): the active row is the navy
+  // accent pill with a gold left bar, matching the drawer active style.
+  const sideCls = (active: boolean) =>
+    `relative flex items-center gap-3 rounded-xl px-4 py-2.5 text-[15px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${active ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "text-[var(--text)] hover:bg-[var(--surface-alt)]"}`;
+  // Products tab list after the local search filter (unfiltered by default).
+  const shownProducts = productFilter.trim()
+    ? d.myProducts.filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(productFilter.trim().toLowerCase()))
+    : d.myProducts;
 
   return (
-    <div>
-      {/* Compact merchant header: the store LOGO (uploaded at signup or
-          changed from the profile) leads, with the seller's own profile
-          photo as their avatar on the right. */}
-      <div className="flex flex-wrap items-center gap-2.5">
+    <div className="lg:flex lg:items-start lg:gap-6">
+      {/* Seller sidebar (desktop/tablet lg+ only): the single seller
+          navigation - Home / Products / Orders / Wallet / My Profile /
+          Customer Support / Back to Shop. Mobile uses the bottom bar
+          below instead, so the two never show at once. */}
+      <aside className="hidden w-64 shrink-0 self-start lg:sticky lg:top-[calc(var(--header-h,56px)+16px)] lg:block">
+        <nav aria-label={t("acc.sellerDash")} className="flex flex-col gap-1 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm">
+          <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--dim)]">{t("acc.sellerDash")}</p>
+          <button type="button" aria-current={tab === "home" ? "page" : undefined} onClick={() => setTab("home")} className={sideCls(tab === "home")}>
+            {tab === "home" && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-1 rounded-full bg-[var(--gold)]" />}
+            {aHome}<span>{t("sd.tabHome")}</span>
+          </button>
+          <button type="button" aria-current={tab === "products" ? "page" : undefined} onClick={() => setTab("products")} className={sideCls(tab === "products")}>
+            {tab === "products" && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-1 rounded-full bg-[var(--gold)]" />}
+            {aBag}<span>{t("sd.tabProducts")}</span>
+          </button>
+          <button type="button" aria-current={tab === "orders" ? "page" : undefined} onClick={() => setTab("orders")} className={sideCls(tab === "orders")}>
+            {tab === "orders" && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-1 rounded-full bg-[var(--gold)]" />}
+            {aReceipt}<span>{t("sd.tabOrders")}</span>
+            {d.pendingShipment > 0 && <span className="ml-auto rounded-full bg-[var(--alert)] px-2 py-0.5 text-[11px] font-bold text-[var(--alert-ink)]">{d.pendingShipment}</span>}
+          </button>
+          <button type="button" aria-current={tab === "wallet" ? "page" : undefined} onClick={() => setTab("wallet")} className={sideCls(tab === "wallet")}>
+            {tab === "wallet" && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-1 rounded-full bg-[var(--gold)]" />}
+            {aWallet}<span>{t("sd.tabWallet")}</span>
+            {walletUnread > 0 && <span aria-hidden className="ml-auto h-2 w-2 rounded-full bg-[var(--gold)]" />}
+          </button>
+          <button type="button" aria-current={tab === "my" ? "page" : undefined} onClick={() => setTab("my")} className={sideCls(tab === "my")}>
+            {tab === "my" && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-1 rounded-full bg-[var(--gold)]" />}
+            {aUser}<span>{t("sd.myProfile")}</span>
+          </button>
+          {onGoSupport && (
+            <button type="button" onClick={onGoSupport} className={sideCls(false)}>
+              {aChat}<span>{t("menu.support")}</span>
+            </button>
+          )}
+          {onGoShop && (
+            <>
+              <div aria-hidden className="mx-3 my-1.5 border-t border-[var(--border)]" />
+              <button type="button" onClick={onGoShop} className={sideCls(false)}>
+                {aArrowLeft}<span>{t("sd.backToShop")}</span>
+              </button>
+            </>
+          )}
+        </nav>
+      </aside>
+      <div className="min-w-0 flex-1">
+      {/* My Store card: the store LOGO leads. The seller's own profile
+          photo is deliberately NOT repeated here - the site header's
+          account button is the single profile entry (user report
+          2026-10-29: the card showed the same seller twice). */}
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-center gap-3">
         <SellerMediaImage
           sellerId={user.id}
           kind="logo"
           hasFile={user.hasLogoFile}
           fallbackText={user.storeName ?? user.name}
-          className="h-11 w-11 shrink-0 rounded-xl text-base"
+          className="h-14 w-14 shrink-0 rounded-2xl text-xl"
         />
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--dim)]">
             {t("sd.merchant")}
           </p>
-          <h2 className="flex items-center gap-2 font-display text-base font-bold leading-tight text-[var(--text)]">
+          <h2 className="flex items-center gap-2 font-display text-xl font-extrabold leading-tight text-[var(--accent)]">
             <span className="truncate">{user.storeName ?? "My Store"}</span>
             <VerifiedBadge />
           </h2>
@@ -5295,18 +5360,12 @@ function SellerView({
             <p className="line-clamp-1 text-xs text-[var(--dim)]">{user.storeDescription}</p>
           )}
         </div>
-        <SellerMediaImage
-          sellerId={user.id}
-          kind="photo"
-          hasFile={user.hasPhotoFile}
-          fallbackText={user.name}
-          className="h-10 w-10 shrink-0 rounded-full text-sm"
-        />
         {d.pendingShipment > 0 && (
           <span className="ml-auto inline-flex shrink-0 animate-pulse items-center gap-1 rounded-full bg-[var(--alert)] px-2.5 py-1 text-[11px] font-bold text-[var(--alert-ink)]">
             ● {d.pendingShipment} {t("notif.pendingAlert")}
           </span>
         )}
+      </div>
       </div>
 
       {(notices.data?.notices ?? []).length > 0 && (
@@ -5314,7 +5373,7 @@ function SellerView({
           {(notices.data?.notices ?? []).map((n) => (
             <div key={n.id} role="alert" className="rounded-xl border-2 border-[var(--gold)] bg-[var(--amber-bg)] px-4 py-3 shadow-sm">
               <p className="flex flex-wrap items-center gap-2 font-display text-sm font-bold text-[var(--text)]">
-                <span aria-hidden>📣</span> {t("snotice.title")}
+                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0"><path d="M3 11v3l4 1 9 4V5l-9 4-4 1Z" /><path d="M16 9.5a4 4 0 0 1 0 5" /></svg> {t("snotice.title")}
                 {n.orderId !== null && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[11px] font-bold text-[var(--alert-ink)]">{t("snotice.orderWord")} #{n.orderId}</span>}
                 <span className="ml-auto text-[11px] font-medium text-[var(--dim)]">{new Date(n.createdAt).toLocaleString()}</span>
               </p>
@@ -5476,14 +5535,18 @@ function SellerView({
           <section aria-label={t("sd.myProducts")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-display text-lg font-bold text-[var(--text)]">
-                🛍️ {t("sd.myProducts")} ({d.myProducts.length})
+                <span className="mr-1 inline-flex align-[-3px]">{aBag}</span> {t("sd.myProducts")} ({d.myProducts.length})
               </h3>
+              <label className="ml-auto flex min-w-44 flex-1 items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 focus-within:ring-2 focus-within:ring-[var(--gold)] sm:flex-none">
+                <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 text-[var(--dim)]"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+                <input type="search" value={productFilter} onChange={(e) => setProductFilter(e.target.value)} placeholder={t("shop.searchPlaceholder")} aria-label={t("shop.searchPlaceholder")} className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--dim)]" />
+              </label>
             </div>
-            {d.myProducts.length === 0 ? (
-              <p className="mt-2 text-sm text-[var(--dim)]">{t("sd.emptyStore")}</p>
+            {shownProducts.length === 0 ? (
+              <p className="mt-2 text-sm text-[var(--dim)]">{d.myProducts.length === 0 ? t("sd.emptyStore") : t("sd.noMatch")}</p>
             ) : (
               <div className="mt-3 flex flex-col gap-2">
-                {d.myProducts.map((p) => (
+                {shownProducts.map((p) => (
                   <div
                     key={p.id}
                     className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:flex-nowrap"
@@ -5800,11 +5863,25 @@ function SellerView({
         </div>
       )}
 
-      {/* Seller bottom navigation (Home / Products / Orders / Wallet — no Account entry here by design) */}
+      {/* Seller bottom navigation (mobile/tablet only - desktop uses the
+          sidebar above): Shop + Home / Products / Orders / Wallet in ONE
+          bar. The app-level navigation is hidden on the seller view, so
+          this is the single bottom bar here - nothing overlaps it. */}
       <nav
         aria-label="Seller dashboard navigation"
-        className={`sticky z-30 mt-6 flex justify-around rounded-full border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg ${layout === "menu" ? "bottom-3" : "bottom-[calc(4.75rem+env(safe-area-inset-bottom))] sm:bottom-24"}`}
+        className="sticky bottom-3 z-30 mt-6 flex justify-around rounded-full border border-[var(--border)] bg-[var(--surface)] p-1 shadow-lg lg:hidden"
       >
+        {onGoShop && (
+          <button
+            type="button"
+            aria-label={t("nav.shop")}
+            onClick={onGoShop}
+            className="relative flex flex-col items-center gap-0.5 rounded-full px-3 py-1.5 text-[11px] font-semibold text-[var(--dim)]"
+          >
+            <span className="relative leading-none">{aStore}</span>
+            {t("nav.shop")}
+          </button>
+        )}
         {tabs.map((tb) => {
           const badge = tb.id === "orders" ? d.pendingShipment : 0;
           const showWalletDot = tb.id === "wallet" && walletUnread > 0;
@@ -5819,7 +5896,7 @@ function SellerView({
               tab === tb.id ? "text-[var(--accent)]" : badge > 0 ? "text-[var(--alert)]" : "text-[var(--dim)]"
             }`}
           >
-            <span className="relative text-lg leading-none">{tb.icon}
+            <span className="relative leading-none">{tb.icon}
               {badge > 0 && <span className="absolute -right-3 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--alert)] px-0.5 text-[10px] font-bold text-[var(--alert-ink)]">{badge > 99 ? "99+" : badge}</span>}
               {showWalletDot && <span aria-hidden className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
             </span>
@@ -5828,6 +5905,7 @@ function SellerView({
           );
         })}
       </nav>
+    </div>
     </div>
   );
 }
@@ -10681,6 +10759,11 @@ const NAV: NavItem[] =
               {headerNameShown && <span className="truncate">{storeName}</span>}
               {headerNameShown && !headerLogoShown ? <span className="text-[var(--gold)]">.</span> : null}
             </button>
+            {view === "seller" && (
+              <span className="ml-2 hidden shrink-0 border-l border-[var(--border)] pl-3 text-sm font-bold text-[var(--dim)] md:block">
+                {ui.t("acc.sellerDash")}
+              </span>
+            )}
             <span className="hdr-tagline ml-2 hidden shrink-0 text-xs font-medium text-[var(--dim)] lg:block">
               {ui.t("header.tagline")}
             </span>
@@ -11111,6 +11194,7 @@ const NAV: NavItem[] =
               onGoAccount={() => setView("account")}
               onBecomeSeller={goBecomeSeller}
               onGoSupport={goSupportChat}
+              onGoShop={() => setView("shop")}
             />
           )}
           {view === "admin" && <AdminView user={user} settings={settings.data} onUserUpdated={handleUserUpdated} onBackToStore={() => setView("shop")} previewTheme={themePreview} onPreviewTheme={applyThemePreview} />}
@@ -11144,7 +11228,7 @@ const NAV: NavItem[] =
           </div>
         </footer>
 
-        {layoutDesign !== "menu" && layoutDesign !== "minimal" && (
+        {view !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
         <nav
           aria-label="Main navigation"
           className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] shadow-[0_-6px_20px_rgba(15,23,42,0.08)] pb-safe sm:hidden"
@@ -11174,7 +11258,7 @@ const NAV: NavItem[] =
         </nav>
 
         )}
-        {layoutDesign !== "menu" && layoutDesign !== "minimal" && (
+        {view !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
         <nav
           aria-label="Desktop navigation"
           className="scrollbar-none fixed bottom-5 left-1/2 z-40 hidden max-w-[calc(100vw-1.5rem)] -translate-x-1/2 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_8px_28px_rgba(15,23,42,0.12)] sm:flex"
