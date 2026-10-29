@@ -3741,6 +3741,9 @@ const aCoins = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="current
 const aCart = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M2.5 3.5h2.3l2.6 12.2h10.2l2.1-8.2H7" /><circle cx="9.5" cy="20" r="1.6" /><circle cx="17.5" cy="20" r="1.6" /></svg>);
 const aCalendar = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9.5h18M8 3v3.5M16 3v3.5" /><path d="M8 14.5h.01M12 14.5h.01M16 14.5h.01M8 18h.01M12 18h.01M16 18h.01" /></svg>);
 const aMoneyBag = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M9.8 6.2C9.8 4.6 10.7 3.5 12 3.5s2.2 1.1 2.2 2.7" /><path d="M5.5 9.5h13c.7 2.3 1.5 4.2 1.5 6a6.5 6.5 0 0 1-6.5 6H10A6.5 6.5 0 0 1 3.5 15.5c0-1.8.8-3.7 2-6Z" /><path d="M12 11.5v5.5M13.2 12.3c-.7-.7-2.1-.6-2.6.2-.5.8.4 1.4 1.4 1.7 1.2.3 2.1 1 1.6 1.8-.5.9-2 .9-2.8.2" /></svg>);
+const aDownload = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M4 21h16" /></svg>);
+const aUpload = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M12 15V3" /><path d="m7 8 5-5 5 5" /><path d="M4 21h16" /></svg>);
+const aHourglass = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M6 3h12" /><path d="M6 21h12" /><path d="M6 3c0 6 4 7.5 6 9-2 1.5-6 3-6 9" /><path d="M18 3c0 6-4 7.5-6 9 2 1.5 6 3 6 9" /></svg>);
 const aHome = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M3 11 12 4l9 7" /><path d="M5.5 9.5V20h13V9.5" /><path d="M9.5 20v-5h5v5" /></svg>);
 const aBag = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M5.5 8h13l-1 12.5h-11L5.5 8Z" /><path d="M9 10V6.5a3 3 0 0 1 6 0V10" /></svg>);
 const aReceipt = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M6 3h12v18l-2-1.5L14 21l-2-1.5L10 21l-2-1.5L6 21V3Z" /><path d="M9 8h6M9 12h6" /></svg>);
@@ -4644,9 +4647,9 @@ function DepositAddressCard({ address, network }: { address: string; network: st
     }
   };
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
-        <h4 className="font-display font-bold text-[var(--text)]">💠 {t("dep.title")}</h4>
+        <h4 className="font-display text-xl font-extrabold text-[var(--text)]">{t("dep.title")}</h4>
         <span className="rounded-full bg-[var(--accent)] px-2.5 py-0.5 text-xs font-bold text-[var(--accent-ink)]">USDT — {net}</span>
       </div>
       {addr ? (
@@ -4792,7 +4795,12 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
 
   return (
     <div>
-      {!compact && <h3 className="font-display text-lg font-bold text-[var(--text)]">👛 {t("w.title")}</h3>}
+      {!compact && (
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-[var(--accent-ink)]" aria-hidden>{aWallet}</span>
+          <h3 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)]">{t("w.title")}</h3>
+        </div>
+      )}
 
       {/* Compact balance strip — Total / Available / Pending, right
           under the heading, so the balance is visible at the very top
@@ -4802,24 +4810,30 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
           same shared computation as always. This REPLACES the full
           balance block: the FinanceSummary below the deposit section
           is told hideBalance so the figures never appear twice. */}
-      <div className="mt-2 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-strong)] px-4 py-3 text-[var(--accent-ink)] shadow-md" role="group" aria-label={t("fin.total")}>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--accent-ink)]">👛 {t("fin.total")}</p>
-            <p className="font-display text-[26px] font-extrabold leading-tight">{fmt(stripTotal)}</p>
+      <div className="mt-4 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-strong)] p-5 text-[var(--accent-ink)] shadow-md ring-1 ring-[var(--gold)] sm:p-6" role="group" aria-label={t("fin.total")}>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent-ink)]">{t("fin.total")}</p>
+            <p className="mt-1 font-display text-4xl font-extrabold leading-none">{fmt(stripTotal)}</p>
+            <p className="mt-2 text-xs text-[var(--accent-ink)]">{t("fin.totalSub")}</p>
           </div>
-          <div className="ms-auto flex flex-wrap gap-2">
-            <div className="rounded-xl bg-accent-ink-10 px-3 py-1.5">
-              <p className="text-[10px] font-bold text-[var(--accent-ink)]">✅ {t("w.balance")}</p>
-              <p className="font-display text-sm font-bold leading-snug">{fmt(w.availableBalance)}</p>
+          <div className="flex flex-wrap gap-5 sm:gap-7">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-ink-10 text-[var(--accent-ink)]" aria-hidden>{aWallet}</span>
+              <span>
+                <span className="block text-xs font-semibold text-[var(--accent-ink)]">{t("w.balance")}</span>
+                <span className="block font-display text-xl font-extrabold">{fmt(w.availableBalance)}</span>
+              </span>
             </div>
-            <div className="rounded-xl bg-accent-ink-10 px-3 py-1.5">
-              <p className="text-[10px] font-bold text-[var(--accent-ink)]">⏳ {t("fin.pendingCard")}</p>
-              <p className="font-display text-sm font-bold leading-snug">{fmt(stripPending)}</p>
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-ink-10 text-[var(--accent-ink)]" aria-hidden>{aHourglass}</span>
+              <span>
+                <span className="block text-xs font-semibold text-[var(--accent-ink)]">{t("fin.pendingCard")}</span>
+                <span className="block font-display text-xl font-extrabold">{fmt(stripPending)}</span>
+              </span>
             </div>
           </div>
         </div>
-        <p className="mt-1.5 text-[11px] leading-snug text-[var(--accent-ink)]">{t("fin.totalSub")}</p>
       </div>
 
       {/* Deposit / Withdraw actions and the Deposit Address card come
@@ -4827,13 +4841,23 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
           address shows immediately without scrolling. The remaining
           details (totals, requests, money ledger) sit BELOW this
           section. */}
-      <div className="mt-3 flex gap-2" role="group" aria-label="Wallet action">
-        <Chip active={tab === "deposit"} onClick={() => setTab("deposit")} label="Show deposit form">
-          ⬇️ {t("w.deposit")}
-        </Chip>
-        <Chip active={tab === "withdraw"} onClick={() => setTab("withdraw")} label="Show withdraw form">
-          ⬆️ {t("w.withdraw")}
-        </Chip>
+      <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Wallet action">
+        <button
+          type="button"
+          onClick={() => setTab("deposit")}
+          aria-pressed={tab === "deposit"}
+          className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${tab === "deposit" ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-[var(--surface)] text-[var(--accent)] hover:shadow-md"}`}
+        >
+          {aDownload} {t("w.deposit")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("withdraw")}
+          aria-pressed={tab === "withdraw"}
+          className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${tab === "withdraw" ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-[var(--surface)] text-[var(--accent)] hover:shadow-md"}`}
+        >
+          {aUpload} {t("w.withdraw")}
+        </button>
       </div>
 
       {msg && (
@@ -4869,7 +4893,7 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
             {/* USDT OFF hides the Deposit Address card / QR entirely. */}
             {pmUsdt && <DepositAddressCard address={settingsQ.data?.usdtDepositAddress ?? ""} network={settingsQ.data?.depositNetwork ?? "BEP20 (BNB Smart Chain)"} />}
             {(pmUpi || pmBank) && (
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm sm:p-5">
                 <p className="text-sm font-medium text-[var(--text)]">{(settingsQ.data?.localDepositNote ?? "").trim() ? settingsQ.data!.localDepositNote : t("dep.local")}</p>
                 {onGoSupport && (
                   <button type="button" onClick={onGoSupport} className={ghostBtn + " mt-2 px-3 py-2 text-[13px]"}>
@@ -4879,7 +4903,7 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
               </div>
             )}
             <form
-              className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
+              className="flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm sm:p-5"
               onSubmit={(e) => {
                 e.preventDefault();
                 setMsg(null);
@@ -4897,6 +4921,7 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
                 deposit.mutate();
               }}
             >
+              <h4 className="flex items-center gap-2 font-display text-xl font-extrabold text-[var(--text)]">{aDownload} {t("w.deposit")}</h4>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label={`${t("w.amount")} (${currency})`}>
                   <input required type="number" min={1} step="any" value={dep.amount} onChange={(e) => setDep({ ...dep, amount: e.target.value })} className={inputCls} aria-label="Deposit amount" />
@@ -4959,7 +4984,7 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
         </div>
       ) : (
         <form
-          className="mt-3 flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
+          className="mt-3 flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm sm:p-5"
           onSubmit={(e) => {
             e.preventDefault();
             setMsg(null);
@@ -4971,6 +4996,7 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
             withdraw.mutate();
           }}
         >
+          <h4 className="flex items-center gap-2 font-display text-xl font-extrabold text-[var(--text)]">{aUpload} {t("w.withdraw")}</h4>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={`${t("w.amount")} (${currency})`}>
               <input required type="number" min={1} step="any" value={wd.amount} onChange={(e) => setWd({ ...wd, amount: e.target.value })} className={inputCls} aria-label="Withdrawal amount" />
@@ -5034,12 +5060,75 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
           is money only: balance, deposit, withdraw and the money
           ledger below. Order history lives in the Seller section's
           Orders area (Pending / Shipment / Completed), never here. */}
-      <div className="mt-6"><FinanceSummary finance={financeView} hideBalance /></div>
+      {/* Overview totals (preview cards) — the same figures FinanceSummary
+          showed, now as Total Deposited / Total Withdrawn / Awaiting
+          approval. FinanceSummary itself is shared with Admin screens
+          and stays untouched; only this wallet tab renders its own
+          cards from the same financeView. */}
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--gold)]" aria-hidden>{aDownload}</span>
+          <p className="mt-3 font-display text-2xl font-extrabold text-[var(--accent)]">{fmt(financeView.totalDeposited ?? 0)}</p>
+          <p className="mt-0.5 text-xs font-semibold text-[var(--dim)]">{t("w.deposited")}</p>
+        </div>
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--gold)]" aria-hidden>{aUpload}</span>
+          <p className="mt-3 font-display text-2xl font-extrabold text-[var(--accent)]">{fmt(financeView.totalWithdrawn ?? 0)}</p>
+          <p className="mt-0.5 text-xs font-semibold text-[var(--dim)]">{t("w.withdrawn")}</p>
+        </div>
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--gold)]" aria-hidden>{aHourglass}</span>
+          <p className="mt-3 font-display text-base font-extrabold text-[var(--text)]">{t("w.awaitingApproval")}</p>
+          <div className="mt-2 flex gap-3">
+            <p className="min-w-0 flex-1">
+              <span className="block text-[11px] leading-tight text-[var(--dim)]">{t("fin.pendingDeposit")}</span>
+              <strong className="font-display text-[var(--text)]">{fmt(financeView.pendingDeposit)}</strong>
+            </p>
+            <p className="min-w-0 flex-1 border-s border-[var(--border)] ps-3">
+              <span className="block text-[11px] leading-tight text-[var(--dim)]">{t("fin.pendingWithdraw")}</span>
+              <strong className="font-display text-[var(--text)]">{fmt(financeView.pendingWithdrawal)}</strong>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Held for orders — the same per-order held list FinanceSummary
+          showed, with the same empty text. */}
+      <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+        <p className="flex items-center gap-2 font-display text-base font-extrabold text-[var(--text)]">{aShipBox} {t("fin.heldOrders")}</p>
+        {(() => {
+          const heldOrders = (financeView.orders ?? []).filter((o) => o.pendingAmount > 0);
+          return heldOrders.length === 0 ? (
+            <p className="mt-2 text-sm text-[var(--dim)]">{t("fin.noHeld")}</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {heldOrders.map((o) => (
+                <li key={o.orderId} className="flex flex-wrap items-center gap-2 text-sm">
+                  <strong className="text-[var(--text)]">Order #{o.orderId}</strong>
+                  <StatusBadge status={o.status} />
+                  <span className="ml-auto font-display font-bold text-[var(--text)]">{t("fin.heldAmount")}: {fmt(o.pendingAmount)}</span>
+                </li>
+              ))}
+            </ul>
+          );
+        })()}
+      </div>
+
+      {/* Remaining wallet figures FinanceSummary showed (used, orders
+          total, admin credit, profit) — kept as a compact details strip
+          so removing the shared component call loses nothing. */}
+      <div className="mt-3 grid gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-alt)] p-4 text-sm sm:grid-cols-2">
+        <p><span className="text-[var(--dim)]">{t("fin.used")}:</span> <strong>{fmt(financeView.usedAmount)}</strong></p>
+        <p><span className="text-[var(--dim)]">{t("fin.ordersTotal")}:</span> <strong>{fmt(financeView.totalOrderValue)}</strong> <span className="text-[var(--dim)]">({financeView.orderCount} {t("fin.ordersCount")})</span></p>
+        {financeView.totalAdminCredit !== undefined && <p><span className="text-[var(--dim)]">{t("fin.adminCredit")}:</span> <strong>{fmt(financeView.totalAdminCredit)}</strong></p>}
+        {financeView.earningsCleared !== undefined && <p><span className="text-[var(--dim)]">{t("fin.profit")} ({t("sord.secCompleted")}):</span> <strong>{fmt(financeView.earningsCleared)}</strong></p>}
+      </div>
+
       <p className="mt-3 rounded-lg bg-[var(--surface-alt)] px-3 py-2 text-xs text-[var(--text)]">
         {t("w.ledgerNote")}
       </p>
 
-      <h4 className="mt-6 font-display font-bold text-[var(--text)]">{t("w.history")}</h4>
+      <h4 className="mt-6 font-display text-xl font-extrabold text-[var(--text)]">{t("w.history")}</h4>
       {w.ledger.length === 0 ? (
         <p className="mt-2 text-sm text-[var(--dim)]">{t("w.noHistory")}</p>
       ) : (

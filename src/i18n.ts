@@ -671,6 +671,7 @@ export const STR = {
 
   // Wallet
   "w.title": { en: "Store Wallet", hi: "स्टोर वॉलेट" , ar: "محفظة المتجر"},
+  "w.awaitingApproval": { en: "Awaiting approval", hi: "मंज़ूरी का इंतज़ार" , ar: "بانتظار الموافقة"},
   "w.balance": { en: "Available Balance", hi: "उपलब्ध बैलेंस" , ar: "الرصيد المتاح"},
   "w.deposited": { en: "Total Deposited", hi: "कुल जमा" , ar: "إجمالي المودع"},
   "w.withdrawn": { en: "Total Withdrawn", hi: "कुल निकाला" , ar: "إجمالي المسحوب"},
