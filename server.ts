@@ -3,31 +3,52 @@
 //   GET  /            -> "sheinstore backend is running"
 //   GET  /health      -> "ok"
 //   POST /actions     -> { action, args } -> the action's response JSON
-//   GET  /blobs/:key  -> uploaded file bytes (content-type preserved)
-//   POST /seed        -> one-time full data import; refuses unless every
-//                        data table is empty (prevents later abuse).
+//   GET  /blobs/:key  -> uploaded file bytes. header-logo/ keys are
+//                        public; seller-docs/, chat-attachments/ and
+//                        deposit-screenshots/ require a signed URL
+//                        (?sig=&exp=, HMAC, 15 minutes) — see below.
 // Env: DATABASE_URL (Postgres), PORT, RENDER_EXTERNAL_URL (used to build
-// absolute blob URLs; falls back to relative /blobs URLs when unset).
+// absolute blob URLs; falls back to relative /blobs URLs when unset),
+// FRONTEND_URL (extra CORS origin), BLOB_SIGN_SECRET (HMAC secret for
+// signed blob URLs; derived from DATABASE_URL when unset).
 // Without DATABASE_URL the service still starts and answers health checks,
 // but /actions returns 503 until the database is configured.
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq } from "drizzle-orm";
 import { Pool } from "pg";
-import { pbkdf2Sync, randomBytes, createHash } from "node:crypto";
+import { pbkdf2Sync, randomBytes, createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Actions } from "./src/actions.pg";
 import * as schema from "./src/schema.pg";
 import type { Ctx } from "./src/space-shim";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-};
+// CORS allowlist (2026-10-29 security fix): the old wildcard let any
+// origin read public-action responses. Auth tokens travel in the POST
+// body, not cookies, so classic CSRF never applied — but there is no
+// reason to let arbitrary origins read anything. Non-allowlisted
+// origins get no Allow-Origin header; same-origin and server-to-server
+// calls never need CORS headers at all.
+const CORS_ALLOWLIST = [
+  "https://shein-mart-649m.vercel.app",
+  "https://www.sheinmart.com",
+  "https://sheinmart.com",
+];
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") ?? "";
+  const extra = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.replace(/\/$/, "")] : [];
+  const base = {
+    "Access-Control-Allow-Headers": "content-type",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  };
+  if (origin && (CORS_ALLOWLIST.includes(origin) || extra.includes(origin))) {
+    return { "Access-Control-Allow-Origin": origin, Vary: "Origin", ...base };
+  }
+  return base;
+}
 
-function json(data: unknown, status = 200): Response {
+function json(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json", ...corsHeaders },
+    headers: { "content-type": "application/json", ...headers },
   });
 }
 
@@ -128,8 +149,10 @@ CREATE TABLE IF NOT EXISTS seller_wallet_events (
 CREATE TABLE IF NOT EXISTS user_sessions (
   id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
   token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS settings (
   id INTEGER PRIMARY KEY, store_name TEXT NOT NULL DEFAULT 'sheinstore',
   support_whatsapp TEXT NOT NULL DEFAULT '', support_email TEXT NOT NULL DEFAULT '',
@@ -222,41 +245,38 @@ CREATE TABLE IF NOT EXISTS google_login_codes (
 );
 `;
 
-// FK-safe insert order for /seed (parents before children).
-const SEED_ORDER = [
-  "users", "products", "settings", "external_products", "seller_products",
-  "cart_items", "orders", "order_items", "tickets", "chat_messages",
-  "wallet_transactions", "seller_notifications", "seller_notices",
-  "order_seller_items", "order_seller_snapshots", "password_reset_requests",
-  "bulk_profit_history", "admin_activity_marks", "deleted_accounts",
-];
-
-const SERIAL_TABLES = new Set([
-  "users", "products", "seller_products", "cart_items", "orders", "order_items",
-  "tickets", "chat_messages", "wallet_transactions", "seller_notifications",
-  "external_products", "seller_notices", "order_seller_items",
-  "order_seller_snapshots", "password_reset_requests", "bulk_profit_history",
-  "deleted_accounts",
-]);
-
-// DB columns that hold millisecond timestamps in the old SQLite dump.
-const TIMESTAMP_COLUMNS: Record<string, Set<string>> = {
-  users: new Set(["created_at"]),
-  products: new Set(["created_at"]),
-  seller_products: new Set(["created_at"]),
-  cart_items: new Set(["created_at"]),
-  orders: new Set(["created_at", "payment_verified_at"]),
-  tickets: new Set(["created_at"]),
-  chat_messages: new Set(["created_at"]),
-  wallet_transactions: new Set(["created_at", "paid_at"]),
-  seller_notifications: new Set(["created_at"]),
-  settings: new Set(["last_price_sync_at"]),
-  external_products: new Set(["created_at"]),
-  seller_notices: new Set(["created_at"]),
-  password_reset_requests: new Set(["created_at", "completed_at"]),
-  bulk_profit_history: new Set(["created_at"]),
-  deleted_accounts: new Set(["deleted_at"]),
-};
+// Private blob prefixes: possession of a bare URL must NOT grant access.
+// These are served only with a valid HMAC signature + unexpired expiry
+// (15 minutes, via signedBlobUrl). header-logo/ stays public by design:
+// the header logo is shown to every visitor anyway.
+const PRIVATE_BLOB_PREFIXES = ["seller-docs/", "chat-attachments/", "deposit-screenshots/"];
+function isPrivateBlobKey(key: string): boolean {
+  return PRIVATE_BLOB_PREFIXES.some((p) => key.startsWith(p));
+}
+function blobSignSecret(): string {
+  // Never logged, never returned. Prefer an explicit secret; otherwise
+  // derive a stable one from DATABASE_URL so a redeploy keeps verifying
+  // previously issued (still unexpired) URLs.
+  if (process.env.BLOB_SIGN_SECRET) return process.env.BLOB_SIGN_SECRET;
+  return createHash("sha256").update(`sheinmart-blob-sign:${process.env.DATABASE_URL ?? ""}`).digest("hex");
+}
+function signBlobKey(key: string, exp: number): string {
+  return createHmac("sha256", blobSignSecret()).update(`${key}.${exp}`).digest("hex");
+}
+function signedBlobUrl(baseUrl: string, key: string): string {
+  const exp = Math.floor(Date.now() / 1000) + 15 * 60;
+  return `${baseUrl}/blobs/${encodeURIComponent(key)}?sig=${signBlobKey(key, exp)}&exp=${exp}`;
+}
+function verifyBlobSignature(key: string, sig: string, exp: number): boolean {
+  if (!sig || !exp || exp * 1000 <= Date.now()) return false;
+  const expected = signBlobKey(key, exp);
+  if (sig.length !== expected.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
 
 function makeCtx(db: any, pool: any, baseUrl: string): Ctx {
   return {
@@ -270,7 +290,14 @@ function makeCtx(db: any, pool: any, baseUrl: string): Ctx {
           [key, opts.contentType, bytes.length, dataBase64],
         );
       },
-      getUrl: async (key) => `${baseUrl}/blobs/${encodeURIComponent(key)}`,
+      // Private blobs come back signed (15 minutes) so every existing
+      // URL-returning action keeps working without its own signing code;
+      // public keys (header-logo/) stay plain URLs.
+      getUrl: async (key) => (isPrivateBlobKey(key) ? signedBlobUrl(baseUrl, key) : `${baseUrl}/blobs/${encodeURIComponent(key)}`),
+      signUrl: async (key) => signedBlobUrl(baseUrl, key),
+      delete: async (key) => {
+        await pool.query("DELETE FROM blobs WHERE key = $1", [key]);
+      },
     },
     invalidateQueries: () => {},
   };
@@ -280,41 +307,54 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
   const ctx = db ? makeCtx(db, pool, baseUrl) : null;
   return async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
+    const ch = corsHeadersFor(req);
     if (req.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders });
+      return new Response(null, { status: 204, headers: ch });
     }
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
       return new Response(url.pathname === "/health" ? "ok" : "sheinstore backend is running", {
-        headers: { "content-type": "text/plain", ...corsHeaders },
+        headers: { "content-type": "text/plain", ...ch },
       });
     }
     if (req.method === "GET" && url.pathname.startsWith("/blobs/")) {
       if (!pool) return new Response("Database not configured", { status: 503 });
       const key = decodeURIComponent(url.pathname.slice("/blobs/".length));
+      // Private blobs need a valid, unexpired signature: a bare URL
+      // (leaked, copied from chat history, proxy logs) must not open
+      // seller documents, payment proofs or chat attachments.
+      if (isPrivateBlobKey(key)) {
+        const sig = url.searchParams.get("sig") ?? "";
+        const exp = Number(url.searchParams.get("exp") ?? "0");
+        if (!verifyBlobSignature(key, sig, exp)) {
+          return new Response("Forbidden — this file needs a fresh signed link.", { status: 403, headers: ch });
+        }
+      }
       const res = await pool.query(
         "SELECT data_base64, content_type FROM blobs WHERE key = $1", [key],
       );
       if (res.rows.length === 0) return new Response("Not found", { status: 404 });
       const bytes = Buffer.from(res.rows[0].data_base64, "base64");
       return new Response(bytes as any, {
-        headers: { "content-type": res.rows[0].content_type, ...corsHeaders },
+        // nosniff: a mislabeled upload must never be reinterpreted by
+        // the browser under a different type.
+        headers: { "content-type": res.rows[0].content_type, "X-Content-Type-Options": "nosniff", ...ch },
       });
     }
     if (req.method === "POST" && url.pathname === "/actions") {
-      if (!ctx) return json({ ok: false, error: "Database not configured" }, 503);
+      if (!ctx) return json({ ok: false, error: "Database not configured" }, 503, ch);
       let body: any;
       try {
         body = await req.json();
       } catch {
-        return json({ ok: false, error: "Invalid JSON" }, 400);
+        return json({ ok: false, error: "Invalid JSON" }, 400, ch);
       }
       const def = (Actions as any)[body?.action];
-      if (!def) return json({ ok: false, error: `Unknown action: ${body?.action}` }, 404);
+      if (!def) return json({ ok: false, error: `Unknown action: ${body?.action}` }, 404, ch);
       let parsed: any;
       try {
         parsed = def.request.parse(body?.args ?? {});
       } catch {
-        return json({ ok: false, error: "Invalid request" }, 400);
+        return json({ ok: false, error: "Invalid request" }, 400, ch);
       }
       // ---- Login-session enforcement (see space-shim AuthPolicy) ----
       // Public actions skip this entirely. Every other action needs a
@@ -324,7 +364,7 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
       const policy = (def as any).auth;
       let auth: { userId: number; role: string; tokenHash: string } | null = null;
       if (policy !== "public") {
-        const fail = (error: string, status: number) => json({ ok: false, error }, status);
+        const fail = (error: string, status: number) => json({ ok: false, error }, status, ch);
         if (policy === undefined) return fail("Sign in required.", 401);
         const optionalField = typeof policy === "object" && policy !== null && "optional" in policy ? (policy as any).optional : null;
         const optionalValue = optionalField ? parsed?.[optionalField] : undefined;
@@ -338,6 +378,17 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
             ? await db.select().from(schema.users).where(eq(schema.users.id, srow[0].userId)).limit(1)
             : [];
           if (!srow[0] || !urow[0]) return fail("Sign in required.", 401);
+          // Session expiry: an expired token behaves exactly like an
+          // invalid one. Rows created before expires_at existed fall
+          // back to createdAt + 30 days, so old sessions get at most
+          // 30 days from their creation instead of living forever.
+          const sExp = (srow[0] as any).expiresAt
+            ? new Date((srow[0] as any).expiresAt).getTime()
+            : new Date((srow[0] as any).createdAt).getTime() + 30 * 24 * 60 * 60 * 1000;
+          if (sExp <= Date.now()) {
+            await db.delete(schema.userSessions).where(eq(schema.userSessions.tokenHash, tokenHash));
+            return fail("Sign in required.", 401);
+          }
           auth = { userId: urow[0].id, role: urow[0].role, tokenHash };
           if (typeof policy === "object" && policy !== null && "admin" in policy) {
             if (auth.role !== "admin") return fail("Not allowed.", 403);
@@ -364,84 +415,12 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
       const reqCtx = { ...ctx, auth };
       try {
         const result = await def.handler(reqCtx, parsed);
-        return json(result);
+        return json(result, 200, ch);
       } catch (e) {
         console.error(`action ${body.action} failed`, e);
-        return json({ ok: false, error: "Server error" }, 500);
+        return json({ ok: false, error: "Server error" }, 500, ch);
       }
     }
-    if (req.method === "POST" && url.pathname === "/seed") {
-      if (!pool) return json({ ok: false, error: "Database not configured" }, 503);
-      let body: any;
-      try {
-        body = await req.json();
-      } catch {
-        return json({ ok: false, error: "Invalid JSON" }, 400);
-      }
-      const tables = body?.tables;
-      if (!tables || typeof tables !== "object" || Array.isArray(tables)) {
-        return json({ ok: false, error: "Expected { tables: { ... } }" }, 400);
-      }
-      for (const name of Object.keys(tables)) {
-        if (!SEED_ORDER.includes(name)) {
-          return json({ ok: false, error: `Unknown table: ${name}` }, 400);
-        }
-      }
-      // Settings is the one exception to the empty-guard: reading settings
-      // (getSettings, or the frontend's first visit) auto-creates a default
-      // row on an empty database, so a fresh database is never truly empty
-      // in this table. When the dump carries its own settings row, the
-      // auto-created default is replaced wholesale by the import; every
-      // other table keeps the strict empty-guard.
-      const dumpHasSettings = Array.isArray(tables.settings) && tables.settings.length > 0;
-      for (const name of SEED_ORDER) {
-        if (name === "settings" && dumpHasSettings) continue;
-        const count = await pool.query(`SELECT COUNT(*)::int AS n FROM "${name}"`);
-        if (count.rows[0].n > 0) {
-          return json({ ok: false, error: `Database is not empty (${name} already has rows)` }, 409);
-        }
-      }
-      if (dumpHasSettings) {
-        await pool.query("DELETE FROM settings");
-      }
-      const counts: Record<string, number> = {};
-      for (const name of SEED_ORDER) {
-        const rows = tables[name] ?? [];
-        if (!Array.isArray(rows)) return json({ ok: false, error: `${name} is not an array` }, 400);
-        const tsCols = TIMESTAMP_COLUMNS[name] ?? new Set<string>();
-        for (const row of rows) {
-          const cols = Object.keys(row);
-          if (cols.length === 0) continue;
-          const values = cols.map((c) => {
-            const v = row[c];
-            if (v === null || v === undefined) return null;
-            if (tsCols.has(c) && typeof v === "number") return new Date(v).toISOString();
-            return v;
-          });
-          const placeholders = cols.map((_, i) => `$${i + 1}`).join(", ");
-          const colList = cols.map((c) => `"${c}"`).join(", ");
-          await pool.query(`INSERT INTO "${name}" (${colList}) VALUES (${placeholders})`, values);
-        }
-        counts[name] = rows.length;
-        if (SERIAL_TABLES.has(name)) {
-          await pool.query(
-            `SELECT setval(pg_get_serial_sequence('${name}', 'id'), COALESCE((SELECT MAX(id) FROM "${name}"), 1), EXISTS (SELECT 1 FROM "${name}"))`,
-          );
-        }
-      }
-      const blobRows = body?.blobs ?? [];
-      if (!Array.isArray(blobRows)) return json({ ok: false, error: "blobs is not an array" }, 400);
-      for (const b of blobRows) {
-        await pool.query(
-          `INSERT INTO blobs (key, content_type, size, data_base64) VALUES ($1, $2, $3, $4)
-           ON CONFLICT (key) DO UPDATE SET content_type = EXCLUDED.content_type, size = EXCLUDED.size, data_base64 = EXCLUDED.data_base64`,
-          [b.key, b.contentType, b.size, b.dataBase64],
-        );
-      }
-      counts.blobs = blobRows.length;
-      return json({ ok: true, counts });
-    }
-
     // ---- Google sign-in (OAuth 2.0) ----
     // Env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (set in the Render
     // dashboard; never shared in chat). The sign-in page button only
@@ -451,14 +430,14 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
     const backendOrigin = (process.env.GOOGLE_REDIRECT_BASE ?? baseUrl ?? "").replace(/\/$/, "") || (() => { try { return new URL(req.url).origin; } catch { return "https://shein-mart.onrender.com"; } })();
     const frontendOrigin = (process.env.FRONTEND_URL ?? "https://www.sheinmart.com").replace(/\/$/, "");
     const googleRedirectUri = process.env.GOOGLE_REDIRECT_URI ?? `${backendOrigin}/auth/google/callback`;
-    const googleErrorRedirect = (code: string) => new Response(null, { status: 302, headers: { Location: `${frontendOrigin}/?google_error=${encodeURIComponent(code)}`, ...corsHeaders } });
+    const googleErrorRedirect = (code: string) => new Response(null, { status: 302, headers: { Location: `${frontendOrigin}/?google_error=${encodeURIComponent(code)}`, ...ch } });
     const randomHex = (bytes = 32) => { const buf = new Uint8Array(bytes); crypto.getRandomValues(buf); return Array.from(buf).map((x) => x.toString(16).padStart(2, "0")).join(""); };
     if (req.method === "GET" && url.pathname === "/auth/google/start") {
       if (!pool) return new Response("Database not configured", { status: 503 });
       const clientId = process.env.GOOGLE_CLIENT_ID ?? "";
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET ?? "";
       if (!clientId || !clientSecret) {
-        return new Response("Google sign-in is not configured yet. The store owner needs to add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the Render dashboard.", { status: 400, headers: { "content-type": "text/plain", ...corsHeaders } });
+        return new Response("Google sign-in is not configured yet. The store owner needs to add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the Render dashboard.", { status: 400, headers: { "content-type": "text/plain", ...ch } });
       }
       const state = randomHex(16);
       await pool.query("DELETE FROM google_oauth_states WHERE created_at < now() - interval '10 minutes'");
@@ -471,7 +450,7 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
       auth.searchParams.set("access_type", "online");
       auth.searchParams.set("prompt", "select_account");
       auth.searchParams.set("state", state);
-      return new Response(null, { status: 302, headers: { Location: auth.toString(), ...corsHeaders } });
+      return new Response(null, { status: 302, headers: { Location: auth.toString(), ...ch } });
     }
     if (req.method === "GET" && url.pathname === "/auth/google/callback") {
       if (!pool) return new Response("Database not configured", { status: 503 });
@@ -520,13 +499,13 @@ export function createHandler(db: any, pool: any, baseUrl: string) {
         await pool.query("DELETE FROM google_login_codes WHERE created_at < now() - interval '10 minutes'");
         const loginCode = randomHex(32);
         await pool.query("INSERT INTO google_login_codes (code, user_id) VALUES ($1, $2)", [loginCode, userId]);
-        return new Response(null, { status: 302, headers: { Location: `${frontendOrigin}/?google_code=${loginCode}`, ...corsHeaders } });
+        return new Response(null, { status: 302, headers: { Location: `${frontendOrigin}/?google_code=${loginCode}`, ...ch } });
       } catch (e) {
         console.error("google callback failed", e);
         return googleErrorRedirect("server_error");
       }
     }
-    return new Response("Not found", { status: 404, headers: corsHeaders });
+    return new Response("Not found", { status: 404, headers: ch });
   };
 }
 
@@ -552,7 +531,9 @@ async function main() {
   }
   const baseUrl = process.env.RENDER_EXTERNAL_URL ?? "";
   const port = Number(process.env.PORT || 3000);
-  Bun.serve({ port, fetch: createHandler(db, pool, baseUrl) });
+  // 10 MB request cap (uploads are base64 ≤ 6M chars plus JSON overhead;
+  // anything bigger is rejected by the runtime before a handler runs).
+  Bun.serve({ port, maxRequestBodySize: 10 * 1024 * 1024, fetch: createHandler(db, pool, baseUrl) });
   console.log(`Listening on port ${port}...`);
 }
 
