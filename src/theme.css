@@ -46,6 +46,27 @@
   --alert: #dc2626;
   --alert-bg: #fef2f2;
   --teal: #0f766e;
+  /* Status banners (success/danger/warning/info): light values are the
+     exact Tailwind shades the old dark: classes paired with, so light
+     mode is unchanged; dark values keep the text readable. */
+  --success-bg: #ecfdf5;
+  --success-bg-strong: #d1fae5;
+  --success-text: #064e3b;
+  --success-text-800: #065f46;
+  --success-text-soft: #047857;
+  --danger-bg: #fff1f2;
+  --danger-bg-strong: #ffe4e6;
+  --danger-border: #fecdd3;
+  --danger-text: #881337;
+  --danger-text-800: #9f1239;
+  --danger-text-700: #be123c;
+  --danger-text-600: #e11d48;
+  --warning-bg: #fffbeb;
+  --warning-bg-strong: #fef3c7;
+  --warning-text: #78350f;
+  --warning-text-bright: #78350f;
+  --info-bg: #e0f2fe;
+  --info-text: #075985;
   --radius: 12px;
   --space-surface: var(--surface);
   --space-surface-alt: var(--surface-alt);
@@ -75,6 +96,27 @@
     --alert: #f87171;
     --alert-bg: #3f1d1d;
     --teal: #2dd4bf;
+  /* Status banners in dark mode: solid dark backgrounds with light text
+     (the old dark: classes used translucent /30-/40 fills that paired
+     with light-mode text and were unreadable). */
+  --success-bg: #052e22;
+  --success-bg-strong: #052e22;
+  --success-text: #a7f3d0;
+  --success-text-800: #a7f3d0;
+  --success-text-soft: #6ee7b7;
+  --danger-bg: #4c0519;
+  --danger-bg-strong: #4c0519;
+  --danger-border: #881337;
+  --danger-text: #fecdd3;
+  --danger-text-800: #fecdd3;
+  --danger-text-700: #fecdd3;
+  --danger-text-600: #fecdd3;
+  --warning-bg: #451a03;
+  --warning-bg-strong: #451a03;
+  --warning-text: #fde68a;
+  --warning-text-bright: #fef3c7;
+  --info-bg: #082f49;
+  --info-text: #bae6fd;
   }
 }
 
@@ -102,6 +144,27 @@
   --alert: #dc2626;
   --alert-bg: #fef2f2;
   --teal: #0f766e;
+  /* Status banners (success/danger/warning/info): light values are the
+     exact Tailwind shades the old dark: classes paired with, so light
+     mode is unchanged; dark values keep the text readable. */
+  --success-bg: #ecfdf5;
+  --success-bg-strong: #d1fae5;
+  --success-text: #064e3b;
+  --success-text-800: #065f46;
+  --success-text-soft: #047857;
+  --danger-bg: #fff1f2;
+  --danger-bg-strong: #ffe4e6;
+  --danger-border: #fecdd3;
+  --danger-text: #881337;
+  --danger-text-800: #9f1239;
+  --danger-text-700: #be123c;
+  --danger-text-600: #e11d48;
+  --warning-bg: #fffbeb;
+  --warning-bg-strong: #fef3c7;
+  --warning-text: #78350f;
+  --warning-text-bright: #78350f;
+  --info-bg: #e0f2fe;
+  --info-text: #075985;
 }
 
 :root[data-theme="dark"] {
@@ -125,6 +188,27 @@
   --alert: #f87171;
   --alert-bg: #42202a;
   --teal: #2dd4bf;
+  /* Status banners in dark mode: solid dark backgrounds with light text
+     (the old dark: classes used translucent /30-/40 fills that paired
+     with light-mode text and were unreadable). */
+  --success-bg: #052e22;
+  --success-bg-strong: #052e22;
+  --success-text: #a7f3d0;
+  --success-text-800: #a7f3d0;
+  --success-text-soft: #6ee7b7;
+  --danger-bg: #4c0519;
+  --danger-bg-strong: #4c0519;
+  --danger-border: #881337;
+  --danger-text: #fecdd3;
+  --danger-text-800: #fecdd3;
+  --danger-text-700: #fecdd3;
+  --danger-text-600: #fecdd3;
+  --warning-bg: #451a03;
+  --warning-bg-strong: #451a03;
+  --warning-text: #fde68a;
+  --warning-text-bright: #fef3c7;
+  --info-bg: #082f49;
+  --info-text: #bae6fd;
 }
 
 /* Store colour schemes (Admin → Theme & Design). The Admin's pick is

@@ -489,7 +489,7 @@ function FieldError({ msg }: { msg?: string }) {
 
 function errInputCls(hasError: boolean): string {
   return hasError
-    ? inputCls + " border-rose-500 bg-rose-50 dark:bg-rose-950/30"
+    ? inputCls + " border-rose-500 bg-[var(--danger-bg)]"
     : inputCls;
 }
 
@@ -505,7 +505,7 @@ function ValidationSummary({
   return (
     <div
       role="alert"
-      className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:bg-rose-950/30 dark:text-rose-200"
+      className="rounded-xl border border-rose-300 bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger-text)]"
     >
       <p className="font-display font-bold">
         {sectionLabel}: {items.length} {t("val.left")} —{" "}
@@ -1482,16 +1482,19 @@ function ShopView({
           ))}
         </div>
         <div className="mt-2 flex items-stretch gap-2">
-          <label className="block min-w-0 flex-1">
+          <label className="flex min-w-0 flex-1 items-center gap-1">
             <span className="sr-only">Search products</span>
             <input
-              type="search"
+              type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("shop.searchPlaceholder")}
-              className={inputCls}
+              className={`${inputCls} min-w-0 flex-1`}
               aria-label="Search products"
             />
+            {search && (
+              <button type="button" aria-label={t("shop.clearSearch")} onClick={() => setSearch("")} className="shrink-0 px-2 text-lg font-bold leading-none text-[var(--dim)]">×</button>
+            )}
           </label>
           <div className="flex shrink-0 overflow-hidden rounded-lg border border-[var(--border)]" role="group" aria-label="Product grid view">
             <button
@@ -2001,6 +2004,8 @@ function CheckoutView({
       errs.push({ key: "state", label: regionLabel, msg: t("val.region") });
     if (!postalValidForCountry(country, form.pinCode))
       errs.push({ key: "pinCode", label: postalLabel, msg: t("val.postal") });
+    if (payWhen === "first" && prepaidMethods.length === 0)
+      errs.push({ key: "payProof", label: t("co.payment"), msg: t("val.payNoMethod") });
     if (payWhen === "first" && prepaidMethods.length > 0 && !payRef.trim() && !payShot)
       errs.push({ key: "payProof", label: t("co.payment"), msg: t("val.payProof") });
     return errs;
@@ -2407,11 +2412,15 @@ function OrderItemReviews({ order, buyerId }: { order: Order; buyerId: number })
   );
 }
 
-function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor, buyerView }: { order: Order; hideItems?: boolean; proofViewerId?: number; reviewBuyerId?: number; codActor?: { role: "seller" | "admin"; id: number }; buyerView?: boolean }) {
+function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor, buyerView, cancelBuyerId }: { order: Order; hideItems?: boolean; proofViewerId?: number; reviewBuyerId?: number; codActor?: { role: "seller" | "admin"; id: number }; buyerView?: boolean; cancelBuyerId?: number }) {
   const { fmt, t } = useUi();
   const queryClient = useQueryClient();
   const [codBusy, setCodBusy] = useState(false);
   const [codErr, setCodErr] = useState<string | null>(null);
+  const [cancelArmed, setCancelArmed] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelErr, setCancelErr] = useState<string | null>(null);
+  const [cancelDone, setCancelDone] = useState(false);
   // WhatsApp number for the COD confirmation chat: Pakistan 03XX numbers
   // get +92, Indian 10-digit numbers get +91, a leading + is kept as-is.
   const waDigits = (order.phone || "").replace(/\D/g, "");
@@ -2563,7 +2572,7 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor, b
         <p className="mt-2 rounded-lg bg-[var(--amber-bg)] px-3 py-2 text-xs font-semibold text-[var(--text)]">⏳ {t("paygate.under")}</p>
       )}
       {order.paymentStatus === "verified" && order.status !== "Delivered" && (
-        <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {t("paygate.verified")}</p>
+        <p className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-xs font-semibold text-[var(--success-text)]">✓ {t("paygate.verified")}</p>
       )}
       {order.paymentStatus === "rejected" && (
         <p role="alert" className="mt-2 rounded-lg bg-[var(--alert-bg)] px-3 py-2 text-xs font-semibold text-[var(--text)]">
@@ -2578,7 +2587,7 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor, b
           WhatsApp confirmation step itself is unchanged; only the
           buyer's text changed. */}
       {order.paymentMethod === "Cash on Delivery" && order.codConfirmed ? (
-        <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {buyerView ? t("cod.confirmedBuyer") : t("cod.confirmed")}</p>
+        <p className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-xs font-semibold text-[var(--success-text)]">✓ {buyerView ? t("cod.confirmedBuyer") : t("cod.confirmed")}</p>
       ) : order.paymentMethod === "Cash on Delivery" && order.status !== "Delivered" && order.status !== "Cancelled" ? (
         <div className="mt-2 rounded-lg bg-[var(--amber-bg)] px-3 py-2">
           <p className="text-xs font-semibold text-[var(--text)]">⏳ {buyerView ? t("cod.awaitingBuyer") : t("cod.awaiting")}</p>
@@ -2622,6 +2631,50 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor, b
           )}
         </div>
       ) : null}
+      {buyerView && cancelBuyerId !== undefined && order.status === "Pending" && order.paymentStatus !== "verified" && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {cancelDone ? (
+            <p role="status" className="text-xs font-semibold text-emerald-700">✓ {t("order.cancelDone")}</p>
+          ) : cancelArmed ? (
+            <>
+              <button
+                type="button"
+                disabled={cancelBusy}
+                onClick={async () => {
+                  setCancelBusy(true);
+                  setCancelErr(null);
+                  try {
+                    const res: any = await api.cancelBuyerOrder({ orderId: order.id, buyerId: cancelBuyerId });
+                    if (!res?.ok) {
+                      setCancelErr(res?.error ?? "Could not cancel order.");
+                      setCancelBusy(false);
+                      return;
+                    }
+                    setCancelDone(true);
+                    setCancelArmed(false);
+                    queryClient.invalidateQueries({ queryKey: ["buyer-orders"] });
+                    queryClient.invalidateQueries({ queryKey: ["seller-dashboard"] });
+                    queryClient.invalidateQueries({ queryKey: ["admin-seller-orders"] });
+                    queryClient.invalidateQueries({ queryKey: ["admin-overview"] });
+                  } catch (e: any) {
+                    setCancelErr(String(e?.message ?? e));
+                  }
+                  setCancelBusy(false);
+                }}
+                className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+              >
+                {t("order.cancelConfirm")}
+              </button>
+              <button type="button" onClick={() => setCancelArmed(false)} className={ghostBtn + " px-3 py-1.5 text-xs"}>{t("order.cancelKeep")}</button>
+            </>
+          ) : (
+            <button type="button" onClick={() => setCancelArmed(true)} className="px-2 py-1.5 text-xs font-semibold text-rose-600">{t("order.cancelBtn")}</button>
+          )}
+          {cancelErr && (
+            <p role="alert" className="text-xs font-semibold text-rose-600">{cancelErr}</p>
+          )}
+        </div>
+      )}
       {proofViewerId !== undefined && order.hasPaymentProof && (
         <div className="mt-2"><OrderPaymentProofView orderId={order.id} adminId={proofViewerId} /></div>
       )}
@@ -2653,7 +2706,7 @@ function OrdersView({ user }: { user: User }) {
       <h2 className="font-display text-2xl font-bold text-[var(--text)]">{t("orders.title")}</h2>
       <div className="mt-4 flex flex-col gap-3">
         {list.map((o) => (
-          <OrderCard key={o.id} order={o} proofViewerId={user.id} reviewBuyerId={user.id} buyerView />
+          <OrderCard key={o.id} order={o} proofViewerId={user.id} reviewBuyerId={user.id} buyerView cancelBuyerId={user.id} />
         ))}
       </div>
     </div>
@@ -2819,7 +2872,7 @@ function FinanceSummary({ finance, compact, hideBalance }: { finance: { availabl
               <ul className="mt-1.5 flex flex-col gap-1.5">
                 {finance.withdrawals.map((wd) => (
                   <li key={wd.id} className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">{t("fin.paidBadge")}</span>
+                    <span className="rounded-full bg-[var(--success-bg-strong)] px-2 py-0.5 text-[11px] font-bold text-[var(--success-text)]">{t("fin.paidBadge")}</span>
                     <span className="min-w-0 text-[var(--text)]">{wd.kind === "admin_withdraw" ? t("fin.adminWithdrawal") : wd.method || t("w.withdraw")}{wd.paymentReference ? ` · ${wd.paymentReference}` : ""}{wd.note && wd.kind === "admin_withdraw" ? ` · ${wd.note}` : ""}</span>
                     <span className="ml-auto font-display font-bold text-[var(--text)]">−{fmt(wd.amount)}</span>
                     <span className="w-full text-[11px] text-[var(--dim)]">{new Date(wd.createdAt).toLocaleString()}</span>
@@ -2856,7 +2909,7 @@ function FinanceOrdersLedger({ finance }: { finance: { orders: Array<{ orderId: 
   const { t, fmt } = useUi();
   return (<div className="mt-4 grid gap-5 lg:grid-cols-2">
     <div><h4 className="font-display font-bold text-[var(--text)]">{t("fin.orderBreakdown")} ({finance.orders.length})</h4>
-      {finance.orders.length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noOrders")}</p> : <div className="mt-2 flex flex-col gap-2">{finance.orders.map((o) => (<div key={o.orderId} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"><div className="flex flex-wrap gap-2"><strong>Order #{o.orderId}</strong><StatusBadge status={o.status} />{o.paidFromWallet && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">{t("sord.paidFromWallet")}</span>}<span className="ml-auto font-display font-bold">{fmt(o.orderAmount)}</span></div><p className="mt-1 text-xs text-[var(--dim)]">{o.productNames} · {new Date(o.createdAt).toLocaleString()}</p><p className="mt-1 text-xs">{t("fin.profit")}: <strong>{fmt(o.profit)}</strong> · {t("fin.clearedFull")}: <strong>{fmt(o.clearedAmount)}</strong> · {t("fin.heldAmount")}: <strong>{fmt(o.pendingAmount)}</strong>{o.payableCost !== undefined && <> · {t("sord.payable")}: <strong>{fmt(o.payableCost)}</strong></>}</p></div>))}</div>}
+      {finance.orders.length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noOrders")}</p> : <div className="mt-2 flex flex-col gap-2">{finance.orders.map((o) => (<div key={o.orderId} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"><div className="flex flex-wrap gap-2"><strong>Order #{o.orderId}</strong><StatusBadge status={o.status} />{o.paidFromWallet && <span className="rounded-full bg-[var(--success-bg-strong)] px-2 py-0.5 text-[11px] font-bold text-[var(--success-text)]">{t("sord.paidFromWallet")}</span>}<span className="ml-auto font-display font-bold">{fmt(o.orderAmount)}</span></div><p className="mt-1 text-xs text-[var(--dim)]">{o.productNames} · {new Date(o.createdAt).toLocaleString()}</p><p className="mt-1 text-xs">{t("fin.profit")}: <strong>{fmt(o.profit)}</strong> · {t("fin.clearedFull")}: <strong>{fmt(o.clearedAmount)}</strong> · {t("fin.heldAmount")}: <strong>{fmt(o.pendingAmount)}</strong>{o.payableCost !== undefined && <> · {t("sord.payable")}: <strong>{fmt(o.payableCost)}</strong></>}</p></div>))}</div>}
     </div>
     <div><h4 className="font-display font-bold text-[var(--text)]">{t("fin.ledger")} ({finance.ledger.length})</h4>
       {finance.ledger.length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("w.noHistory")}</p> : <div className="mt-2 flex flex-col gap-2">{finance.ledger.map((e) => (<div key={e.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"><div className="flex flex-wrap gap-2"><strong>{kindLabel(e.kind)}</strong><StatusBadge status={e.status} /><span className="ml-auto font-display font-bold">{e.direction === "debit" ? "−" : "+"}{fmt(e.amount)}</span></div><p className="mt-1 text-xs text-[var(--dim)]">{e.method}{e.reference ? ` · ${e.reference}` : ""}{e.note ? ` · ${e.note}` : ""} · {new Date(e.createdAt).toLocaleString()}</p><p className="text-xs">{t("fin.running")}: <strong>{fmt(e.runningBalance)}</strong></p></div>))}</div>}
@@ -2931,7 +2984,7 @@ function SellerApplicationForm({ onDone, convertUser }: { onDone: (u?: NonNullab
           errs.push({ key: "phone", label: t("sa.phone"), msg: t("val.phoneCountry") });
         if (f.password.length === 0)
           errs.push({ key: "password", label: t("sa.password"), msg: t("val.passwordMissing") });
-        else if (f.password.length < 4)
+        else if (f.password.length < 8)
           errs.push({ key: "password", label: t("sa.password"), msg: t("val.password") });
       } else if (needsCountry && !f.country) {
         errs.push({ key: "country", label: t("acc.country"), msg: t("val.country") });
@@ -3093,7 +3146,7 @@ function SellerApplicationForm({ onDone, convertUser }: { onDone: (u?: NonNullab
         </div>
       )}
       {touched && errFor("contact") && step === 1 && (
-        <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30">
+        <p role="alert" className="mt-3 rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-sm font-semibold text-[var(--danger-text-700)]">
           ⚠ {errFor("contact")}
         </p>
       )}
@@ -3285,7 +3338,7 @@ function SellerApplicationForm({ onDone, convertUser }: { onDone: (u?: NonNullab
         )}
       </div>
 
-      {error && <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30">{error}</p>}
+      {error && <p role="alert" className="mt-3 rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-sm font-semibold text-[var(--danger-text-700)]">{error}</p>}
       <div className="mt-4 flex gap-2">
         {step > 1 && (
           <button type="button" onClick={() => { setStep(step - 1); setTouched(false); setError(null); window.scrollTo(0, 0); }} className={ghostBtn}>
@@ -3383,7 +3436,7 @@ function ChangeMyPasswordPanel({ userId, onDone }: { userId: number; onDone?: ()
   const [serverErr, setServerErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   type CpErr = { key: string; label: string; msg: string };
-  function errs(): CpErr[] { const e: CpErr[] = []; if (!f.currentPassword) e.push({ key: "currentPassword", label: t("cp.current"), msg: t("cp.val.currentMissing") }); if (!f.newPassword) e.push({ key: "newPassword", label: t("cp.new"), msg: t("cp.val.newMissing") }); else if (f.newPassword.length < 4) e.push({ key: "newPassword", label: t("cp.new"), msg: t("cp.val.newShort") }); if (f.confirmPassword !== f.newPassword) e.push({ key: "confirmPassword", label: t("cp.confirm"), msg: t("cp.val.mismatch") }); return e; }
+  function errs(): CpErr[] { const e: CpErr[] = []; if (!f.currentPassword) e.push({ key: "currentPassword", label: t("cp.current"), msg: t("cp.val.currentMissing") }); if (!f.newPassword) e.push({ key: "newPassword", label: t("cp.new"), msg: t("cp.val.newMissing") }); else if (f.newPassword.length < 8) e.push({ key: "newPassword", label: t("cp.new"), msg: t("cp.val.newShort") }); if (f.confirmPassword !== f.newPassword) e.push({ key: "confirmPassword", label: t("cp.confirm"), msg: t("cp.val.mismatch") }); return e; }
   const errFor = (k: string) => touched ? errs().find((e) => e.key === k)?.msg : undefined;
   const mut = useMutation({ mutationFn: () => api.changeMyPassword({ userId, currentPassword: f.currentPassword, newPassword: f.newPassword }), onSuccess: (r) => { if (!r.ok) { setServerErr(r.error ?? "Failed."); setOk(null); return; } setServerErr(null); setOk(t("cp.ok")); setF({ currentPassword: "", newPassword: "", confirmPassword: "" }); setTouched(false); onDone?.(); }, onError: (e) => setServerErr(String(e)) });
   return (
@@ -3397,10 +3450,50 @@ function ChangeMyPasswordPanel({ userId, onDone }: { userId: number; onDone?: ()
         <Field label={t("cp.confirm")}><input type="password" value={f.confirmPassword} onChange={(e) => setF({ ...f, confirmPassword: e.target.value })} className={errInputCls(!!errFor("confirmPassword"))} aria-label="Confirm your new password" /><FieldError msg={errFor("confirmPassword")} /></Field>
       </div>
       {serverErr && <p role="alert" className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-rose-600">{aWarn} {serverErr}</p>}
-      {ok && <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {ok}</p>}
+      {ok && <p role="status" className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {ok}</p>}
       <button type="submit" disabled={mut.isPending} className={primaryBtn + " mt-3"}>{t("cp.btn")}</button>
     </form>
   );
+}
+
+// Signed blob URLs for private files. The server will soon require a
+// signature on private blob prefixes; getBlobSignedUrl returns {ok, url}
+// with no expiry in its contract, so each key's signed URL is cached for
+// 5 minutes. When signing is unavailable (action not deployed yet, or a
+// failed call) the direct URL is used instead, so images keep working
+// until the server starts enforcing signatures.
+const signedBlobCache = new Map<string, { url: string; exp: number }>();
+async function fetchSignedBlobUrl(key: string): Promise<string | null> {
+  const hit = signedBlobCache.get(key);
+  if (hit && hit.exp > Date.now()) return hit.url;
+  try {
+    const r: any = await api.getBlobSignedUrl({ key });
+    if (r?.ok && r?.url) {
+      signedBlobCache.set(key, { url: r.url, exp: Date.now() + 5 * 60 * 1000 });
+      return r.url;
+    }
+  } catch { /* fall through to the direct URL */ }
+  return null;
+}
+function blobKeyFromUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (url.includes("?sig=") || url.includes("signature=")) return null;
+  const i = url.indexOf("/blobs/");
+  if (i < 0) return null;
+  const key = decodeURIComponent(url.slice(i + 7));
+  if (key.startsWith("header-logo/")) return null;
+  return key;
+}
+function useSignedBlobUrl(directUrl: string | null, enabled: boolean): string | null {
+  const key = blobKeyFromUrl(directUrl);
+  const q = useQuery({
+    queryKey: ["signed-blob", key],
+    queryFn: () => fetchSignedBlobUrl(key!),
+    enabled: enabled && !!key,
+    staleTime: 5 * 60 * 1000,
+  });
+  if (!key) return directUrl;
+  return q.data ?? directUrl;
 }
 
 /* --------- Seller profile photo & store logo (display + change) --------- */
@@ -3426,7 +3519,8 @@ function SellerMediaImage({
     queryFn: () => api.getMyDocumentUrl({ sellerId, kind }),
     enabled: hasFile,
   });
-  const url = doc.data?.url ?? null;
+  const directUrl = doc.data?.url ?? null;
+  const url = useSignedBlobUrl(directUrl, hasFile);
   const isImg = (doc.data?.contentType ?? "").startsWith("image/");
   if (hasFile && url && isImg) {
     return <img src={url} alt="" className={`${className} object-cover`} />;
@@ -3645,7 +3739,7 @@ function MediaEditRow({
       {saved && !file && (
         <p
           role="status"
-          className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
+          className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]"
         >
           ✓ {t("prof.saved")}
         </p>
@@ -3701,7 +3795,8 @@ function AdminSellerLogo({
     queryFn: () => api.adminGetDocumentUrl({ adminId, sellerId, kind: "logo" }),
     enabled: hasFile,
   });
-  const url = doc.data?.url ?? null;
+  const directUrl = doc.data?.url ?? null;
+  const url = useSignedBlobUrl(directUrl, hasFile);
   const isImg = (doc.data?.contentType ?? "").startsWith("image/");
   if (hasFile && url && isImg) {
     return <img src={url} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />;
@@ -3947,7 +4042,7 @@ function AccountView({
     }
     if (!form.password)
       errs.push({ key: "password", label: t("acc.password"), msg: t("val.passwordMissing") });
-    else if (mode !== "login" && form.password.length < 4)
+    else if (mode !== "login" && form.password.length < 8)
       errs.push({ key: "password", label: t("acc.password"), msg: t("val.password") });
     return errs;
   }
@@ -4314,12 +4409,12 @@ function AccountView({
         <p className="text-sm text-[var(--dim)]">{t("header.tagline")}</p>
       </div>
       {externalError && (
-        <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">
+        <p role="alert" className="mt-4 rounded-xl bg-[var(--danger-bg)] px-4 py-3 text-sm font-semibold text-[var(--danger-text-700)]">
           {externalError}
         </p>
       )}
       {authNote && (
-        <p role="status" className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+        <p role="status" className="mt-4 rounded-xl bg-[var(--success-bg)] px-4 py-3 text-sm font-semibold text-[var(--success-text)]">
           {authNote}
         </p>
       )}
@@ -4480,7 +4575,7 @@ function AccountView({
             </>
           )}
           {authTouched && authErrFor("contact") && (
-            <p role="alert" className="flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30">
+            <p role="alert" className="flex items-center gap-1.5 rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-sm font-semibold text-[var(--danger-text-700)]">
               {aWarn} {authErrFor("contact")}
             </p>
           )}
@@ -4497,7 +4592,7 @@ function AccountView({
                   <p className="mt-1 text-xs leading-snug text-[var(--dim)]">{t("fp.sub")}</p>
                   {forgotSent ? (
                     <>
-                      <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {t("fp.neutral")}</p>
+                      <p role="status" className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {t("fp.neutral")}</p>
                       <p className="mt-2 text-sm font-semibold text-[var(--text)]">{t("fp.sentToService")}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {onGoSupport && <button type="button" onClick={onGoSupport} className={primaryBtn + " px-3 py-2 text-[13px]"}>{t("fp.openLiveChat")}</button>}
@@ -4529,7 +4624,7 @@ function AccountView({
           {mode === "admin" && (
             <p className="text-xs text-[var(--dim)]">{t("acc.adminNote")}</p>
           )}
-          {error && <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30">{error}</p>}
+          {error && <p role="alert" className="rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-sm font-semibold text-[var(--danger-text-700)]">{error}</p>}
           <button
             type="submit"
             disabled={login.isPending || register.isPending || createAdmin.isPending}
@@ -5376,6 +5471,7 @@ function SellerView({
     onError: (e) => setDeliverErr(String(e)),
   });
 
+  const [confirmRemoveId, setConfirmRemoveId] = useState<number | null>(null);
   const remove = useMutation({
     mutationFn: (productId: number) =>
       api.removeFromMyStore({ sellerId: user!.id, productId }),
@@ -5450,6 +5546,13 @@ function SellerView({
   }
   if (dash.isPending)
     return <p className="py-10 text-center text-[var(--dim)]">{t("sd.loading")}</p>;
+  if (dash.isError)
+    return (
+      <div className="py-10 text-center">
+        <p className="text-[var(--dim)]">{t("sd.loadError")}</p>
+        <button type="button" onClick={() => dash.refetch()} className={goldBtn + " mt-3 px-4 py-2 text-sm"}>{t("common.retry")}</button>
+      </div>
+    );
   const d = dash.data!;
   const inStore = new Set(d.myProducts.map((p) => p.id));
 
@@ -5740,15 +5843,37 @@ function SellerView({
                         · {t("shop.stock")}: <strong className="text-[var(--text)]">{p.stock}</strong>
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      aria-label={`Remove ${p.name} from my store`}
-                      onClick={() => remove.mutate(p.id)}
-                      disabled={remove.isPending}
-                      className="min-h-10 shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-600 disabled:opacity-50 dark:border-rose-900 dark:bg-rose-950/30"
-                    >
-                      {t("sd.remove")}
-                    </button>
+                    {confirmRemoveId === p.id ? (
+                      <>
+                        <button
+                          type="button"
+                          aria-label={`Confirm remove ${p.name} from my store`}
+                          onClick={() => { remove.mutate(p.id); setConfirmRemoveId(null); }}
+                          disabled={remove.isPending}
+                          className="min-h-10 shrink-0 rounded-lg bg-rose-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+                        >
+                          {t("adm.confirmQ")}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Keep ${p.name} in my store`}
+                          onClick={() => setConfirmRemoveId(null)}
+                          className="min-h-10 shrink-0 px-2 py-2 text-sm font-semibold text-[var(--dim)]"
+                        >
+                          {t("adm.cancel")}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        aria-label={`Remove ${p.name} from my store`}
+                        onClick={() => setConfirmRemoveId(p.id)}
+                        disabled={remove.isPending}
+                        className="min-h-10 shrink-0 rounded-lg border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-sm font-bold text-[var(--danger-text-600)] disabled:opacity-50"
+                      >
+                        {t("sd.remove")}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -5821,7 +5946,7 @@ function SellerView({
               })}
             </div>
 
-            {deliverMsg && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">{deliverMsg}</p>}
+            {deliverMsg && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">{deliverMsg}</p>}
 
             <h4 className="mt-4 font-display text-base font-bold text-[var(--text)]">
               {orderSection === "pending" ? `📦 ${t("sord.secPending")}` : orderSection === "shipment" ? `🚚 ${t("sord.secShipment")}` : `✅ ${t("sord.secCompleted")}`} ({sectionOrders.length})
@@ -5910,8 +6035,8 @@ function SellerView({
                               </dl>
                               <p className="mt-2 rounded-lg bg-[var(--surface)] px-3 py-2 text-xs leading-snug text-[var(--text)]">ℹ️ {t("sord.holdLine")}.</p>
                               <p className="mt-1.5 rounded-lg bg-[var(--surface)] px-3 py-2 text-xs leading-snug text-[var(--text)]">✅ {t("sord.onComplete")}</p>
-                              {short && <p role="alert" className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">⚠ {t("sord.notEnough")}</p>}
-                              {deliverErr && <p role="alert" className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">⚠ {deliverErr}</p>}
+                              {short && <p role="alert" className="mt-2 rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-sm font-semibold text-[var(--danger-text-700)]">⚠ {t("sord.notEnough")}</p>}
+                              {deliverErr && <p role="alert" className="mt-2 rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-sm font-semibold text-[var(--danger-text-700)]">⚠ {deliverErr}</p>}
                               <div className="mt-3 flex flex-wrap gap-2">
                                 <button
                                   type="button"
@@ -6069,7 +6194,8 @@ function SellerDocCard({ adminId, sellerId, kind, label, fileName, hasFile, cont
 }) {
   const { t } = useUi();
   const doc = useQuery({ queryKey: ["admin-doc", adminId, sellerId, kind], queryFn: () => api.adminGetDocumentUrl({ adminId, sellerId, kind }), enabled: hasFile });
-  const url = doc.data?.url ?? null;
+  const directUrl = doc.data?.url ?? null;
+  const url = useSignedBlobUrl(directUrl, hasFile);
   const isImg = (contentType ?? doc.data?.contentType ?? "").startsWith("image/");
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
@@ -6083,7 +6209,7 @@ function SellerDocCard({ adminId, sellerId, kind, label, fileName, hasFile, cont
           {url && <a href={url} download={fileName ?? label} target="_blank" rel="noreferrer" className={ghostBtn + " px-3 py-1.5 text-xs"}>{t("adm.download")}</a>}
         </div>
       ) : fileName ? (
-        <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">{t("adm.docOldNote")}</p>
+        <p className="mt-2 rounded-lg bg-[var(--warning-bg)] px-2 py-1.5 text-xs text-[var(--warning-text)]">{t("adm.docOldNote")}</p>
       ) : (<p className="mt-1 text-xs text-[var(--dim)]">{t("adm.noFile")}</p>)}
     </div>
   );
@@ -6178,7 +6304,7 @@ function CustomerChatPanel({ adminId, userId, customerName }: { adminId: number;
         💬 {t("chat.withCustomer")} — {customerName}
         {lastMsg?.sender === "customer" && <span className="rounded-full bg-[var(--alert-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--alert)]">{t("chat.waiting")}</span>}
       </h4>
-      {deletedMsg && <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {deletedMsg}</p>}
+      {deletedMsg && <p role="status" className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {deletedMsg}</p>}
       {messages.length === 0 ? (
         <p className="mt-2 text-sm text-[var(--dim)]">{t("chat.empty")}</p>
       ) : (
@@ -6198,9 +6324,9 @@ function CustomerChatPanel({ adminId, userId, customerName }: { adminId: number;
         <button type="button" aria-label={`Delete chat conversation with ${customerName}`} onClick={() => { setConfirmingDelete(true); setDeleteErr(null); setDeletedMsg(null); }} className="mt-3 text-sm font-bold text-rose-600">🗑 {t("chat.deleteBtn")}</button>
       )}
       {confirmingDelete && (
-        <div className="mt-3 rounded-xl border-2 border-rose-300 bg-rose-50 p-3 dark:bg-rose-950/20">
-          <p className="text-sm font-bold text-rose-900 dark:text-rose-100">{t("chat.deleteQ")} {customerName}?</p>
-          <p className="mt-0.5 text-xs text-rose-800 dark:text-rose-200">{t("chat.deleteNote")}</p>
+        <div className="mt-3 rounded-xl border-2 border-rose-300 bg-[var(--danger-bg)] p-3">
+          <p className="text-sm font-bold text-[var(--danger-text)]">{t("chat.deleteQ")} {customerName}?</p>
+          <p className="mt-0.5 text-xs text-[var(--danger-text-800)]">{t("chat.deleteNote")}</p>
           {deleteErr && <p role="alert" className="mt-2 text-sm font-semibold text-rose-700">⚠ {deleteErr}</p>}
           <div className="mt-2 flex flex-wrap gap-2">
             <button type="button" aria-label={`Confirm delete chat with ${customerName}`} disabled={del.isPending} onClick={() => del.mutate()} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">{t("chat.confirmDelete")}</button>
@@ -6271,6 +6397,7 @@ function OrderPaymentProofView({ orderId, adminId }: { orderId: number; adminId:
     queryFn: () => api.getOrderPaymentProofUrl({ adminId, orderId }),
     enabled: open,
   });
+  const signedProofUrl = useSignedBlobUrl(q.data?.url ?? null, open);
   if (!open) {
     return (
       <button type="button" aria-label={`View payment proof for order ${orderId}`} onClick={(e) => { e.stopPropagation(); setOpen(true); }} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-bold text-[var(--accent)]">
@@ -6278,7 +6405,7 @@ function OrderPaymentProofView({ orderId, adminId }: { orderId: number; adminId:
       </button>
     );
   }
-  const url = q.data?.url ?? null;
+  const url = signedProofUrl;
   const name = q.data?.fileName ?? t("co.payShotLabel");
   return (
     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
@@ -6317,6 +6444,7 @@ function DepositScreenshotView({ txId, adminId }: { txId: number; adminId: numbe
     queryFn: () => api.getDepositScreenshotUrl({ adminId, txId }),
     enabled: open,
   });
+  const signedShotUrl = useSignedBlobUrl(q.data?.url ?? null, open);
   if (!open) {
     return (
       <button type="button" aria-label={`View payment screenshot for wallet request ${txId}`} onClick={(e) => { e.stopPropagation(); setOpen(true); }} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-bold text-[var(--accent)]">
@@ -6324,7 +6452,7 @@ function DepositScreenshotView({ txId, adminId }: { txId: number; adminId: numbe
       </button>
     );
   }
-  const url = q.data?.url ?? null;
+  const url = signedShotUrl;
   const name = q.data?.fileName ?? t("dep.shotLabel");
   return (
     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
@@ -6385,7 +6513,7 @@ function PayWithdrawPanel({
     [t("wp.afterBalance"), fmt(balanceAfter), true],
   ];
   return (
-    <div className="mt-3 rounded-xl border-2 border-emerald-600/50 bg-emerald-50 p-3 dark:bg-emerald-950/20" role="group" aria-label={`${t("wp.payTitle")} #${request.id}`}>
+    <div className="mt-3 rounded-xl border-2 border-emerald-600/50 bg-[var(--success-bg)] p-3" role="group" aria-label={`${t("wp.payTitle")} #${request.id}`}>
       <p className="font-display text-sm font-bold text-[var(--text)]">💸 {t("wp.payTitle")} #{request.id}</p>
       <dl className="mt-2 flex flex-col gap-1.5 text-sm">
         {rows.map(([k, v, strong]) => (
@@ -6569,6 +6697,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
     onError: (e) => { setThemeErr(String(e)); setThemeMsg(null); },
   });
   const viewerDoc = useQuery({ queryKey: ["admin-doc-view", user?.id, viewer?.sellerId, viewer?.kind], queryFn: () => api.adminGetDocumentUrl({ adminId: user!.id, sellerId: viewer!.sellerId, kind: viewer!.kind }), enabled: !!viewer && !!user && user.role === "admin" });
+  const viewerSignedUrl = useSignedBlobUrl(viewerDoc.data?.url ?? null, !!viewer);
   const bulkHistory = useQuery({ queryKey: ["bulk-profit-history", user?.id], queryFn: () => api.getBulkProfitHistory({ adminId: user!.id }), enabled: !!user && user.role === "admin" });
   // Seller Products list (every product sellers added to their stores)
   const sellerProductsList = useQuery({ queryKey: ["admin-seller-products", user?.id], queryFn: () => api.adminListSellerProducts({ adminId: user!.id }), enabled: !!user && user.role === "admin" });
@@ -7018,9 +7147,9 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
     return e;
   }
   function gmailErrors(): AdmErr[] { const e: AdmErr[] = []; const em = gmailForm.newEmail.trim(); if (!em) e.push({ key: "newEmail", label: t("adm.newGmail"), msg: t("adm.val.newGmailMissing") }); else if (!isEmailOk(em)) e.push({ key: "newEmail", label: t("adm.newGmail"), msg: t("adm.val.newGmailWrong") }); if (!gmailForm.currentPassword) e.push({ key: "currentPassword", label: t("adm.currentPassword"), msg: t("adm.val.currentPwMissing") }); return e; }
-  function pwErrors(): AdmErr[] { const e: AdmErr[] = []; if (!pwForm.currentPassword) e.push({ key: "currentPassword", label: t("adm.currentPassword"), msg: t("adm.val.currentPwMissing") }); if (!pwForm.newPassword) e.push({ key: "newPassword", label: t("adm.newPassword"), msg: t("adm.val.newPwMissing") }); else if (pwForm.newPassword.length < 4) e.push({ key: "newPassword", label: t("adm.newPassword"), msg: t("adm.val.newPwShort") }); if (pwForm.confirmPassword !== pwForm.newPassword) e.push({ key: "confirmPassword", label: t("adm.confirmPassword"), msg: t("adm.val.confirmMismatch") }); return e; }
-  function addAdminErrors(): AdmErr[] { const e: AdmErr[] = []; if (addAdminForm.name.trim().length < 2) e.push({ key: "name", label: t("adm.newAdminName"), msg: t("adm.val.adminNameMissing") }); const em = addAdminForm.email.trim(); if (!em) e.push({ key: "email", label: t("adm.newAdminGmail"), msg: t("adm.val.adminGmailMissing") }); else if (!isEmailOk(em)) e.push({ key: "email", label: t("adm.newAdminGmail"), msg: t("adm.val.adminGmailWrong") }); if (!addAdminForm.password) e.push({ key: "password", label: t("adm.newAdminPassword"), msg: t("adm.val.adminPwMissing") }); else if (addAdminForm.password.length < 4) e.push({ key: "password", label: t("adm.newAdminPassword"), msg: t("adm.val.newPwShort") }); if (addAdminForm.confirmPassword !== addAdminForm.password) e.push({ key: "confirmPassword", label: t("adm.confirmAdminPassword"), msg: t("adm.val.confirmMismatch") }); if (!addAdminForm.creatorPassword) e.push({ key: "creatorPassword", label: t("adm.creatorPassword"), msg: t("adm.val.currentPwMissing") }); return e; }
-  function resetErrors(): AdmErr[] { const e: AdmErr[] = []; if (!resetForm.newPassword) e.push({ key: "newPassword", label: t("adm.newPassword"), msg: t("adm.val.newPwMissing") }); else if (resetForm.newPassword.length < 4) e.push({ key: "newPassword", label: t("adm.newPassword"), msg: t("adm.val.newPwShort") }); if (resetForm.confirmPassword !== resetForm.newPassword) e.push({ key: "confirmPassword", label: t("adm.confirmPassword"), msg: t("adm.val.confirmMismatch") }); if (!resetForm.actorPassword) e.push({ key: "actorPassword", label: t("adm.yourPwAuthorize"), msg: t("adm.val.actorPwMissing") }); return e; }
+  function pwErrors(): AdmErr[] { const e: AdmErr[] = []; if (!pwForm.currentPassword) e.push({ key: "currentPassword", label: t("adm.currentPassword"), msg: t("adm.val.currentPwMissing") }); if (!pwForm.newPassword) e.push({ key: "newPassword", label: t("adm.newPassword"), msg: t("adm.val.newPwMissing") }); else if (pwForm.newPassword.length < 8) e.push({ key: "newPassword", label: t("adm.newPassword"), msg: t("adm.val.newPwShort") }); if (pwForm.confirmPassword !== pwForm.newPassword) e.push({ key: "confirmPassword", label: t("adm.confirmPassword"), msg: t("adm.val.confirmMismatch") }); return e; }
+  function addAdminErrors(): AdmErr[] { const e: AdmErr[] = []; if (addAdminForm.name.trim().length < 2) e.push({ key: "name", label: t("adm.newAdminName"), msg: t("adm.val.adminNameMissing") }); const em = addAdminForm.email.trim(); if (!em) e.push({ key: "email", label: t("adm.newAdminGmail"), msg: t("adm.val.adminGmailMissing") }); else if (!isEmailOk(em)) e.push({ key: "email", label: t("adm.newAdminGmail"), msg: t("adm.val.adminGmailWrong") }); if (!addAdminForm.password) e.push({ key: "password", label: t("adm.newAdminPassword"), msg: t("adm.val.adminPwMissing") }); else if (addAdminForm.password.length < 8) e.push({ key: "password", label: t("adm.newAdminPassword"), msg: t("adm.val.newPwShort") }); if (addAdminForm.confirmPassword !== addAdminForm.password) e.push({ key: "confirmPassword", label: t("adm.confirmAdminPassword"), msg: t("adm.val.confirmMismatch") }); if (!addAdminForm.creatorPassword) e.push({ key: "creatorPassword", label: t("adm.creatorPassword"), msg: t("adm.val.currentPwMissing") }); return e; }
+  function resetErrors(): AdmErr[] { const e: AdmErr[] = []; if (!resetForm.newPassword) e.push({ key: "newPassword", label: t("adm.newPassword"), msg: t("adm.val.newPwMissing") }); else if (resetForm.newPassword.length < 8) e.push({ key: "newPassword", label: t("adm.newPassword"), msg: t("adm.val.newPwShort") }); if (resetForm.confirmPassword !== resetForm.newPassword) e.push({ key: "confirmPassword", label: t("adm.confirmPassword"), msg: t("adm.val.confirmMismatch") }); if (!resetForm.actorPassword) e.push({ key: "actorPassword", label: t("adm.yourPwAuthorize"), msg: t("adm.val.actorPwMissing") }); return e; }
   function bulkErrors(): AdmErr[] {
     const e: AdmErr[] = [];
     const parseN = (v: string) => { const n = parseInt(v, 10); return v.trim() === "" || Number.isNaN(n) ? null : n; };
@@ -7097,7 +7226,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
       <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
         <button type="button" aria-label={`Set a new password for ${target.name}`} aria-expanded={directPwOpen === target.id} onClick={() => setDirectPwOpen(directPwOpen === target.id ? null : target.id)} className="font-display text-sm font-bold text-[var(--accent)]">{t("adm.setPwOpen")}</button>
         {directPwOpen === target.id && (
-          <form className="mt-3" onSubmit={(e) => { e.preventDefault(); if (!d.newPassword) { setDirectPwResult({ userId: target.id, ok: false, text: t("cp.val.newMissing") }); return; } if (d.newPassword.length < 4) { setDirectPwResult({ userId: target.id, ok: false, text: t("adm.val.newPwShort") }); return; } if (d.newPassword !== d.confirmPassword) { setDirectPwResult({ userId: target.id, ok: false, text: t("cp.val.mismatch") }); return; } setUserPw.mutate(target.id); }}>
+          <form className="mt-3" onSubmit={(e) => { e.preventDefault(); if (!d.newPassword) { setDirectPwResult({ userId: target.id, ok: false, text: t("cp.val.newMissing") }); return; } if (d.newPassword.length < 8) { setDirectPwResult({ userId: target.id, ok: false, text: t("adm.val.newPwShort") }); return; } if (d.newPassword !== d.confirmPassword) { setDirectPwResult({ userId: target.id, ok: false, text: t("cp.val.mismatch") }); return; } setUserPw.mutate(target.id); }}>
             <h4 className="font-display font-bold text-[var(--text)]">🔑 {t("adm.setPwTitle")} — {target.name}</h4>
             <p className="mt-1 text-xs leading-snug text-[var(--dim)]">{t("adm.setPwSub")}</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -7207,7 +7336,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                   )}
                 </fieldset>
                 {bulkServerErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {bulkServerErr}</p>}
-                {bulkApplied && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {bulkApplied}</p>}
+                {bulkApplied && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {bulkApplied}</p>}
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button type="submit" disabled={previewBulk.isPending} className={primaryBtn}>{previewBulk.isPending ? t("bulk.previewing") : `👁 ${t("bulk.previewBtn")}`}</button>
                 </div>
@@ -7234,8 +7363,8 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                       {!bulkConfirming ? (
                         <button type="button" aria-label={`${t("bulk.applyBtn")} ${bulkPreview.count} ${t("bulk.applyProducts")}`} onClick={() => setBulkConfirming(true)} className={goldBtn + " mt-3 w-full sm:w-auto"}>{t("bulk.applyBtn")} {bulkPreview.count} {t("bulk.applyProducts")}</button>
                       ) : (
-                        <div className="mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-3 dark:bg-amber-950/30">
-                          <p className="text-sm font-bold text-amber-900 dark:text-amber-100">Apply this bulk change to {bulkPreview.count} products? This updates shop prices and seller profit at once. Past orders will not change.</p>
+                        <div className="mt-3 rounded-xl border-2 border-amber-400 bg-[var(--warning-bg)] p-3">
+                          <p className="text-sm font-bold text-[var(--warning-text-bright)]">Apply this bulk change to {bulkPreview.count} products? This updates shop prices and seller profit at once. Past orders will not change.</p>
                           <div className="mt-2 flex flex-wrap gap-2">
                             <button type="button" aria-label={`Confirm apply bulk profit to ${bulkPreview.count} products`} disabled={applyBulk.isPending} onClick={() => applyBulk.mutate()} className="rounded-lg bg-[var(--accent)] px-4 py-2 font-display text-sm font-bold text-[var(--accent-ink)] disabled:opacity-50">{applyBulk.isPending ? t("bulk.applying") : `${t("bulk.applyBtn")} ${bulkPreview.count} ${t("bulk.applyProducts")}`}</button>
                             <button type="button" aria-label="Cancel bulk apply" onClick={() => setBulkConfirming(false)} className={ghostBtn + " px-3 py-2 text-sm"}>{t("adm.cancel")}</button>
@@ -7264,7 +7393,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
         </h4>
         <p className="mt-1 text-sm text-[var(--dim)]">{t("qs.sub")}</p>
         {quickErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {quickErr}</p>}
-        {quickOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {quickOk}</p>}
+        {quickOk && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {quickOk}</p>}
         {myPicks.length === 0 ? (
           <p className="mt-3 rounded-lg bg-[var(--surface-alt)] px-3 py-2 text-sm text-[var(--dim)]">{t("qs.noProducts")}</p>
         ) : (
@@ -7344,7 +7473,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <strong className="text-[var(--text)]">Order #{o.id}</strong>
                     <StatusBadge status={o.status} />
-                    {o.paidFromWallet && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">{t("sord.paidFromWallet")}</span>}
+                    {o.paidFromWallet && <span className="rounded-full bg-[var(--success-bg-strong)] px-2 py-0.5 text-[11px] font-bold text-[var(--success-text)]">{t("sord.paidFromWallet")}</span>}
                     <span className="ml-auto text-xs text-[var(--dim)]">{new Date(o.createdAt).toLocaleString()}</span>
                   </div>
                   <ul className="mt-2 flex flex-col gap-1 text-sm text-[var(--text)]">
@@ -7386,7 +7515,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                           <p className="mt-2 rounded-lg bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]">{t("notice.defaultOrder")} <strong>(Order #{o.id})</strong></p>
                           <textarea value={draft} onChange={(e) => setNoticeDraft({ ...noticeDraft, [o.id]: e.target.value })} rows={2} placeholder={t("notice.customPh")} className={inputCls + " mt-2"} aria-label={`Custom note for the order ${o.id} reminder`} />
                           {res && (res.ok
-                            ? <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {res.text}</p>
+                            ? <p role="status" className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {res.text}</p>
                             : <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {res.text}</p>)}
                           <div className="mt-2 flex flex-wrap gap-2">
                             <button type="button" aria-label={`Send reminder notice for order ${o.id} now`} disabled={sendNotice.isPending} onClick={() => { const custom = draft.trim(); const message = `${t("notice.defaultOrder")} (Order #${o.id})${custom ? `\n\n${custom}` : ""}`; sendNotice.mutate({ sellerId: seller.id, orderId: o.id, message, key: nkey }); }} className={primaryBtn + " px-3 py-2 text-xs"}>{sendNotice.isPending ? t("notice.sending") : t("notice.send")}</button>
@@ -7394,7 +7523,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                           </div>
                         </div>
                       )}
-                      {noticeOpenOrderId !== o.id && res?.ok && <p role="status" className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">✓ {res.text}</p>}
+                      {noticeOpenOrderId !== o.id && res?.ok && <p role="status" className="mt-1 text-sm font-semibold text-[var(--success-text-soft)]">✓ {res.text}</p>}
                       {noticeOpenOrderId !== o.id && res && !res.ok && <p role="alert" className="mt-1 text-sm font-semibold text-rose-600">⚠ {res.text}</p>}
                     </div>
                   )}
@@ -7408,7 +7537,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           <p className="font-display text-sm font-bold text-[var(--text)]">📣 {t("notice.generalTitle")}</p>
           <textarea value={noticeGeneral} onChange={(e) => setNoticeGeneral(e.target.value)} rows={2} placeholder={t("notice.generalPh")} className={inputCls + " mt-2"} aria-label="General notice message for this seller" />
           {noticeResult?.key === "general" && (noticeResult.ok
-            ? <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {noticeResult.text}</p>
+            ? <p role="status" className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {noticeResult.text}</p>
             : <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {noticeResult.text}</p>)}
           <button type="button" aria-label="Send general notice to this seller" disabled={sendNotice.isPending || noticeGeneral.trim().length < 5} onClick={() => sendNotice.mutate({ sellerId: seller.id, orderId: null, message: noticeGeneral.trim(), key: "general" })} className={primaryBtn + " mt-2 px-3 py-2 text-xs"}>{sendNotice.isPending ? t("notice.sending") : t("notice.send")}</button>
           {noticeGeneral.trim().length > 0 && noticeGeneral.trim().length < 5 && <p className="mt-1 text-xs font-semibold text-rose-600">{t("notice.tooShort")}</p>}
@@ -7466,7 +7595,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           <div className="mt-2 flex flex-col gap-1.5">
             {f.withdrawals.map((wd) => (
               <div key={wd.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm">
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">{t("fin.paidBadge")}</span>
+                <span className="rounded-full bg-[var(--success-bg-strong)] px-2 py-0.5 text-[11px] font-bold text-[var(--success-text)]">{t("fin.paidBadge")}</span>
                 <span className="min-w-0 text-[var(--text)]">{wd.kind === "admin_withdraw" ? t("fin.adminWithdrawal") : wd.method}{wd.paymentReference ? ` · ${wd.paymentReference}` : ""}{wd.note ? ` · ${wd.note}` : ""}</span>
                 <span className="ml-auto font-display font-bold text-[var(--text)]">−{fmt(wd.amount)}</span>
                 <span className="w-full text-[11px] text-[var(--dim)]">{new Date(wd.createdAt).toLocaleString()}</span>
@@ -7522,7 +7651,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
         </p>
         {priceErr && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {priceErr}</p>}
         {priceResult && (
-          <div role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <div role="status" className="mt-3 rounded-xl bg-[var(--success-bg)] px-3 py-2.5 text-sm text-[var(--success-text)]">
             <p className="font-bold">✓ {priceResult.changed} {t("price.changedWord")} · {priceResult.checked} {t("price.checkedWord")}{priceResult.syncedAt ? ` · ${new Date(priceResult.syncedAt).toLocaleString()}` : ""}</p>
             {priceResult.examples.length > 0 && (
               <>
@@ -7572,7 +7701,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
         </div>
         {bgenResult && !bgenResult.ok && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {bgenResult.error}</p>}
         {bgenResult && bgenResult.ok && (
-          <div role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <div role="status" className="mt-3 rounded-xl bg-[var(--success-bg)] px-3 py-2.5 text-sm text-[var(--success-text)]">
             <p className="font-bold">✓ {bgenResult.added} {t("bgen.done")} · {t("bgen.totalNow")} {bgenResult.totalNow}</p>
             {bgenResult.perCategory.length > 0 && <p className="mt-1 text-[13px]">{bgenResult.perCategory.map((c) => `${c.category}: ${c.added}`).join(" · ")}</p>}
           </div>
@@ -7600,13 +7729,13 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
         </div>
         {importResult && !importResult.ok && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {importResult.error}</p>}
         {importResult && importResult.ok && (
-          <div role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <div role="status" className="mt-3 rounded-xl bg-[var(--success-bg)] px-3 py-2.5 text-sm text-[var(--success-text)]">
             <p className="font-bold">✓ {importResult.inserted} {t("imp.done")} · {importResult.skipped} {t("imp.skipped")} · {t("bgen.totalNow")} {importResult.totalNow}</p>
           </div>
         )}
         {kitchenResult && !kitchenResult.ok && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {kitchenResult.error}</p>}
         {kitchenResult && kitchenResult.ok && (
-          <div role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <div role="status" className="mt-3 rounded-xl bg-[var(--success-bg)] px-3 py-2.5 text-sm text-[var(--success-text)]">
             <p className="font-bold">✓ {kitchenResult.updated} {t("imp.fixed")} · {kitchenResult.missing} {t("imp.missing")}</p>
           </div>
         )}
@@ -7696,7 +7825,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
             </div>
           </div>
           {themeErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {themeErr}</p>}
-          {themeMsg && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {themeMsg}</p>}
+          {themeMsg && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {themeMsg}</p>}
         </section>
         <section aria-label={t("theme.title")} className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <h4 className="flex flex-wrap items-center gap-2 font-display text-base font-bold text-[var(--text)]">🎨 {t("theme.title")} <NewBadge id="theme-design" /></h4>
@@ -7758,7 +7887,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
             ))}
           </div>
           {designErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {designErr}</p>}
-          {designOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {designOk}</p>}
+          {designOk && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {designOk}</p>}
           <button type="button" aria-label="Apply theme and design to the whole store" disabled={!dirty || saveDesign.isPending} onClick={() => saveDesign.mutate()} className={goldBtn + " mt-4"}>
             {saveDesign.isPending ? t("theme.applying") : `✓ ${t("adm.saveSettings")}`}
           </button>
@@ -7806,10 +7935,10 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               {saveDesign.isPending ? t("theme.applying") : `✓ ${t("adm.saveSettings")}`}
             </button>
             {designErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {designErr}</p>}
-            {designOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {designOk}</p>}
+            {designOk && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {designOk}</p>}
           </div>
           {logoErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {logoErr}</p>}
-          {logoMsg && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {logoMsg}</p>}
+          {logoMsg && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {logoMsg}</p>}
         </section>
       </div>
     );
@@ -7825,7 +7954,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           {list.filter((r) => r.status === "pending").length > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-[11px] font-bold text-[var(--alert-ink)]">{list.filter((r) => r.status === "pending").length}</span>}
         </h4>
         <p className="mt-1 text-xs leading-snug text-[var(--dim)]">{t("adm.resetRequestsSub")}</p>
-        {resetReqOk && <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {resetReqOk}</p>}
+        {resetReqOk && <p role="status" className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {resetReqOk}</p>}
         {resetReqErr && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {resetReqErr}</p>}
         {list.length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noResetRequests")}</p> : (
           <div className="mt-3 flex flex-col gap-2">
@@ -7850,7 +7979,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                       <Field label={t("cp.new")}><span className="flex gap-1"><input type={showTypedPw ? "text" : "password"} value={draft.newPassword} onChange={(e) => setResetPwDraft({ ...resetPwDraft, [r.id]: { ...draft, newPassword: e.target.value } })} className={inputCls} aria-label={`New password for ${r.name}`} /><button type="button" aria-label="Show or hide the new password while typing" onClick={() => setShowTypedPw(!showTypedPw)} className="shrink-0 rounded-lg border border-[var(--border)] px-2.5">{showTypedPw ? "🙈" : "👁️"}</button></span></Field>
                       <Field label={t("cp.confirm")}><input type="password" value={draft.confirmPassword} onChange={(e) => setResetPwDraft({ ...resetPwDraft, [r.id]: { ...draft, confirmPassword: e.target.value } })} className={inputCls} aria-label={`Confirm new password for ${r.name}`} /></Field>
                       <div className="flex flex-wrap gap-2 sm:col-span-2">
-                        <button type="button" aria-label={`Complete password reset for ${r.name}`} disabled={completeReset.isPending} onClick={() => { if (!draft.newPassword || draft.newPassword.length < 4) { setResetReqErr(t("adm.val.newPwShort")); return; } if (draft.confirmPassword !== draft.newPassword) { setResetReqErr(t("adm.val.confirmMismatch")); return; } setResetReqErr(null); completeReset.mutate({ requestId: r.id, newPassword: draft.newPassword }); }} className={primaryBtn + " px-3 py-1.5 text-xs"}>{t("adm.resetPwAction")}</button>
+                        <button type="button" aria-label={`Complete password reset for ${r.name}`} disabled={completeReset.isPending} onClick={() => { if (!draft.newPassword || draft.newPassword.length < 8) { setResetReqErr(t("adm.val.newPwShort")); return; } if (draft.confirmPassword !== draft.newPassword) { setResetReqErr(t("adm.val.confirmMismatch")); return; } setResetReqErr(null); completeReset.mutate({ requestId: r.id, newPassword: draft.newPassword }); }} className={primaryBtn + " px-3 py-1.5 text-xs"}>{t("adm.resetPwAction")}</button>
                         <button type="button" aria-label={`Cancel password reset for ${r.name}`} onClick={() => setResetOpenId(null)} className={ghostBtn + " px-3 py-1.5 text-xs"}>{t("adm.cancel")}</button>
                       </div>
                     </div>
@@ -8208,7 +8337,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               <span className="hidden min-w-0 sm:block"><span className="block max-w-32 truncate text-sm font-bold leading-tight text-[var(--text)]">{user.name}</span><span className="block text-[11px] font-semibold leading-tight text-[var(--dim)]">Admin</span></span>
             </span>
           </div>
-          {deleteMsg && <p role="status" className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">{deleteMsg}</p>}
+          {deleteMsg && <p role="status" className="mb-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">{deleteMsg}</p>}
           {section === "overview" && (<div>
             <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)] sm:text-4xl">{t("adm.welcomeBack")}</h2>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -8246,7 +8375,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                       const icon = ev.kind === "order" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>) : ev.kind === "wallet" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="6" width="18" height="14" rx="2" /><path d="M3 10h18" /><path d="M16 15h.01" /></svg>) : ev.kind === "chat" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M4 5h16v11H9l-5 4V5Z" /></svg>) : ev.kind === "ticket" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M13 6v12" strokeDasharray="2 2" /></svg>) : (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><circle cx="7.5" cy="15.5" r="4" /><path d="M10.5 12.5 20 3" /><path d="M16 7l2.5 2.5M18.5 4.5l1.5 1.5" /></svg>);
                       const title = ev.kind === "order" ? t("adm.actOrder") : ev.kind === "wallet" ? t("adm.actWallet") : ev.kind === "chat" ? t("adm.actChat") : ev.kind === "ticket" ? t("adm.actTicket") : t("adm.actReset");
                       const statusLabel = ev.status === "awaiting" ? t("adm.awaiting") : ev.status;
-                      const pillCls = ["Delivered", "approved", "paid"].includes(ev.status) ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200" : ev.status === "Shipped" ? "bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200" : ["rejected", "Cancelled"].includes(ev.status) ? "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-200" : "bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200";
+                      const pillCls = ["Delivered", "approved", "paid"].includes(ev.status) ? "bg-[var(--success-bg-strong)] text-[var(--success-text-800)]" : ev.status === "Shipped" ? "bg-[var(--info-bg)] text-[var(--info-text)]" : ["rejected", "Cancelled"].includes(ev.status) ? "bg-[var(--danger-bg-strong)] text-[var(--danger-text-800)]" : "bg-[var(--warning-bg-strong)] text-[var(--warning-text)]";
                       return (
                         <div key={`${ev.kind}:${ev.refId}`} className={`flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2.5 ${ev.isNew ? "border-[var(--gold)] bg-[var(--amber-bg)]" : "border-[var(--border)]"}`}>
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-strong)]">{icon}</span>
@@ -8486,7 +8615,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                 <SellerDocCard adminId={user.id} sellerId={selectedSeller.id} kind="docFront" label={t("sa.docFront")} fileName={selectedSeller.docFrontFileName} hasFile={selectedSeller.hasDocFrontFile} contentType={selectedSeller.docFrontContentType} size={selectedSeller.docFrontSize} onView={setViewer} />
                 <SellerDocCard adminId={user.id} sellerId={selectedSeller.id} kind="docBack" label={t("sa.docBack")} fileName={selectedSeller.docBackFileName} hasFile={selectedSeller.hasDocBackFile} contentType={selectedSeller.docBackContentType} size={selectedSeller.docBackSize} onView={setViewer} />
               </div>
-              <div className={`mt-5 rounded-xl border-2 p-4 ${selectedSeller.verificationStatus === "pending" ? "border-[var(--gold)] bg-[var(--amber-bg)]" : selectedSeller.verificationStatus === "approved" ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30" : "border-rose-400 bg-rose-50 dark:bg-rose-950/30"}`}>
+              <div className={`mt-5 rounded-xl border-2 p-4 ${selectedSeller.verificationStatus === "pending" ? "border-[var(--gold)] bg-[var(--amber-bg)]" : selectedSeller.verificationStatus === "approved" ? "border-emerald-500 bg-[var(--success-bg)]" : "border-rose-400 bg-[var(--danger-bg)]"}`}>
                 <h4 className="font-display font-bold text-[var(--text)]">🛡 {t("adm.verifyTitle")}</h4>
                 {selectedSeller.verificationStatus === "approved" ? (
                   <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--text)]">{t("adm.nowVerified")} <VerifiedBadge /></p>
@@ -8505,10 +8634,10 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                     <textarea aria-label={t("adm.rejectReasonPh")} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={2} placeholder={t("adm.rejectReasonPh")} className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)]" />
                   </>
                 )}
-                {verifyMsg && verifyMsg.sellerId === selectedSeller.id && <p role="status" className={`mt-2 text-sm font-semibold ${verifyMsg.ok ? "text-emerald-700 dark:text-emerald-300" : "text-rose-600"}`}>{verifyMsg.text}</p>}
+                {verifyMsg && verifyMsg.sellerId === selectedSeller.id && <p role="status" className={`mt-2 text-sm font-semibold ${verifyMsg.ok ? "text-[var(--success-text-soft)]" : "text-rose-600"}`}>{verifyMsg.text}</p>}
               </div>
                             {renderSetUserPassword({ id: selectedSeller.id, name: selectedSeller.name })}
-              <div className="mt-5 rounded-xl border border-rose-300 bg-rose-50 p-4 dark:bg-rose-950/20">
+              <div className="mt-5 rounded-xl border border-rose-300 bg-[var(--danger-bg)] p-4">
                 <button type="button" aria-label={`Delete seller account ${selectedSeller.name}`} onClick={() => setDeleteTarget({ id: selectedSeller.id, role: "seller", title: selectedSeller.name, detail: `${selectedSeller.storeName ?? ""} · ${selectedSeller.email ?? ""} · ${selectedSeller.phone ? `${fmtPhone(selectedSeller.phone, selectedSeller.country)}` : ""}` })} className="rounded-lg bg-rose-600 px-4 py-2 font-display text-sm font-bold text-white">🗑 {t("del.sellerBtn")}</button>
               </div>
               </div>)}
@@ -8562,7 +8691,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                 {!awReview ? (
                   <button type="submit" disabled={adminWithdraw.isPending} className="mt-3 rounded-lg bg-rose-600 px-4 py-2 font-display text-sm font-bold text-white disabled:opacity-50">{t("wp.reviewWithdraw")}</button>
                 ) : (
-                  <div className="mt-3 rounded-xl border-2 border-rose-400/50 bg-rose-50 p-3 dark:bg-rose-950/20" role="group" aria-label={t("wp.adminWithdraw")}>
+                  <div className="mt-3 rounded-xl border-2 border-rose-400/50 bg-[var(--danger-bg)] p-3" role="group" aria-label={t("wp.adminWithdraw")}>
                     <dl className="flex flex-col gap-1.5 text-sm">
                       <div className="flex flex-wrap gap-x-2"><dt className="text-[var(--dim)]">{t("wp.customer")}:</dt><dd className="font-semibold text-[var(--text)]">{selectedSeller.name}{selectedSeller.storeName ? ` · ${selectedSeller.storeName}` : ""}</dd></div>
                       <div className="flex flex-wrap gap-x-2"><dt className="text-[var(--dim)]">{t("fin.available")}:</dt><dd className="font-display font-bold text-[var(--text)]">{fmt(sellerFinance.data?.availableBalance ?? selectedSeller.walletBalance)}</dd></div>
@@ -8594,7 +8723,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                         <p className="mt-1 text-sm text-[var(--dim)]">{r.method}{r.reference ? ` · ${r.reference}` : ""}{r.details ? ` · ${r.details}` : ""}{r.note ? ` · ${r.note}` : ""}{r.hasScreenshot ? ` · 📷 ${t("dep.shotAttached")}` : ""}</p>
                         {r.hasScreenshot && <div className="mt-1.5"><DepositScreenshotView txId={r.id} adminId={user.id} /></div>}
                         {r.status === "paid" && (
-                          <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">✓ {t("status.paid")}{r.paidAt ? ` · ${t("wp.paidOn")}: ${new Date(r.paidAt).toLocaleString()}` : ""}{r.paymentReference ? ` · ${t("wp.paymentRefWord")}: ${r.paymentReference}` : ""}</p>
+                          <p className="mt-1 text-sm font-semibold text-[var(--success-text-soft)]">✓ {t("status.paid")}{r.paidAt ? ` · ${t("wp.paidOn")}: ${new Date(r.paidAt).toLocaleString()}` : ""}{r.paymentReference ? ` · ${t("wp.paymentRefWord")}: ${r.paymentReference}` : ""}</p>
                         )}
                         {r.status === "pending" && r.type === "withdraw" && (
                           <div className="mt-2 flex flex-wrap gap-2">
@@ -8676,7 +8805,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                   </dl>
                 </div>
                 {renderSetUserPassword({ id: selectedBuyer.id, name: selectedBuyer.name })}
-                <div className="mt-5 rounded-xl border border-rose-300 bg-rose-50 p-4 dark:bg-rose-950/20">
+                <div className="mt-5 rounded-xl border border-rose-300 bg-[var(--danger-bg)] p-4">
                   <button type="button" aria-label={`Delete buyer account ${selectedBuyer.name}`} onClick={() => setDeleteTarget({ id: selectedBuyer.id, role: "buyer", title: selectedBuyer.name, detail: `${selectedBuyer.email ?? ""} · ${selectedBuyer.phone ? `${fmtPhone(selectedBuyer.phone, selectedBuyer.country)}` : ""}` })} className="rounded-lg bg-rose-600 px-4 py-2 font-display text-sm font-bold text-white">🗑 {t("del.buyerBtn")}</button>
                 </div>
               </div>)}
@@ -8768,7 +8897,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               <SwitchRow label="External Products section" note="ON: visitors see “Shop from Other Platforms” on the home page and in the menu. OFF: the section is hidden from visitors entirely (products are kept)." checked={extAdminList.data?.enabled ?? true} onToggle={() => extToggle.mutate(!(extAdminList.data?.enabled ?? true))} switchLabel="Toggle External Products section on or off" />
             </div>
             {extErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {extErr}</p>}
-            {extOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {extOk}</p>}
+            {extOk && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {extOk}</p>}
             {!extShowForm && (
               <button type="button" aria-label="Add a new external product" onClick={extStartNew} className={primaryBtn + " mt-4"}>+ Add External Product</button>
             )}
@@ -8893,7 +9022,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               })}
             </div>
             <p className="mt-2 text-xs leading-snug text-[var(--dim)]">{t("act.noDeleteNote")}</p>
-            {reviewErr && <p role="alert" className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">⚠ {reviewErr}</p>}
+            {reviewErr && <p role="alert" className="mt-2 rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-sm font-semibold text-[var(--danger-text-700)]">⚠ {reviewErr}</p>}
             {ordersByShop.length === 0 ? (
               <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noOrders")}</p>
             ) : ordersCardFilter ? (
@@ -8917,7 +9046,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                   <div className="flex items-start gap-3">
                     <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] font-display text-lg font-extrabold text-[var(--accent)]">{selectedShopGroup.shopName.charAt(0).toUpperCase()}</span>
                     <div className="min-w-0 flex-1">
-                      <h4 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold leading-snug text-[var(--text)]">{selectedShopGroup.shopName}{selectedShopGroup.newCount > 0 && <span className="inline-flex items-center gap-1"><NewBadge /><span className="rounded-full bg-[var(--gold)] px-2 py-0.5 text-[11px] font-extrabold text-[var(--gold-ink)]">{selectedShopGroup.newCount} {t("act.newCount")}</span></span>}{selectedShopGroup.isDeleted && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">{t("aord.deletedCustomer")}</span>}</h4>
+                      <h4 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold leading-snug text-[var(--text)]">{selectedShopGroup.shopName}{selectedShopGroup.newCount > 0 && <span className="inline-flex items-center gap-1"><NewBadge /><span className="rounded-full bg-[var(--gold)] px-2 py-0.5 text-[11px] font-extrabold text-[var(--gold-ink)]">{selectedShopGroup.newCount} {t("act.newCount")}</span></span>}{selectedShopGroup.isDeleted && <span className="rounded-full bg-[var(--danger-bg-strong)] px-2 py-0.5 text-[11px] font-bold text-[var(--danger-text-800)]">{t("aord.deletedCustomer")}</span>}</h4>
                       {selectedShopGroup.isUnassigned ? (
                         <p className="mt-1 text-sm leading-snug text-[var(--dim)]">{t("aord.unassignedNote")}</p>
                       ) : (
@@ -8987,7 +9116,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                             <span className="flex flex-wrap items-center gap-2">
                               <strong className="font-display text-base text-[var(--text)]">{g.shopName}</strong>
                               {g.newCount > 0 && <span className="inline-flex items-center gap-1"><NewBadge /><span className="rounded-full bg-[var(--gold)] px-2 py-0.5 text-[11px] font-extrabold text-[var(--gold-ink)]">{g.newCount} {t("act.newCount")}</span></span>}
-                              {g.isDeleted && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-800 dark:bg-rose-950/40 dark:text-rose-200">{t("aord.deletedCustomer")}</span>}
+                              {g.isDeleted && <span className="rounded-full bg-[var(--danger-bg-strong)] px-2 py-0.5 text-[11px] font-bold text-[var(--danger-text-800)]">{t("aord.deletedCustomer")}</span>}
                               {g.shipment > 0 && <span className="rounded-full bg-[var(--amber-bg)] px-2 py-0.5 text-[11px] font-bold text-[var(--text)]">⏳ {g.shipment} {t("sord.waitingApproval")}</span>}
                               {g.total === 0 && <span className="rounded-full bg-[var(--surface-alt)] px-2 py-0.5 text-[11px] font-bold text-[var(--dim)]">{t("aord.noOrdersYet")}</span>}
                             </span>
@@ -9035,7 +9164,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
             <h4 className="mt-6 font-display font-bold text-[var(--text)]">{t("adm.walletRequests")} ({(walletRequests.data?.requests ?? []).filter((r) => r.status === "pending").length} pending)</h4>
             <p className="mt-1 text-xs leading-snug text-[var(--dim)]">{t("act.noDeleteNote")}</p>
             {payOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">✓ {payOk}</p>}
-            {(walletRequests.data?.requests ?? []).length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noWalletRequests")}</p> : <div className="mt-3 flex flex-col gap-2">{[...(walletRequests.data?.requests ?? [])].sort((a, b) => { const an = newWalletIdSet.has(a.id) ? 1 : 0; const bn = newWalletIdSet.has(b.id) ? 1 : 0; if (an !== bn) return bn - an; return (b.createdAt ?? "").localeCompare(a.createdAt ?? ""); }).map((r) => (<div key={r.id} onClick={() => { if (newWalletIdSet.has(r.id)) markSeen.mutate({ kind: "wallet", refId: r.id }); }} className={`rounded-xl border bg-[var(--surface)] p-3 ${newWalletIdSet.has(r.id) ? "border-[var(--gold)] ring-2 ring-[var(--gold)]/60" : "border-[var(--border)]"}`}><div className="flex flex-wrap items-center gap-2"><span aria-hidden>{r.type === "deposit" ? "⬇️" : r.type === "admin_credit" ? "💰" : r.type === "admin_withdraw" ? "🏦" : "⬆️"}</span><strong>{r.type === "deposit" ? t("w.typeDeposit") : r.type === "admin_credit" ? t("w.typeAdminCredit") : r.type === "admin_withdraw" ? t("wp.typeAdminWithdrawRow") : t("w.typeWithdraw")} · {fmt(r.amount)}</strong><StatusBadge status={r.status} />{newWalletIdSet.has(r.id) && <NewBadge />}<span className="ml-auto text-xs text-[var(--dim)]">{new Date(r.createdAt).toLocaleString()}</span></div><p className="mt-1 text-sm text-[var(--dim)]">{r.sellerName}{r.storeName ? ` · ${r.storeName}` : ""} · {r.method}{r.reference ? ` · ${r.reference}` : ""}{r.details ? ` · ${r.details}` : ""}{r.note ? ` · ${r.note}` : ""}{r.hasScreenshot ? ` · 📷 ${t("dep.shotAttached")}` : ""}</p>{r.hasScreenshot && <div className="mt-1.5"><DepositScreenshotView txId={r.id} adminId={user.id} /></div>}{r.status === "paid" && <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-300">✓ {t("status.paid")}{r.paidAt ? ` · ${t("wp.paidOn")}: ${new Date(r.paidAt).toLocaleString()}` : ""}{r.paymentReference ? ` · ${t("wp.paymentRefWord")}: ${r.paymentReference}` : ""}</p>}{r.status === "pending" && r.type === "withdraw" && <div className="mt-2 flex flex-wrap gap-2"><button type="button" aria-label={`Pay and withdraw wallet request ${r.id}`} disabled={payWithdraw.isPending} onClick={(e) => { e.stopPropagation(); setPayTargetId(payTargetId === r.id ? null : r.id); setPayErr(null); setPayOk(null); setPayRef(""); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">💸 {t("wp.payBtn")}</button><button type="button" aria-label={`Reject wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "reject" }); }} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✕ {t("adm.reject")}</button></div>}{r.status === "pending" && r.type !== "withdraw" && <div className="mt-2 flex gap-2"><button type="button" aria-label={`Approve wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "approve" }); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✓ {t("adm.approve")}</button><button type="button" aria-label={`Reject wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "reject" }); }} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✕ {t("adm.reject")}</button></div>}{payTargetId === r.id && r.status === "pending" && r.type === "withdraw" && <div onClick={(e) => e.stopPropagation()}><PayWithdrawPanel request={r} paymentRef={payRef} onPaymentRefChange={setPayRef} busy={payWithdraw.isPending} error={payErr} onConfirm={() => payWithdraw.mutate({ txId: r.id, paymentReference: payRef })} onCancel={() => { setPayTargetId(null); setPayErr(null); }} /></div>}</div>))}</div>}
+            {(walletRequests.data?.requests ?? []).length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noWalletRequests")}</p> : <div className="mt-3 flex flex-col gap-2">{[...(walletRequests.data?.requests ?? [])].sort((a, b) => { const an = newWalletIdSet.has(a.id) ? 1 : 0; const bn = newWalletIdSet.has(b.id) ? 1 : 0; if (an !== bn) return bn - an; return (b.createdAt ?? "").localeCompare(a.createdAt ?? ""); }).map((r) => (<div key={r.id} onClick={() => { if (newWalletIdSet.has(r.id)) markSeen.mutate({ kind: "wallet", refId: r.id }); }} className={`rounded-xl border bg-[var(--surface)] p-3 ${newWalletIdSet.has(r.id) ? "border-[var(--gold)] ring-2 ring-[var(--gold)]/60" : "border-[var(--border)]"}`}><div className="flex flex-wrap items-center gap-2"><span aria-hidden>{r.type === "deposit" ? "⬇️" : r.type === "admin_credit" ? "💰" : r.type === "admin_withdraw" ? "🏦" : "⬆️"}</span><strong>{r.type === "deposit" ? t("w.typeDeposit") : r.type === "admin_credit" ? t("w.typeAdminCredit") : r.type === "admin_withdraw" ? t("wp.typeAdminWithdrawRow") : t("w.typeWithdraw")} · {fmt(r.amount)}</strong><StatusBadge status={r.status} />{newWalletIdSet.has(r.id) && <NewBadge />}<span className="ml-auto text-xs text-[var(--dim)]">{new Date(r.createdAt).toLocaleString()}</span></div><p className="mt-1 text-sm text-[var(--dim)]">{r.sellerName}{r.storeName ? ` · ${r.storeName}` : ""} · {r.method}{r.reference ? ` · ${r.reference}` : ""}{r.details ? ` · ${r.details}` : ""}{r.note ? ` · ${r.note}` : ""}{r.hasScreenshot ? ` · 📷 ${t("dep.shotAttached")}` : ""}</p>{r.hasScreenshot && <div className="mt-1.5"><DepositScreenshotView txId={r.id} adminId={user.id} /></div>}{r.status === "paid" && <p className="mt-1 text-sm font-semibold text-[var(--success-text-soft)]">✓ {t("status.paid")}{r.paidAt ? ` · ${t("wp.paidOn")}: ${new Date(r.paidAt).toLocaleString()}` : ""}{r.paymentReference ? ` · ${t("wp.paymentRefWord")}: ${r.paymentReference}` : ""}</p>}{r.status === "pending" && r.type === "withdraw" && <div className="mt-2 flex flex-wrap gap-2"><button type="button" aria-label={`Pay and withdraw wallet request ${r.id}`} disabled={payWithdraw.isPending} onClick={(e) => { e.stopPropagation(); setPayTargetId(payTargetId === r.id ? null : r.id); setPayErr(null); setPayOk(null); setPayRef(""); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">💸 {t("wp.payBtn")}</button><button type="button" aria-label={`Reject wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "reject" }); }} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✕ {t("adm.reject")}</button></div>}{r.status === "pending" && r.type !== "withdraw" && <div className="mt-2 flex gap-2"><button type="button" aria-label={`Approve wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "approve" }); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✓ {t("adm.approve")}</button><button type="button" aria-label={`Reject wallet request ${r.id}`} disabled={reviewWallet.isPending} onClick={(e) => { e.stopPropagation(); reviewWallet.mutate({ txId: r.id, decision: "reject" }); }} className="rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50">✕ {t("adm.reject")}</button></div>}{payTargetId === r.id && r.status === "pending" && r.type === "withdraw" && <div onClick={(e) => e.stopPropagation()}><PayWithdrawPanel request={r} paymentRef={payRef} onPaymentRefChange={setPayRef} busy={payWithdraw.isPending} error={payErr} onConfirm={() => payWithdraw.mutate({ txId: r.id, paymentReference: payRef })} onCancel={() => { setPayTargetId(null); setPayErr(null); }} /></div>}</div>))}</div>}
           </div>)}
 
           {section === "support" && (<div>
@@ -9049,9 +9178,9 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               {chatAttErr && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {chatAttErr}</p>}
               <form className="mt-2 flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (chatDraft.trim() || chatPendingAtt) sendChat.mutate(); }}><ChatAttachPicker pickerId={`support-chat-attach-${th.userId}`} pending={chatPendingAtt} onPick={pickSupportAttachment} onClear={() => setChatPendingAtt(null)} /><input ref={threadInputRef} value={chatDraft} onChange={(e) => setChatDraft(e.target.value)} placeholder={t("adm.replyPh")} className={inputCls + " min-w-0 flex-1"} aria-label={`Reply to ${th.customerName}`} /><button type="submit" aria-label={`Send reply to ${th.customerName}`} disabled={(!chatDraft.trim() && !chatPendingAtt) || sendChat.isPending} className={primaryBtn + " shrink-0"}>{t("adm.send")}</button></form>
               {supportChatDeleteUser === th.userId ? (
-                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-2 dark:bg-rose-950/20">
-                  <span className="text-xs font-bold text-rose-900 dark:text-rose-100">{t("chat.deleteQ")} {th.customerName}?</span>
-                  <span className="w-full text-[11px] text-rose-800 dark:text-rose-200">{t("chat.deleteNote")}</span>
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-rose-300 bg-[var(--danger-bg)] px-2.5 py-2">
+                  <span className="text-xs font-bold text-[var(--danger-text)]">{t("chat.deleteQ")} {th.customerName}?</span>
+                  <span className="w-full text-[11px] text-[var(--danger-text-800)]">{t("chat.deleteNote")}</span>
                   <button type="button" aria-label={`Confirm delete chat with ${th.customerName}`} disabled={deleteChatThread.isPending} onClick={() => deleteChatThread.mutate(th.userId)} className="rounded-md bg-rose-600 px-2 py-1 text-xs font-bold text-white disabled:opacity-50">{t("chat.confirmDelete")}</button>
                   <button type="button" aria-label="Cancel delete chat" onClick={() => setSupportChatDeleteUser(null)} className="text-xs font-semibold text-[var(--dim)]">{t("adm.cancel")}</button>
                 </div>
@@ -9061,7 +9190,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               </div>)}
             </div>))}</div>}
             <h4 className="mt-6 font-display font-bold">{t("adm.tickets")} ({ov.tickets.length})</h4>
-            {ticketDeleteMsg && <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {ticketDeleteMsg}</p>}
+            {ticketDeleteMsg && <p role="status" className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {ticketDeleteMsg}</p>}
             {ov.tickets.length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noTickets")}</p> : <div className="mt-2 flex flex-col gap-3">{ov.tickets.map((tk) => (<div key={tk.id} onClick={() => { if (newTicketIdSet.has(tk.id)) markSeen.mutate({ kind: "ticket", refId: tk.id }); }} className={`rounded-xl border bg-[var(--surface)] p-4 ${newTicketIdSet.has(tk.id) ? "border-[var(--gold)] ring-2 ring-[var(--gold)]/60" : "border-[var(--border)]"}`}><div className="flex flex-wrap items-center gap-2"><strong>{tk.subject}</strong><StatusBadge status={tk.status} />{newTicketIdSet.has(tk.id) && <NewBadge />}<span className="ml-auto text-xs text-[var(--dim)]">{tk.name} · {tk.email}</span></div><p className="mt-1 text-sm text-[var(--dim)]">{tk.message}</p>{tk.reply && <p className="mt-2 rounded-lg bg-[var(--surface-alt)] px-3 py-2 text-sm"><strong>{t("adm.replyWord")}</strong> {tk.reply}</p>}<div className="mt-2 flex gap-2"><input value={replyDraft[tk.id] ?? ""} onChange={(e) => setReplyDraft({ ...replyDraft, [tk.id]: e.target.value })} placeholder={t("adm.replyPh")} className={inputCls + " min-w-0 flex-1"} aria-label={`Reply to ticket ${tk.id}`} /><button type="button" aria-label={`Send reply to ticket ${tk.id}`} disabled={!(replyDraft[tk.id] ?? "").trim() || reply.isPending} onClick={() => reply.mutate(tk.id)} className={primaryBtn + " shrink-0"}>{t("adm.send")}</button></div>
             {ticketDeleteId === tk.id ? (
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -9132,7 +9261,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                 </Field>
                 {depFormatWarning(depForm.usdtDepositAddress, depForm.depositNetwork) && <p role="status" className="rounded-lg bg-[var(--amber-bg)] px-3 py-2 text-sm font-semibold text-[var(--text)]">⚠ {depFormatWarning(depForm.usdtDepositAddress, depForm.depositNetwork)}</p>}
                 {depServerErr && <p role="alert" className="text-sm font-semibold text-rose-600">⚠ {depServerErr}</p>}
-                {depOk && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {depOk}</p>}
+                {depOk && <p role="status" className="rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {depOk}</p>}
                 <div><button type="submit" disabled={saveDepositSettings.isPending} className={primaryBtn}>{t("dep.save")}</button></div>
               </form>
               <h4 className="mt-5 font-display font-bold text-[var(--text)]">{t("dep.preview")}</h4>
@@ -9173,7 +9302,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                 })()}
               </div>
               {lpServerErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {lpServerErr}</p>}
-              {lpOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {lpOk}</p>}
+              {lpOk && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {lpOk}</p>}
               <div className="mt-3"><button type="button" disabled={saveLangPrices.isPending} onClick={() => { setLpServerErr(null); setLpOk(null); saveLangPrices.mutate(); }} className={primaryBtn}>{t("lp.save")}</button></div>
             </div>
             {/* Settings -> Payment Methods: per-method ON/OFF switches
@@ -9190,7 +9319,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                 <SwitchRow label={t("pm.usdt")} note={t("pm.usdtNote")} checked={pmForm.usdtEnabled} onToggle={() => { setPmForm({ ...pmForm, usdtEnabled: !pmForm.usdtEnabled }); setPmOk(null); }} switchLabel="USDT payment method ON or OFF" />
               </div>
               {pmServerErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {pmServerErr}</p>}
-              {pmOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {pmOk}</p>}
+              {pmOk && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {pmOk}</p>}
               <div className="mt-3"><button type="button" disabled={savePaymentMethods.isPending} onClick={() => { setPmServerErr(null); setPmOk(null); savePaymentMethods.mutate(); }} className={primaryBtn}>{t("pm.save")}</button></div>
             </div>
             {/* Settings -> Admin Accounts: plain list (name + Gmail + date
@@ -9201,8 +9330,8 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
             <div className="mt-6 rounded-2xl border-2 border-[var(--gold)]/60 bg-[var(--surface)] p-4">
               <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-[var(--text)]">⚙️ {t("adm.adminAccounts")} <NewBadge id="admin-accounts" /></h3>
               <p className="mt-1 text-sm text-[var(--dim)]">{t("adm.adminAccountsSub")}</p>
-              {removeOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {removeOk}</p>}
-              {resetOk && <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {resetOk}</p>}
+              {removeOk && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {removeOk}</p>}
+              {resetOk && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {resetOk}</p>}
               <h4 className="mt-4 font-display font-bold text-[var(--text)]">{t("adm.adminList")} ({(adminAccounts.data?.admins ?? []).length})</h4>
               {(adminAccounts.data?.admins ?? []).length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noAdmins")}</p> : (
                 <div className="mt-2 flex flex-col gap-2">
@@ -9250,7 +9379,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                   <Field label={t("adm.newGmail")}><input type="email" value={gmailForm.newEmail} onChange={(e) => setGmailForm({ ...gmailForm, newEmail: e.target.value })} placeholder="name@gmail.com" className={errInputCls(!!(gmailTouched && gmailErrors().find((x) => x.key === "newEmail")))} aria-label="New Gmail" /><FieldError msg={gmailTouched ? gmailErrors().find((x) => x.key === "newEmail")?.msg : undefined} /></Field>
                   <Field label={t("adm.currentPassword")}><input type="password" value={gmailForm.currentPassword} onChange={(e) => setGmailForm({ ...gmailForm, currentPassword: e.target.value })} className={errInputCls(!!(gmailTouched && gmailErrors().find((x) => x.key === "currentPassword")))} aria-label="Your current password to change Gmail" /><FieldError msg={gmailTouched ? gmailErrors().find((x) => x.key === "currentPassword")?.msg : undefined} /></Field>
                   {gmailServerErr && <p role="alert" className="text-sm font-semibold text-rose-600">⚠ {gmailServerErr}</p>}
-                  {gmailOk && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {gmailOk}</p>}
+                  {gmailOk && <p role="status" className="rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {gmailOk}</p>}
                   <button type="submit" disabled={changeGmail.isPending} className={primaryBtn + " self-start"}>{t("adm.changeGmailBtn")}</button>
                 </form>
 
@@ -9261,7 +9390,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                   <Field label={t("adm.newPassword")}><input type="password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} className={errInputCls(!!(pwTouched && pwErrors().find((x) => x.key === "newPassword")))} aria-label="Your new password" /><FieldError msg={pwTouched ? pwErrors().find((x) => x.key === "newPassword")?.msg : undefined} /></Field>
                   <Field label={t("adm.confirmPassword")}><input type="password" value={pwForm.confirmPassword} onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })} className={errInputCls(!!(pwTouched && pwErrors().find((x) => x.key === "confirmPassword")))} aria-label="Confirm your new password" /><FieldError msg={pwTouched ? pwErrors().find((x) => x.key === "confirmPassword")?.msg : undefined} /></Field>
                   {pwServerErr && <p role="alert" className="text-sm font-semibold text-rose-600">⚠ {pwServerErr}</p>}
-                  {pwOk && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {pwOk}</p>}
+                  {pwOk && <p role="status" className="rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {pwOk}</p>}
                   <button type="submit" disabled={changePw.isPending} className={primaryBtn + " self-start"}>{t("adm.changePasswordBtn")}</button>
                 </form>
               </div>
@@ -9277,7 +9406,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                   <Field label={t("adm.creatorPassword")}><input type="password" value={addAdminForm.creatorPassword} onChange={(e) => setAddAdminForm({ ...addAdminForm, creatorPassword: e.target.value })} className={errInputCls(!!(addAdminTouched && addAdminErrors().find((x) => x.key === "creatorPassword")))} aria-label="Your current password to create the admin" /><FieldError msg={addAdminTouched ? addAdminErrors().find((x) => x.key === "creatorPassword")?.msg : undefined} /></Field>
                 </div>
                 {addAdminServerErr && <p role="alert" className="text-sm font-semibold text-rose-600">⚠ {addAdminServerErr}</p>}
-                {addAdminOk && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">✓ {addAdminOk}</p>}
+                {addAdminOk && <p role="status" className="rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {addAdminOk}</p>}
                 <button type="submit" disabled={createExtraAdmin.isPending} className={primaryBtn + " self-start"}>{t("adm.addAdminBtn")}</button>
               </form>
             </div>
@@ -9288,15 +9417,15 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
       {viewer && (<div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/60 p-3" role="dialog" aria-modal="true" aria-label={viewer.label}>
         <div className="my-6 w-full max-w-3xl rounded-2xl bg-[var(--surface)] p-4 shadow-2xl">
           <div className="flex items-center gap-2"><strong className="flex-1 font-display text-[var(--text)]">{viewer.label}</strong>
-            {viewerDoc.data?.url && <a href={viewerDoc.data.url} download={viewerDoc.data.fileName ?? viewer.label} target="_blank" rel="noreferrer" className={ghostBtn + " px-3 py-1.5 text-xs"}>{t("adm.download")}</a>}
+            {viewerSignedUrl && <a href={viewerSignedUrl} download={viewerDoc.data.fileName ?? viewer.label} target="_blank" rel="noreferrer" className={ghostBtn + " px-3 py-1.5 text-xs"}>{t("adm.download")}</a>}
             <button type="button" aria-label={t("menu.close")} onClick={() => setViewer(null)} className="rounded-lg border border-[var(--border)] px-2.5 py-1.5">✕</button></div>
           <p className="mt-1 text-xs text-[var(--dim)]">{viewerDoc.data?.fileName ?? ""}{viewerDoc.data?.contentType ? ` · ${viewerDoc.data.contentType}` : ""}{viewerDoc.data?.size ? ` · ${formatBytes(viewerDoc.data.size)}` : ""}</p>
           <div className="mt-3">
             {viewerDoc.isPending && <p className="py-8 text-center text-[var(--dim)]">{t("common.loading")}</p>}
             {viewerDoc.data && !viewerDoc.data.hasFile && <p className="py-8 text-center text-sm text-[var(--dim)]">{t("adm.docOldNote")}</p>}
-            {viewerDoc.data?.hasFile && viewerDoc.data.url && viewerDoc.data.contentType === "application/pdf" && (<PdfViewer src={viewerDoc.data.url} ariaLabel={viewer.label} labels={{ loading: t("common.loading"), loadError: "This PDF couldn’t be loaded.", pageError: "This PDF page couldn’t be rendered.", previousPage: "Previous", nextPage: "Next", pageIndicator: (pg, tot) => `Page ${pg} of ${tot}`, navigationAriaLabel: `${viewer.label} pages`, pageAriaLabel: (pg) => `${viewer.label}, page ${pg}` }} />)}
-            {viewerDoc.data?.hasFile && viewerDoc.data.url && (viewerDoc.data.contentType ?? "").startsWith("image/") && <img src={viewerDoc.data.url} alt={viewer.label} className="max-h-[70vh] w-full rounded-lg object-contain" />}
-            {viewerDoc.data?.hasFile && viewerDoc.data.url && viewerDoc.data.contentType !== "application/pdf" && !(viewerDoc.data.contentType ?? "").startsWith("image/") && <p className="py-8 text-center text-sm font-semibold">{t("adm.unsupportedFile")}</p>}
+            {viewerDoc.data?.hasFile && viewerSignedUrl && viewerDoc.data.contentType === "application/pdf" && (<PdfViewer src={viewerSignedUrl} ariaLabel={viewer.label} labels={{ loading: t("common.loading"), loadError: "This PDF couldn’t be loaded.", pageError: "This PDF page couldn’t be rendered.", previousPage: "Previous", nextPage: "Next", pageIndicator: (pg, tot) => `Page ${pg} of ${tot}`, navigationAriaLabel: `${viewer.label} pages`, pageAriaLabel: (pg) => `${viewer.label}, page ${pg}` }} />)}
+            {viewerDoc.data?.hasFile && viewerSignedUrl && (viewerDoc.data.contentType ?? "").startsWith("image/") && <img src={viewerSignedUrl} alt={viewer.label} className="max-h-[70vh] w-full rounded-lg object-contain" />}
+            {viewerDoc.data?.hasFile && viewerSignedUrl && viewerDoc.data.contentType !== "application/pdf" && !(viewerDoc.data.contentType ?? "").startsWith("image/") && <p className="py-8 text-center text-sm font-semibold">{t("adm.unsupportedFile")}</p>}
           </div>
         </div>
       </div>)}
@@ -9306,7 +9435,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           <h3 className="font-display text-lg font-bold text-rose-600">⚠ {t("adm.removeAdminTitle")}</h3>
           <p className="mt-2 text-sm font-bold text-[var(--text)]">{removeTarget.name}</p>
           <p className="text-sm text-[var(--dim)]">{removeTarget.email}</p>
-          <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{t("adm.removeAdminWhat")}</p>
+          <p className="mt-3 rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-sm text-[var(--danger-text)]">{t("adm.removeAdminWhat")}</p>
           <div className="mt-3">
             <Field label={t("adm.yourPwAuthorize")}><input type="password" value={removePassword} onChange={(e) => setRemovePassword(e.target.value)} className={errInputCls(!!(removeTouched && !removePassword))} aria-label="Your current password to remove this admin" /><FieldError msg={removeTouched && !removePassword ? t("adm.val.actorPwMissing") : undefined} /></Field>
           </div>
@@ -9323,7 +9452,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           <h3 className="font-display text-lg font-bold text-rose-600">⚠ {deleteTarget.role === "seller" ? t("del.titleSeller") : t("del.titleBuyer")}</h3>
           <p className="mt-2 text-sm font-bold text-[var(--text)]">{deleteTarget.title}</p>
           <p className="text-sm text-[var(--dim)]">{deleteTarget.detail}</p>
-          <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{deleteTarget.role === "seller" ? t("del.sellerWhat") : t("del.buyerWhat")}</p>
+          <p className="mt-3 rounded-lg bg-[var(--danger-bg)] px-3 py-2 text-sm text-[var(--danger-text)]">{deleteTarget.role === "seller" ? t("del.sellerWhat") : t("del.buyerWhat")}</p>
           <div className="mt-4 flex flex-col gap-2">
             <button type="button" aria-label={t("del.confirmBtn")} disabled={deleteAccount.isPending} onClick={() => deleteAccount.mutate()} className="rounded-lg bg-rose-600 px-4 py-2.5 font-display text-sm font-bold text-white disabled:opacity-50">{t("del.confirmBtn")}</button>
             <button type="button" aria-label={t("del.cancel")} onClick={() => setDeleteTarget(null)} className={ghostBtn}>{t("del.cancel")}</button>
@@ -9516,8 +9645,9 @@ function ChatAttachmentView({ m, requesterId }: { m: ChatMessage; requesterId: n
     queryFn: () => api.getChatAttachmentUrl({ requesterId, messageId: m.id }),
     enabled: m.hasAttachment && requesterId > 0,
   });
+  const signedAttUrl = useSignedBlobUrl(att.data?.url ?? null, m.hasAttachment && requesterId > 0);
   if (!m.hasAttachment) return null;
-  const url = att.data?.url ?? null;
+  const url = signedAttUrl;
   const name = att.data?.fileName ?? m.attachmentFileName ?? t("sup.attachment");
   const ct = att.data?.contentType ?? m.attachmentContentType ?? "";
   const size = att.data?.size ?? m.attachmentSize;
@@ -9900,9 +10030,15 @@ function SupportView({
     },
   });
 
-  const whatsappDigits = (settings?.supportWhatsapp ?? "").replace(/[^0-9]/g, "");
-  const whatsappIntl = whatsappDigits.startsWith("0")
-    ? `91${whatsappDigits.slice(1)}`
+  // Support numbers may be saved in national or international form. A
+  // 10-digit number is treated as Indian (+91, unchanged behaviour); an
+  // 11-digit 0-prefixed number is treated as Pakistani national format
+  // (03XX…) and becomes +92 — the old code prefixed 91 here and routed
+  // Pakistani taps to a wrong Indian number. A leading 00 is stripped
+  // first; anything already in international form passes through.
+  const whatsappDigits = (settings?.supportWhatsapp ?? "").replace(/[^0-9]/g, "").replace(/^00/, "");
+  const whatsappIntl = whatsappDigits.length === 11 && whatsappDigits.startsWith("0")
+    ? `92${whatsappDigits.slice(1)}`
     : whatsappDigits.length === 10
       ? `91${whatsappDigits}`
       : whatsappDigits;
@@ -10546,30 +10682,11 @@ export function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, [view]);
 
-  const seed = useMutation({
-    mutationFn: () => api.seedCatalog({}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
-  });
-  const indiaSync = useMutation({
-    mutationFn: () => api.ensureIndiaCatalog({}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
-  });
-  const hashUpgrade = useMutation({ mutationFn: () => api.ensurePasswordHashes({}) });
-  const extSeed = useMutation({
-    mutationFn: () => api.seedExternalProducts({}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["external-products"] }),
-  });
-  const seededOnce = useRef(false);
-  useEffect(() => {
-    if (!seededOnce.current) {
-      seededOnce.current = true;
-      seed.mutate();
-      indiaSync.mutate();
-      hashUpgrade.mutate();
-      extSeed.mutate();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // One-time setup actions (seedCatalog, ensureIndiaCatalog,
+  // ensurePasswordHashes, seedExternalProducts) were auto-called on every
+  // first app load. Removed 2026-10-29: setup is done, and the
+  // ensureIndiaCatalog call reverted admin edits to starter products on
+  // ordinary visitor traffic. No admin-button call to these existed.
 
   const cart = useQuery({
     queryKey: ["cart", user?.id],
