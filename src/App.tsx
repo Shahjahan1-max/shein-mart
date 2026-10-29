@@ -8337,6 +8337,25 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               <span className="hidden min-w-0 sm:block"><span className="block max-w-32 truncate text-sm font-bold leading-tight text-[var(--text)]">{user.name}</span><span className="block text-[11px] font-semibold leading-tight text-[var(--dim)]">Admin</span></span>
             </span>
           </div>
+          {/* Mobile section nav: every admin section as a horizontally
+              scrollable pill row above the content, so no section hides
+              behind the hamburger drawer on phones. Desktop keeps the
+              sidebar (this row is lg:hidden). Sticky under the site
+              header so it stays reachable while scrolling. Same labels,
+              alert counts and badges as the sidebar; the sidebar NEW
+              pills are deliberately not duplicated here (same ids). */}
+          <div className="sticky top-[var(--header-h,56px)] z-30 mb-4 overflow-x-auto bg-[var(--bg)] py-2 lg:hidden" role="navigation" aria-label={t("adm.title")}>
+            <div className="flex gap-2 whitespace-nowrap">
+              {sections.map((sec) => (
+                <button key={sec.id} type="button" aria-current={section === sec.id ? "page" : undefined} onClick={() => setSection(sec.id)}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${section === sec.id ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}>
+                  {sec.label}
+                  {sec.alert !== undefined && sec.alert > 0 && <span className="rounded-full bg-[#DC2626] px-1.5 py-0.5 text-[10px] font-bold text-white">{sec.alert}</span>}
+                  {sec.badge !== undefined && sec.badge > 0 && <span className="rounded-full bg-[var(--surface-alt)] px-1.5 py-0.5 text-[10px] font-bold">{sec.badge}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
           {deleteMsg && <p role="status" className="mb-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">{deleteMsg}</p>}
           {section === "overview" && (<div>
             <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)] sm:text-4xl">{t("adm.welcomeBack")}</h2>
