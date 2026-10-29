@@ -577,6 +577,7 @@ export const STR = {
   // Seller dashboard (Merchant)
   "sd.merchant": { en: "Merchant", hi: "व्यापारी" , ar: "التاجر"},
   "sd.shopData": { en: "Shop Data", hi: "दुकान का डेटा" , ar: "بيانات المتجر"},
+  "sd.sellerOverview": { en: "Seller Overview", hi: "सेलर अवलोकन" , ar: "نظرة عامة على البائع"},
   "sd.expand": { en: "Expand Details", hi: "विवरण खोलें" , ar: "توسيع التفاصيل"},
   "sd.collapse": { en: "Hide Details", hi: "विवरण छिपाएँ" , ar: "إخفاء التفاصيل"},
   "sd.pendingShipment": { en: "Pending Shipment", hi: "शिपमेंट लंबित" , ar: "الشحن معلّق"},

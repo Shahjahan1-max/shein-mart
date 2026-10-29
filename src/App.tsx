@@ -3733,6 +3733,14 @@ const aPhone = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="current
 const aGlobe = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.5 2.6 3.8 5.7 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3Z" /></svg>);
 const aStore = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M4 8 5.5 3h13L20 8" /><path d="M4 8v12h16V8" /><path d="M9 20v-5h6v5" /></svg>);
 const aGrid = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></svg>);
+const aShipBox = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M3 8.5 12 4l9 4.5V16L12 20.5 3 16V8.5Z" /><path d="M3 8.5 12 13l9-4.5" /><path d="M12 13v7.5" /></svg>);
+const aTruck = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M1.5 6h12.5v10H1.5z" /><path d="M14 10h3.5l3 3.5V16H14" /><circle cx="6" cy="18" r="1.7" /><circle cx="17" cy="18" r="1.7" /></svg>);
+const aCheckCircle = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><circle cx="12" cy="12" r="9" /><path d="m8.5 12.5 2.5 2.5 4.5-5" /></svg>);
+const aCardClock = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><rect x="2.5" y="5.5" width="19" height="13" rx="2" /><path d="M2.5 10h19" /><circle cx="17" cy="15" r="2.6" /><path d="M17 13.4v1.6h1.1" /></svg>);
+const aCoins = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><ellipse cx="12" cy="5.8" rx="7.5" ry="2.6" /><path d="M4.5 5.8v5.2c0 1.4 3.4 2.6 7.5 2.6s7.5-1.2 7.5-2.6V5.8" /><path d="M4.5 11v5.2c0 1.4 3.4 2.6 7.5 2.6s7.5-1.2 7.5-2.6V11" /></svg>);
+const aCart = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M2.5 3.5h2.3l2.6 12.2h10.2l2.1-8.2H7" /><circle cx="9.5" cy="20" r="1.6" /><circle cx="17.5" cy="20" r="1.6" /></svg>);
+const aCalendar = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 9.5h18M8 3v3.5M16 3v3.5" /><path d="M8 14.5h.01M12 14.5h.01M16 14.5h.01M8 18h.01M12 18h.01M16 18h.01" /></svg>);
+const aMoneyBag = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M9.8 6.2C9.8 4.6 10.7 3.5 12 3.5s2.2 1.1 2.2 2.7" /><path d="M5.5 9.5h13c.7 2.3 1.5 4.2 1.5 6a6.5 6.5 0 0 1-6.5 6H10A6.5 6.5 0 0 1 3.5 15.5c0-1.8.8-3.7 2-6Z" /><path d="M12 11.5v5.5M13.2 12.3c-.7-.7-2.1-.6-2.6.2-.5.8.4 1.4 1.4 1.7 1.2.3 2.1 1 1.6 1.8-.5.9-2 .9-2.8.2" /></svg>);
 const aHome = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M3 11 12 4l9 7" /><path d="M5.5 9.5V20h13V9.5" /><path d="M9.5 20v-5h5v5" /></svg>);
 const aBag = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M5.5 8h13l-1 12.5h-11L5.5 8Z" /><path d="M9 10V6.5a3 3 0 0 1 6 0V10" /></svg>);
 const aReceipt = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M6 3h12v18l-2-1.5L14 21l-2-1.5L10 21l-2-1.5L6 21V3Z" /><path d="M9 8h6M9 12h6" /></svg>);
@@ -5357,16 +5365,16 @@ function SellerView({
   const inStore = new Set(d.myProducts.map((p) => p.id));
 
   const statusTiles = [
-    { key: "pending", icon: "📦", label: t("sd.pendingShipment"), count: d.pendingShipment },
-    { key: "transit", icon: "🚚", label: t("sd.inTransit"), count: d.inTransit },
-    { key: "done", icon: "✅", label: t("sd.completed"), count: d.completed },
-    { key: "pay", icon: "💳", label: t("sd.pendingPayment"), count: d.pendingPayment },
+    { key: "pending", icon: aShipBox, label: t("sd.pendingShipment"), count: d.pendingShipment },
+    { key: "transit", icon: aTruck, label: t("sd.inTransit"), count: d.inTransit },
+    { key: "done", icon: aCheckCircle, label: t("sd.completed"), count: d.completed },
+    { key: "pay", icon: aCardClock, label: t("sd.pendingPayment"), count: d.pendingPayment },
   ];
   const bigStats = [
-    { label: t("sd.totalRevenue"), value: fmt(d.totalRevenue) },
-    { label: t("sd.totalOrders"), value: String(d.totalOrders) },
-    { label: t("sd.monthlyOrders"), value: String(d.monthlyItems) },
-    { label: t("sd.totalProfit"), value: fmt(d.totalProfit) },
+    { label: t("sd.totalRevenue"), value: fmt(d.totalRevenue), icon: aCoins },
+    { label: t("sd.totalOrders"), value: String(d.totalOrders), icon: aCart },
+    { label: t("sd.monthlyOrders"), value: String(d.monthlyItems), icon: aCalendar },
+    { label: t("sd.totalProfit"), value: fmt(d.totalProfit), icon: aMoneyBag },
   ];
   const smallStats = [
     { label: t("sd.numProducts"), value: String(d.myProducts.length) },
@@ -5398,7 +5406,6 @@ function SellerView({
           below instead, so the two never show at once. */}
       <aside className="hidden w-64 shrink-0 self-start lg:sticky lg:top-[calc(var(--header-h,56px)+16px)] lg:block">
         <nav aria-label={t("acc.sellerDash")} className="flex flex-col gap-1 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm">
-          <p className="px-3 pb-1 pt-2 text-xs font-bold uppercase tracking-[0.14em] text-[var(--dim)]">{t("acc.sellerDash")}</p>
           <button type="button" aria-current={tab === "home" ? "page" : undefined} onClick={() => setTab("home")} className={sideCls(tab === "home")}>
             {tab === "home" && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-1 rounded-full bg-[var(--gold)]" />}
             {aHome}<span>{t("sd.tabHome")}</span>
@@ -5437,6 +5444,9 @@ function SellerView({
         </nav>
       </aside>
       <div className="min-w-0 flex-1 pb-24 lg:pb-0">
+      {tab === "home" && (
+        <h1 className="mb-4 font-display text-3xl font-extrabold tracking-tight text-[var(--text)]">{t("sd.sellerOverview")}</h1>
+      )}
       {/* My Store card: the store LOGO leads. The seller's own profile
           photo is deliberately NOT repeated here - the site header's
           account button is the single profile entry (user report
@@ -5495,9 +5505,9 @@ function SellerView({
 
       {tab === "home" && (
         <>
-          <section className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <section className="mt-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-lg font-bold text-[var(--text)]">
+              <h3 className="font-display text-2xl font-extrabold tracking-tight text-[var(--text)]">
                 {t("sd.shopData")}
               </h3>
               <button
@@ -5509,7 +5519,7 @@ function SellerView({
                 {expanded ? t("sd.collapse") : t("sd.expand")} {expanded ? "▲" : "▼"}
               </button>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-center min-[520px]:grid-cols-4">
+            <div className="mt-3 grid grid-cols-2 gap-3 text-center min-[520px]:grid-cols-4">
               {statusTiles.map((tile) => {
                 const isPending = tile.key === "pending" && tile.count > 0;
                 return (
@@ -5523,30 +5533,35 @@ function SellerView({
                     else if (tile.key === "pay") setTab("wallet");
                   }}
                   aria-label={`${tile.label}: ${tile.count}`}
-                  className={isPending ? "relative rounded-xl border-2 border-[var(--alert)] bg-[var(--alert-bg)] px-1 py-2 shadow-[0_0_0_3px_rgba(220,38,38,0.15)]" : "rounded-xl border border-transparent px-1 py-2"}
+                  className={isPending ? "relative rounded-2xl border-2 border-[var(--alert)] bg-[var(--surface)] p-3 shadow-sm" : "relative rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm"}
                 >
-                  {isPending && <span className="absolute right-1.5 top-1.5 h-2 w-2 animate-ping rounded-full bg-[var(--alert)]" aria-hidden />}
-                  <div className="relative mx-auto w-fit text-2xl" aria-hidden>
+                  {isPending && <span className="absolute right-2.5 top-2.5 h-2 w-2 animate-ping rounded-full bg-[var(--alert)]" aria-hidden />}
+                  {tile.count > 0 && (
+                    <span className={`absolute left-2.5 top-2.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-display text-[11px] font-bold ${isPending ? "bg-[var(--alert)] text-[var(--alert-ink)]" : "bg-[var(--gold)] text-[var(--gold-ink)]"}`}>
+                      {tile.count > 99 ? "99+" : tile.count}
+                    </span>
+                  )}
+                  <div className="mx-auto w-fit text-[var(--accent)]" aria-hidden>
                     {tile.icon}
-                    {tile.count > 0 && (
-                      <span className={`absolute -right-3 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-display text-[11px] font-bold ${isPending ? "bg-[var(--alert)] text-[var(--alert-ink)]" : "bg-[var(--accent)] text-[var(--accent-ink)]"}`}>
-                        {tile.count > 99 ? "99+" : tile.count}
-                      </span>
-                    )}
                   </div>
-                  <p className={`mt-1 text-[11px] leading-tight ${isPending ? "font-bold text-[var(--alert)]" : "font-medium text-[var(--dim)]"}`}>
+                  <p className={`mt-2 text-xs leading-tight ${isPending ? "font-bold text-[var(--alert)]" : "font-semibold text-[var(--text)]"}`}>
                     {tile.label}
                   </p>
-                  {isPending && <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--alert)]">{t("notif.live")}</p>}
+                  {isPending && <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--alert)]">{t("notif.live")}</p>}
                 </button>
                 );
               })}
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3">
               {bigStats.map((s) => (
-                <div key={s.label} className="rounded-xl bg-[var(--accent)] px-3 py-3 text-center text-[var(--accent-ink)] shadow-sm">
-                  <p className="font-display text-xl font-extrabold sm:text-2xl">{s.value}</p>
-                  <p className="mt-0.5 text-xs text-[var(--accent-ink)]">{s.label}</p>
+                <div key={s.label} className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm sm:p-4">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--gold)]" aria-hidden>
+                    {s.icon}
+                  </span>
+                  <span className="min-w-0">
+                    <span title={s.value} className="block truncate font-display text-xl font-extrabold text-[var(--accent)] sm:text-2xl">{s.value}</span>
+                    <span className="block text-xs text-[var(--dim)]">{s.label}</span>
+                  </span>
                 </div>
               ))}
             </div>
@@ -5555,7 +5570,7 @@ function SellerView({
                 {smallStats.map((s) => (
                   <div
                     key={s.label}
-                    className="rounded-xl bg-[var(--surface-alt)] px-3 py-3 text-center"
+                    className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-center shadow-sm"
                   >
                     <p className="font-display text-base font-bold text-[var(--text)]">{s.value}</p>
                     <p className="mt-0.5 text-[11px] text-[var(--dim)]">{s.label}</p>
@@ -10657,6 +10672,34 @@ const NAV: NavItem[] =
       120,
     );
   }
+  // Topnav scroll-spy (user report 2026-10-29: the header Categories
+  // pill never showed the navy active box). While the Shop-by-collection
+  // section is on screen, Categories carries the active box and Shop
+  // does not; otherwise Shop stays active. Exactly one pill is active.
+  // A scroll listener (rAF-throttled, like the header compact logic)
+  // re-checks on every scroll, so sections rendered after data loads
+  // are picked up without any retry timer.
+  const [collectionsInView, setCollectionsInView] = useState(false);
+  useEffect(() => {
+    if (view !== "shop") { setCollectionsInView(false); return; }
+    let raf = 0;
+    const update = () => {
+      const el = document.getElementById("shop-collections");
+      if (!el) { setCollectionsInView(false); return; }
+      const r = el.getBoundingClientRect();
+      const h = window.innerHeight;
+      setCollectionsInView(r.top < h * 0.4 && r.bottom > h * 0.3);
+    };
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [view]);
 
   const [googleError, setGoogleError] = useState<string | null>(null);
   // Visible "signing in" state while the one-time Google code is
@@ -10942,15 +10985,16 @@ const NAV: NavItem[] =
               <button
                 type="button"
                 onClick={() => setView("shop")}
-                aria-current={view === "shop" ? "page" : undefined}
-                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${view === "shop" ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-[var(--surface)] text-[var(--accent)] hover:shadow-md"}`}
+                aria-current={view === "shop" && !collectionsInView ? "page" : undefined}
+                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${view === "shop" && !collectionsInView ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-[var(--surface)] text-[var(--accent)] hover:shadow-md"}`}
               >
                 {dBag} {ui.t("nav.shop")}
               </button>
               <button
                 type="button"
                 onClick={goCollectionsTop}
-                className="flex items-center gap-2 rounded-full bg-[var(--surface)] px-5 py-2.5 text-[15px] font-bold text-[var(--accent)] shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
+                aria-current={view === "shop" && collectionsInView ? "true" : undefined}
+                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-bold shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)] ${view === "shop" && collectionsInView ? "bg-[var(--accent)] text-[var(--accent-ink)] ring-2 ring-[var(--gold)]" : "bg-[var(--surface)] text-[var(--accent)] hover:shadow-md"}`}
               >
                 {aGrid} {ui.t("menu.categories")}
               </button>
