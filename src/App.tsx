@@ -1139,8 +1139,11 @@ function ShopView({
     });
     return cats.slice(0, 6).map((c) => ({ category: c, photo: categoryPhoto[c]! }));
   }, [allProducts.data, categoryPhoto]);
-  // Featured: biggest real discounts first, topped up with the rest so
-  // the row is always full — prices and discounts come only from data.
+  // Featured: biggest real discounts first, topped up with the rest, plus
+  // the day's Fresh Arrivals (the "New Today" section was removed
+  // 2026-10-30 and its products moved into this row, so they still show
+  // here — with their NEW badge). Prices and discounts come only from data.
+  const freshIds = useMemo(() => new Set(freshArrivals.map((p) => p.id)), [freshArrivals]);
   const featuredProducts = useMemo(() => {
     const list = allProducts.data?.products ?? [];
     if (list.length === 0) return [];
@@ -1150,8 +1153,10 @@ function ShopView({
         : 0;
     const discounted = [...list].filter((p) => disc(p) > 0).sort((a, b) => disc(b) - disc(a));
     const rest = list.filter((p) => disc(p) === 0);
-    return [...discounted, ...rest].slice(0, 8);
-  }, [allProducts.data]);
+    const base = [...discounted, ...rest].slice(0, 8);
+    const seen = new Set(base.map((p) => p.id));
+    return [...base, ...freshArrivals.filter((p) => !seen.has(p.id))];
+  }, [allProducts.data, freshArrivals]);
   // Homepage section jumps (the sections only render on All + no search,
   // so reset the filter first when coming from a filtered view).
   function goCollections() {
@@ -1457,7 +1462,12 @@ function ShopView({
             <div className="feat-marquee-track flex w-max">
               <div className="flex gap-3 pr-3">
                 {featuredProducts.map((p) => (
-                  <div key={p.id} className="w-[240px] shrink-0 sm:w-[280px] [&>article]:h-full">
+                  <div key={p.id} className="relative w-[240px] shrink-0 sm:w-[280px] [&>article]:h-full">
+                    {freshIds.has(p.id) && (
+                      <span className="absolute left-2 top-2 z-10 rounded-md bg-[var(--accent)] px-1.5 py-0.5 font-display text-[11px] font-bold text-[var(--accent-ink)]">
+                        {t("fresh.badge")}
+                      </span>
+                    )}
                     <ProductCard
                       product={p}
                       user={user}
@@ -1473,7 +1483,12 @@ function ShopView({
               </div>
               <div className="flex gap-3 pr-3" aria-hidden="true" inert>
                 {featuredProducts.map((p) => (
-                  <div key={`feat-dup-${p.id}`} className="w-[240px] shrink-0 sm:w-[280px] [&>article]:h-full">
+                  <div key={`feat-dup-${p.id}`} className="relative w-[240px] shrink-0 sm:w-[280px] [&>article]:h-full">
+                    {freshIds.has(p.id) && (
+                      <span className="absolute left-2 top-2 z-10 rounded-md bg-[var(--accent)] px-1.5 py-0.5 font-display text-[11px] font-bold text-[var(--accent-ink)]">
+                        {t("fresh.badge")}
+                      </span>
+                    )}
                     <ProductCard
                       product={p}
                       user={user}
@@ -1592,32 +1607,6 @@ function ShopView({
         </div>
       )}
 
-      {category === "All" && !search.trim() && freshArrivals.length > 0 && (
-        <section className="mt-8">
-          <h3 className="font-display text-lg font-bold text-[var(--text)]">
-            {t("fresh.title")}
-          </h3>
-          <p className="mt-1 text-sm text-[var(--dim)]">{t("fresh.sub")}</p>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {freshArrivals.map((p) => (
-              <div key={p.id} className="relative">
-                <span className="absolute left-2 top-2 z-10 rounded-md bg-[var(--accent)] px-1.5 py-0.5 font-display text-[11px] font-bold text-[var(--accent-ink)]">
-                  {t("fresh.badge")}
-                </span>
-                <ProductCard
-                  product={p}
-                  user={user}
-                  onAddToCart={handleAddToCart}
-                  onBuyNow={(p) => handleAddToCartQty(p, 1, true)}
-                  onOpen={openDetail}
-                  onAddToMyStore={handleAddToMyStore}
-                  inMyStore={myStoreIds.has(p.id)}
-                fallbackImage={categoryPhoto[p.category]} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* The "Shop from Other Platforms" external section is NOT
           rendered on the shop/home page any more (owner's request):

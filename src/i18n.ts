@@ -195,10 +195,6 @@ export const STR = {
   "notif.orderWord": { en: "Order", hi: "ऑर्डर" , ar: "طلب"},
   "notif.live": { en: "LIVE", hi: "लाइव" , ar: "مباشر"},
   "notif.pendingAlert": { en: "Needs shipping", hi: "शिपिंग बाकी है" , ar: "يحتاج إلى الشحن"},
-        "fresh.title": { en: "✨ New Today — Fresh Arrivals", hi: "✨ आज के नए — फ्रेश अराइवल" , ar: "✨ جديد اليوم — وافدات جديدة"},
-  "fresh.sub": {
-    en: "A fresh selection from the catalog, rotated every day.",
-    hi: "कैटलॉग से ताज़ा चयन, हर दिन बदलता है।", ar: "مجموعة جديدة من الكتالوج، تتغير كل يوم."},
   "fresh.badge": { en: "NEW", hi: "नया" , ar: "جديد"},
 
   // Hamburger drawer menu
