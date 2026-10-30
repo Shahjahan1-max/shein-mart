@@ -1122,6 +1122,20 @@ function ShopView({
     return () => window.clearInterval(id);
   }, [heroProducts.length]);
   const heroProduct = heroProducts.length > 0 ? heroProducts[heroIndex % heroProducts.length] : undefined;
+  // Hero spotlight transition (2026-10-30): the previous product stays
+  // mounted for 850 ms so it can arc out while the new one arcs in.
+  // Timing, data source and click behaviour are untouched.
+  const [heroPrev, setHeroPrev] = useState<Product | null>(null);
+  const prevHeroRef = useRef<Product | undefined>(undefined);
+  useEffect(() => {
+    const prev = prevHeroRef.current;
+    prevHeroRef.current = heroProduct;
+    if (prev && heroProduct && prev.id !== heroProduct.id) {
+      setHeroPrev(prev);
+      const t = window.setTimeout(() => setHeroPrev(null), 850);
+      return () => window.clearTimeout(t);
+    }
+  }, [heroProduct]);
   // Shop by collection: only categories that actually have products and
   // a real photo, headline categories first, then by size, max 6.
   const collectionCards = useMemo(() => {
@@ -1392,12 +1406,29 @@ function ShopView({
             aria-label={heroProduct.name}
             className="order-1 w-full md:order-2"
           >
-            <span key={heroProduct.id} className="hero-fade block overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
-              <span className="block aspect-[4/3] md:aspect-[4/5]">
-                <ProductImage
-                  product={heroProduct}
-                  fallbackSrc={categoryPhoto[heroProduct.category]}
-                />
+            <span className="relative block overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] shadow-sm">
+              {heroPrev && heroPrev.id !== heroProduct.id && (
+                <span key={`hero-out-${heroPrev.id}`} aria-hidden="true" className="hero-spot-out absolute inset-0 z-10 block">
+                  <span className="block aspect-[4/3] md:aspect-[4/5]">
+                    <ProductImage
+                      product={heroPrev}
+                      fallbackSrc={categoryPhoto[heroPrev.category]}
+                    />
+                  </span>
+                </span>
+              )}
+              <span key={heroProduct.id} className="hero-spot-in relative z-0 block">
+                <span className="block aspect-[4/3] md:aspect-[4/5]">
+                  <ProductImage
+                    product={heroProduct}
+                    fallbackSrc={categoryPhoto[heroProduct.category]}
+                  />
+                </span>
+              </span>
+              <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-20">
+                <svg className="hero-spark absolute right-[12%] top-[10%] h-4 w-4 text-[var(--gold)]" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.1 7.9L22 12l-7.9 2.1L12 22l-2.1-7.9L2 12l7.9-2.1z" /></svg>
+                <svg className="hero-spark absolute bottom-[16%] left-[8%] h-3 w-3 text-[var(--gold)]" style={{ animationDelay: "0.8s" }} viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.1 7.9L22 12l-7.9 2.1L12 22l-2.1-7.9L2 12l7.9-2.1z" /></svg>
+                <svg className="hero-spark absolute right-[30%] top-[68%] h-3.5 w-3.5 text-[var(--gold)]" style={{ animationDelay: "1.6s" }} viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.1 7.9L22 12l-7.9 2.1L12 22l-2.1-7.9L2 12l7.9-2.1z" /></svg>
               </span>
             </span>
           </button>
