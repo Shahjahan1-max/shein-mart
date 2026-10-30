@@ -1025,6 +1025,22 @@ function ShopView({
   // filtering and counts.
   const [visibleCount, setVisibleCount] = useState(40);
   useEffect(() => { setVisibleCount(40); }, [category, search]);
+  // Site-wide store visit: once per visitor per day (localStorage day flag
+  // + server-side UNIQUE guard). Failures are swallowed: counting must
+  // never break the shop. Counts from the day this feature went live.
+  useEffect(() => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      if (localStorage.getItem("sheinstore-visit-day") === today) return;
+      let key = localStorage.getItem("sheinstore-visitor");
+      if (!key) {
+        key = (crypto as any).randomUUID ? (crypto as any).randomUUID() : `v-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        localStorage.setItem("sheinstore-visitor", key);
+      }
+      localStorage.setItem("sheinstore-visit-day", today);
+      api.recordStoreVisit({ visitorKey: key }).catch(() => {});
+    } catch { /* visit counting is best-effort */ }
+  }, []);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Added-to-cart confirmation: a floating bar pinned above the bottom
   // navigation, visible wherever the buyer has scrolled to — the old
@@ -5593,9 +5609,9 @@ function SellerView({
     { label: t("sd.numProducts"), value: String(d.myProducts.length) },
     { label: t("sd.shopSales"), value: fmt(d.deliveredRevenue) },
     { label: t("sd.orderVolume"), value: String(d.itemsSold) },
-    { label: t("sd.serviceRating"), value: t("sd.notRated") },
-    { label: t("sd.logisticsRating"), value: t("sd.notRated") },
-    { label: t("sd.overallRating"), value: t("sd.notRated") },
+    { label: t("sd.serviceRating"), value: d.serviceRating != null ? `★ ${d.serviceRating}` : t("sd.notRated") },
+    { label: t("sd.logisticsRating"), value: d.logisticsRating != null ? `★ ${d.logisticsRating}` : t("sd.notRated") },
+    { label: t("sd.overallRating"), value: d.overallRating != null ? `★ ${d.overallRating}` : t("sd.notRated") },
   ];
   // The seller bottom bar is the shared SellerBottomBar component
   // (fixed, mobile/tablet only) - it is also rendered by the App on
@@ -6573,6 +6589,12 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   // on desktop (sticky within the page).
   const [adminNavOpen, setAdminNavOpen] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<number | null>(null);
+  const ratingServiceRef = useRef<HTMLSelectElement>(null);
+  const ratingLogisticsRef = useRef<HTMLSelectElement>(null);
+  const ratingOverallRef = useRef<HTMLSelectElement>(null);
+  const [ratingMsg, setRatingMsg] = useState<{ ok: boolean; text: string; sellerId: number } | null>(null);
+  const [visitAdd, setVisitAdd] = useState("");
+  const [visitAddMsg, setVisitAddMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [viewer, setViewer] = useState<{ sellerId: number; kind: DocKind; label: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; role: "seller" | "buyer"; title: string; detail: string } | null>(null);
   const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
@@ -8420,6 +8442,16 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                 </button>
               ))}
             </div>
+            <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
+              <h3 className="font-display text-lg font-extrabold text-[var(--text)]">{t("adm.totalVisits")}</h3>
+              <p className="mt-1 text-sm text-[var(--dim)]">{t("adm.todayVisits")}: <strong className="text-[var(--text)]">{ov.todayStoreVisits ?? 0}</strong> · {t("adm.manualVisits")}: <strong className="text-[var(--text)]">{ov.manualStoreVisits ?? 0}</strong></p>
+              <p className="mt-3 font-display text-3xl font-extrabold text-[var(--text)]">{ov.totalStoreVisits ?? 0}</p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <input aria-label={t("adm.visitCountPh")} value={visitAdd} onChange={(e) => setVisitAdd(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" placeholder={t("adm.visitCountPh")} className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text)] sm:w-48" />
+                <button type="button" onClick={async () => { const n = parseInt(visitAdd, 10); if (!n || n < 1) { setVisitAddMsg({ ok: false, text: t("adm.visitCountPh") }); return; } try { const r = await api.adminAddStoreVisits({ adminId: user!.id, count: Math.min(n, 10000) }); if (!r.ok) { setVisitAddMsg({ ok: false, text: r.error ?? "Failed." }); return; } setVisitAddMsg({ ok: true, text: `${r.added} ${t("adm.visitsAdded")}` }); setVisitAdd(""); invalidateAdmin(); } catch (e) { setVisitAddMsg({ ok: false, text: String((e as Error).message ?? e) }); } }} className="rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-[var(--accent-ink)]">{t("adm.addVisits")}</button>
+              </div>
+              {visitAddMsg && <p role="status" className={`mt-2 text-sm font-semibold ${visitAddMsg.ok ? "text-[var(--success-text-soft)]" : "text-rose-600"}`}>{visitAddMsg.text}</p>}
+            </div>
             <div className="mt-6 grid gap-4 lg:grid-cols-3">
               <section aria-label={t("adm.latestActivity")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 lg:col-span-2">
                 <div className="flex items-center justify-between gap-2">
@@ -8676,6 +8708,32 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                 <SellerDocCard adminId={user.id} sellerId={selectedSeller.id} kind="logo" label={t("sd.logoFile")} fileName={selectedSeller.storeLogoFileName} hasFile={selectedSeller.hasLogoFile} contentType={selectedSeller.logoContentType} size={selectedSeller.logoSize} onView={setViewer} />
                 <SellerDocCard adminId={user.id} sellerId={selectedSeller.id} kind="docFront" label={t("sa.docFront")} fileName={selectedSeller.docFrontFileName} hasFile={selectedSeller.hasDocFrontFile} contentType={selectedSeller.docFrontContentType} size={selectedSeller.docFrontSize} onView={setViewer} />
                 <SellerDocCard adminId={user.id} sellerId={selectedSeller.id} kind="docBack" label={t("sa.docBack")} fileName={selectedSeller.docBackFileName} hasFile={selectedSeller.hasDocBackFile} contentType={selectedSeller.docBackContentType} size={selectedSeller.docBackSize} onView={setViewer} />
+              </div>
+              <div className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                <h4 className="font-display font-bold text-[var(--text)]">{t("adm.storeRatings")}</h4>
+                <p className="mt-1 text-sm text-[var(--dim)]">{t("adm.ratingsNote")}</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <label className="flex flex-col gap-1 text-sm font-bold text-[var(--text)]">{t("sd.serviceRating")}
+                    <select key={`s-${selectedSeller.id}`} ref={ratingServiceRef} defaultValue={selectedSeller.serviceRating != null ? String(selectedSeller.serviceRating) : ""} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-normal text-[var(--text)]">
+                      <option value="">{t("sd.notRated")}</option>
+                      {[1, 2, 3, 4, 5].map((n) => (<option key={n} value={String(n)}>★ {n}</option>))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm font-bold text-[var(--text)]">{t("sd.logisticsRating")}
+                    <select key={`l-${selectedSeller.id}`} ref={ratingLogisticsRef} defaultValue={selectedSeller.logisticsRating != null ? String(selectedSeller.logisticsRating) : ""} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-normal text-[var(--text)]">
+                      <option value="">{t("sd.notRated")}</option>
+                      {[1, 2, 3, 4, 5].map((n) => (<option key={n} value={String(n)}>★ {n}</option>))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm font-bold text-[var(--text)]">{t("sd.overallRating")}
+                    <select key={`o-${selectedSeller.id}`} ref={ratingOverallRef} defaultValue={selectedSeller.overallRating != null ? String(selectedSeller.overallRating) : ""} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-normal text-[var(--text)]">
+                      <option value="">{t("sd.notRated")}</option>
+                      {[1, 2, 3, 4, 5].map((n) => (<option key={n} value={String(n)}>★ {n}</option>))}
+                    </select>
+                  </label>
+                </div>
+                <button type="button" onClick={async () => { const num = (v: string | undefined) => (v && v !== "" ? parseInt(v, 10) : null); try { const r = await api.adminSetSellerRatings({ adminId: user!.id, sellerId: selectedSeller.id, serviceRating: num(ratingServiceRef.current?.value), logisticsRating: num(ratingLogisticsRef.current?.value), overallRating: num(ratingOverallRef.current?.value) }); if (!r.ok) { setRatingMsg({ ok: false, text: r.error ?? "Failed.", sellerId: selectedSeller.id }); return; } setRatingMsg({ ok: true, text: t("adm.ratingsSaved"), sellerId: selectedSeller.id }); invalidateAdmin(); } catch (e) { setRatingMsg({ ok: false, text: String((e as Error).message ?? e), sellerId: selectedSeller.id }); } }} className="mt-3 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-[var(--accent-ink)]">{t("adm.saveRatings")}</button>
+                {ratingMsg && ratingMsg.sellerId === selectedSeller.id && <p role="status" className={`mt-2 text-sm font-semibold ${ratingMsg.ok ? "text-[var(--success-text-soft)]" : "text-rose-600"}`}>{ratingMsg.text}</p>}
               </div>
               <div className={`mt-5 rounded-xl border-2 p-4 ${selectedSeller.verificationStatus === "pending" ? "border-[var(--gold)] bg-[var(--amber-bg)]" : selectedSeller.verificationStatus === "approved" ? "border-emerald-500 bg-[var(--success-bg)]" : "border-rose-400 bg-[var(--danger-bg)]"}`}>
                 <h4 className="font-display font-bold text-[var(--text)]">🛡 {t("adm.verifyTitle")}</h4>
