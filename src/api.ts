@@ -54,32 +54,67 @@ function clearSessionAndReload() {
   }
 }
 
+// Actions that must NEVER auto-retry after a network failure: the request
+// may already have executed server-side while its response was lost, and
+// running one twice would duplicate an order, a payment, a message, a
+// ticket, a review or a delete. Everything else (reads, idempotent sets,
+// login, price refresh, ratings, visits) retries, because a Render
+// free-service cold start drops the first request while the server boots —
+// that is exactly the "TypeError: Failed to fetch" users see at login and
+// in the Admin Panel after idle time.
+const NO_RETRY_ACTIONS = new Set([
+  "placeOrder", "adminQuickSendSellerOrder",
+  "requestDeposit", "requestWithdraw",
+  "adminCreditSeller", "adminDirectWithdraw", "adminPayWithdrawal", "sellerPayOrderFromWallet",
+  "updateOrderStatus", "adminReviewShippedOrder", "adminReviewOrderPayment", "cancelBuyerOrder", "reviewWalletRequest",
+  "register", "registerSeller", "convertBuyerToSeller", "reviewSeller",
+  "adminDeleteAccount", "adminDeleteProduct", "adminDeleteChatThread", "adminDeleteTicket", "adminDeleteExternalProduct", "adminDeletePasswordResetRequest",
+  "sendChatMessage", "adminReplyChat", "createTicket", "replyTicket", "submitReview",
+]);
+// Delays between retries: attempts land at 0s, 2s, 7s, 22s, 52s — covering
+// a Render free-service cold start in most cases.
+const RETRY_DELAYS_MS = [2000, 5000, 15000, 30000];
+const SERVER_UNREACHABLE = "Could not reach the server. It may be waking up — please try again in a moment.";
+
 async function callAction(action: string, args: unknown): Promise<any> {
   const token = getSessionToken();
-  const res = await fetch(`${API_URL}/actions`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ action, args, token: token ?? undefined }),
-  });
-  let data: any = null;
-  try {
-    data = await res.json();
-  } catch {
-    /* non-JSON error page */
-  }
-  if (!res.ok) {
-    // ONLY "Sign in required." (missing/invalid token) means a dead
-    // session. "Not allowed." means a VALID session hit a permission
-    // rule — signing the user out for that would turn a permission
-    // bug into a mysterious logout (exactly what happened when the
-    // Admin Panel opened a customer chat thread), so it surfaces as
-    // a plain error instead.
-    if (data?.error === "Sign in required.") {
-      clearSessionAndReload();
+  const attempts = NO_RETRY_ACTIONS.has(action) ? 1 : 1 + RETRY_DELAYS_MS.length;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt - 1]));
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/actions`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action, args, token: token ?? undefined }),
+      });
+    } catch {
+      // fetch threw before any HTTP response arrived (network down or the
+      // server still booting): retry, unless this action must not run twice.
+      if (attempt + 1 < attempts) continue;
+      throw new Error(SERVER_UNREACHABLE);
     }
-    throw new Error(`Action ${action} failed: ${res.status}`);
+    let data: any = null;
+    try {
+      data = await res.json();
+    } catch {
+      /* non-JSON error page */
+    }
+    if (!res.ok) {
+      // ONLY "Sign in required." (missing/invalid token) means a dead
+      // session. "Not allowed." means a VALID session hit a permission
+      // rule — signing the user out for that would turn a permission
+      // bug into a mysterious logout (exactly what happened when the
+      // Admin Panel opened a customer chat thread), so it surfaces as
+      // a plain error instead.
+      if (data?.error === "Sign in required.") {
+        clearSessionAndReload();
+      }
+      throw new Error(`Action ${action} failed: ${res.status}`);
+    }
+    return data;
   }
-  return data;
+  throw new Error(SERVER_UNREACHABLE);
 }
 
 type ActionFn = (args: any) => Promise<any>;
