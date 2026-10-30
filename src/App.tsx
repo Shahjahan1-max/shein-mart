@@ -1121,7 +1121,7 @@ function ShopView({
       if (pa !== -1 || pb !== -1) return (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
       return counts[b]! - counts[a]!;
     });
-    return cats.slice(0, 6).map((c) => ({ category: c, count: counts[c]!, photo: categoryPhoto[c]! }));
+    return cats.slice(0, 6).map((c) => ({ category: c, photo: categoryPhoto[c]! }));
   }, [allProducts.data, categoryPhoto]);
   // Featured: biggest real discounts first, topped up with the rest so
   // the row is always full — prices and discounts come only from data.
@@ -1406,7 +1406,7 @@ function ShopView({
                 key={c.category}
                 type="button"
                 onClick={() => goCategory(c.category)}
-                aria-label={`${trCategory(lang, c.category)}, ${c.count} ${t("coll.count")}`}
+                aria-label={`${trCategory(lang, c.category)}`}
                 className="coll-card group overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] text-left shadow-sm transition-shadow hover:shadow-lg"
               >
                 <span className="block aspect-[4/3] overflow-hidden">
@@ -1420,9 +1420,6 @@ function ShopView({
                 <span className="flex items-baseline justify-between gap-2 px-4 py-3">
                   <span className="font-display text-lg font-bold text-[var(--text)]">
                     {trCategory(lang, c.category)}
-                  </span>
-                  <span className="shrink-0 text-xs font-semibold text-[var(--dim)]">
-                    {c.count} {t("coll.count")}
                   </span>
                 </span>
               </button>
@@ -6699,6 +6696,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   // One-click trusted import + kitchen photo fix (Products section)
   const [importResult, setImportResult] = useState<ApiResponse<typeof api, "adminImportTrustedProducts"> | null>(null);
   const [kitchenResult, setKitchenResult] = useState<ApiResponse<typeof api, "adminFixKitchenPhotos"> | null>(null);
+  const [real180Result, setReal180Result] = useState<ApiResponse<typeof api, "adminImportReal180"> | null>(null);
   const [prodSourceFilter, setProdSourceFilter] = useState<"all" | "curated" | "bulk">("all");
   // Theme & Design drafts (saved to settings on Apply)
   const [schemeDraft, setSchemeDraft] = useState<string | null>(null);
@@ -6954,6 +6952,17 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
       }
     },
     onError: (e) => setKitchenResult({ ok: false, error: String(e), updated: 0, missing: 0 }),
+  });
+  const importReal180 = useMutation({
+    mutationFn: () => api.adminImportReal180({ adminId: user!.id }),
+    onSuccess: (r) => {
+      setReal180Result(r);
+      if (r.ok) {
+        queryClient.invalidateQueries({ queryKey: ["products"] });
+        queryClient.invalidateQueries({ queryKey: ["admin-overview"] });
+      }
+    },
+    onError: (e) => setReal180Result({ ok: false, error: String(e), inserted: 0, skipped: 0, totalNow: products.data?.products.length ?? 0 }),
   });
   const quickSend = useMutation({
     mutationFn: (args: { productId: number; qty: number }) => api.adminQuickSendSellerOrder({
@@ -7742,6 +7751,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
         <h4 className="flex flex-wrap items-center gap-2 font-display text-base font-bold text-[var(--text)]">✓ {t("imp.title")}</h4>
         <p className="mt-1 text-sm text-[var(--dim)]">{t("imp.sub")}</p>
         <p className="mt-2 text-sm text-[var(--dim)]">{t("imp.fixSub")}</p>
+        <p className="mt-2 text-sm text-[var(--dim)]">{t("imp.sub180")}</p>
         <p className="mt-2 text-sm text-[var(--text)]">{t("bgen.currentTotal")}: <strong className="font-display">{total}</strong></p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" aria-label={t("imp.btn")} disabled={importTrusted.isPending} onClick={() => { setImportResult(null); importTrusted.mutate(); }} className={goldBtn}>
@@ -7750,11 +7760,20 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           <button type="button" aria-label={t("imp.fixBtn")} disabled={fixKitchen.isPending} onClick={() => { setKitchenResult(null); fixKitchen.mutate(); }} className={goldBtn}>
             {fixKitchen.isPending ? t("imp.fixing") : t("imp.fixBtn")}
           </button>
+          <button type="button" aria-label={t("imp.btn180")} disabled={importReal180.isPending} onClick={() => { setReal180Result(null); importReal180.mutate(); }} className={goldBtn}>
+            {importReal180.isPending ? t("imp.importing180") : t("imp.btn180")}
+          </button>
         </div>
         {importResult && !importResult.ok && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {importResult.error}</p>}
         {importResult && importResult.ok && (
           <div role="status" className="mt-3 rounded-xl bg-[var(--success-bg)] px-3 py-2.5 text-sm text-[var(--success-text)]">
             <p className="font-bold">✓ {importResult.inserted} {t("imp.done")} · {importResult.skipped} {t("imp.skipped")} · {t("bgen.totalNow")} {importResult.totalNow}</p>
+          </div>
+        )}
+        {real180Result && !real180Result.ok && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {real180Result.error}</p>}
+        {real180Result && real180Result.ok && (
+          <div role="status" className="mt-3 rounded-xl bg-[var(--success-bg)] px-3 py-2.5 text-sm text-[var(--success-text)]">
+            <p className="font-bold">✓ {real180Result.inserted} {t("imp.done")} · {real180Result.skipped} {t("imp.skipped")} · {t("bgen.totalNow")} {real180Result.totalNow}</p>
           </div>
         )}
         {kitchenResult && !kitchenResult.ok && <p role="alert" className="mt-2 text-sm font-semibold text-rose-600">⚠ {kitchenResult.error}</p>}
