@@ -70,6 +70,16 @@ CREATE TABLE IF NOT EXISTS users (
   admin_created_by_id INTEGER, admin_created_by_email TEXT,
   must_change_password INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Admin-set seller store ratings (added 2026-10-30); NULL = not rated yet.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS service_rating INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS logistics_rating INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS overall_rating INTEGER;
+-- Site-wide store visits (added 2026-10-30): one row per visitor per day.
+CREATE TABLE IF NOT EXISTS store_visits (
+  id SERIAL PRIMARY KEY, visitor_key TEXT NOT NULL, visit_day DATE NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT store_visits_visitor_day_unique UNIQUE (visitor_key, visit_day)
+);
 CREATE TABLE IF NOT EXISTS products (
   id SERIAL PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL,
   description TEXT NOT NULL DEFAULT '', base_price INTEGER NOT NULL, old_price INTEGER,
