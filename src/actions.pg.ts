@@ -493,6 +493,9 @@ const sellerApplicationOut = z.object({
   totalPending: z.number(),
   totalOrderValue: z.number(),
   totalAdminCredit: z.number(),
+  serviceRating: z.number().nullable(),
+  logisticsRating: z.number().nullable(),
+  overallRating: z.number().nullable(),
 });
 
 type SellerApplication = z.infer<typeof sellerApplicationOut>;
@@ -550,6 +553,9 @@ function toSellerApplication(u: UserRow): SellerApplication {
     totalPending: 0,
     totalOrderValue: 0,
     totalAdminCredit: 0,
+    serviceRating: u.serviceRating ?? null,
+    logisticsRating: u.logisticsRating ?? null,
+    overallRating: u.overallRating ?? null,
   };
 }
 
@@ -4623,6 +4629,9 @@ export const Actions = {
       completed: z.number(),
       pendingPayment: z.number(),
       deliveredRevenue: z.number(),
+      serviceRating: z.number().nullable(),
+      logisticsRating: z.number().nullable(),
+      overallRating: z.number().nullable(),
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
@@ -4727,6 +4736,9 @@ export const Actions = {
         completed,
         pendingPayment,
         deliveredRevenue,
+        serviceRating: me[0].serviceRating ?? null,
+        logisticsRating: me[0].logisticsRating ?? null,
+        overallRating: me[0].overallRating ?? null,
       };
     },
   }),
@@ -4754,6 +4766,9 @@ export const Actions = {
       recentNotifications: z.array(z.object({ id: z.number(), sellerId: z.number(), sellerName: z.string(), orderId: z.number(), productName: z.string(), amount: z.number(), isRead: z.boolean(), createdAt: z.string() })),
       deletedPlaceholderId: z.number(),
       orderDeletedInfo: z.array(z.object({ orderId: z.number(), sellerDeleted: z.boolean(), buyerDeleted: z.boolean() })),
+      totalStoreVisits: z.number(),
+      todayStoreVisits: z.number(),
+      manualStoreVisits: z.number(),
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
@@ -4768,8 +4783,16 @@ export const Actions = {
           totalWalletBalance: 0, totalPendingAmount: 0, totalUsedAmount: 0, totalOrderValue: 0,
           pendingShipments: 0, pendingWalletRequests: 0, pendingSupport: 0, totalProducts: 0,
           buyerStats: [], orderSellerInfo: [], recentNotifications: [], deletedPlaceholderId: 0, orderDeletedInfo: [],
+          totalStoreVisits: 0, todayStoreVisits: 0, manualStoreVisits: 0,
         };
       }
+      // Site-wide store visits (counted from the day this feature went live).
+      const visitTotalRows = await db.select({ n: sql<number>`count(*)::int` }).from(schema.storeVisits);
+      const totalStoreVisits = visitTotalRows[0]?.n ?? 0;
+      const visitTodayRows = await db.select({ n: sql<number>`count(*)::int` }).from(schema.storeVisits).where(sql`visit_day = CURRENT_DATE`);
+      const todayStoreVisits = visitTodayRows[0]?.n ?? 0;
+      const visitManualRows = await db.select({ n: sql<number>`count(*)::int` }).from(schema.storeVisits).where(sql`visitor_key LIKE 'admin-manual-%'`);
+      const manualStoreVisits = visitManualRows[0]?.n ?? 0;
       const userRows = await db
         .select()
         .from(schema.users)
@@ -4867,6 +4890,9 @@ export const Actions = {
         recentNotifications,
         deletedPlaceholderId: placeholderRow?.id ?? 0,
         orderDeletedInfo,
+        totalStoreVisits,
+        todayStoreVisits,
+        manualStoreVisits,
       };
     },
   }),
@@ -5376,6 +5402,68 @@ export const Actions = {
       const rows = await db.select().from(schema.users).where(eq(schema.users.id, ctx.auth!.userId)).limit(1);
       if (!rows[0] || rows[0].email === "deleted-placeholder@system.local") return { user: null };
       return { user: { id: rows[0].id, verificationStatus: rows[0].verificationStatus, mustChangePassword: rows[0].mustChangePassword === 1 } };
+    },
+  }),
+
+  // Admin sets a seller's store ratings (1-5 stars each, or null for
+  // "New"). Admin-only: a seller can never change their own ratings.
+  adminSetSellerRatings: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({
+      adminId: z.number(),
+      sellerId: z.number(),
+      serviceRating: z.number().int().min(1).max(5).nullable(),
+      logisticsRating: z.number().int().min(1).max(5).nullable(),
+      overallRating: z.number().int().min(1).max(5).nullable(),
+    }),
+    response: z.object({ ok: z.literal(true), serviceRating: z.number().nullable(), logisticsRating: z.number().nullable(), overallRating: z.number().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") throw new Error("Only the admin can set seller ratings.");
+      const target = await db.select().from(schema.users).where(eq(schema.users.id, args.sellerId)).limit(1);
+      if (!target[0] || target[0].role !== "seller") throw new Error("Ratings can only be set for seller accounts.");
+      await db.update(schema.users).set({ serviceRating: args.serviceRating, logisticsRating: args.logisticsRating, overallRating: args.overallRating }).where(eq(schema.users.id, args.sellerId));
+      return { ok: true, serviceRating: args.serviceRating, logisticsRating: args.logisticsRating, overallRating: args.overallRating };
+    },
+  }),
+
+  // Site-wide store visit, recorded once per visitor per UTC day. Public:
+  // guests count too. The table UNIQUE guard drops same-day duplicates.
+  recordStoreVisit: defineAction({
+    auth: "public",
+    request: z.object({ visitorKey: z.string().min(8).max(100) }),
+    response: z.object({ ok: z.boolean(), counted: z.boolean() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const day = new Date().toISOString().slice(0, 10);
+      const rows = await db.insert(schema.storeVisits).values({ visitorKey: args.visitorKey.trim(), visitDay: day }).onConflictDoNothing().returning({ id: schema.storeVisits.id });
+      return { ok: true, counted: rows.length > 0 };
+    },
+  }),
+
+  // Admin manually adds store visits (e.g. footfall the owner knows about
+  // outside the site). Rows are tagged admin-manual-* so the Overview can
+  // show how much of the total was added by hand vs counted automatically.
+  adminAddStoreVisits: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number(), count: z.number().int().min(1).max(10000) }),
+    response: z.object({ ok: z.literal(true), added: z.number(), totalNow: z.number() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") throw new Error("Only the admin can add store visits.");
+      const day = new Date().toISOString().slice(0, 10);
+      const stamp = Date.now();
+      const CHUNK = 1000;
+      for (let start = 0; start < args.count; start += CHUNK) {
+        const n = Math.min(CHUNK, args.count - start);
+        const values = [];
+        for (let i = 0; i < n; i++) values.push({ visitorKey: `admin-manual-${stamp}-${start + i}`, visitDay: day });
+        await db.insert(schema.storeVisits).values(values);
+      }
+      const totalRows = await db.select({ n: sql<number>`count(*)::int` }).from(schema.storeVisits);
+      return { ok: true, added: args.count, totalNow: totalRows[0]?.n ?? 0 };
     },
   }),
 

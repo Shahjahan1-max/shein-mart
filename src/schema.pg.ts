@@ -1,4 +1,4 @@
-import { integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { date, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 // Postgres conversion of schema.ts: same tables and columns. Differences:
 // autoincrement ids use serial(); timestamp_ms columns use timestamptz;
@@ -68,6 +68,10 @@ export const users = pgTable("users", {
   // temporary password): the customer is asked to set their own password
   // after signing in, and the flag clears when they do.
   mustChangePassword: integer("must_change_password").notNull().default(0),
+  // Admin-set store ratings (1-5 stars; null = not rated yet, shown as "New").
+  serviceRating: integer("service_rating"),
+  logisticsRating: integer("logistics_rating"),
+  overallRating: integer("overall_rating"),
   createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -588,3 +592,13 @@ export const googleLoginCodes = pgTable("google_login_codes", {
   userId: integer("user_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Site-wide store visits: one row per visitor per UTC day. The UNIQUE
+// guard means refreshes and repeat visits the same day never inflate the
+// count; counting starts when this feature goes live (no past data).
+export const storeVisits = pgTable("store_visits", {
+  id: serial("id").primaryKey(),
+  visitorKey: text("visitor_key").notNull(),
+  visitDay: date("visit_day").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("store_visits_visitor_day_unique").on(t.visitorKey, t.visitDay)]);
