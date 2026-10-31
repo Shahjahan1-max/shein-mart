@@ -585,6 +585,9 @@ export const productReviews = pgTable(
     rating: integer("rating").notNull(),
     comment: text("comment").notNull().default(""),
     visible: integer("visible").notNull().default(1),
+    // Moderation (2026-10-31): pending | approved | rejected. A review
+    // is public ONLY when status = approved AND visible = 1.
+    status: text("status").notNull().default("pending"),
     createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
       .notNull()
       .$defaultFn(() => new Date()),

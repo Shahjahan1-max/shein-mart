@@ -4502,7 +4502,9 @@ export const Actions = {
       const existing = await db.select().from(schema.productReviews).where(and(eq(schema.productReviews.orderId, args.orderId), eq(schema.productReviews.productId, args.productId))).limit(1);
       if (existing[0]) return fail("You have already reviewed this product for this order.");
       const comment = (args.comment ?? "").trim();
-      const inserted = await db.insert(schema.productReviews).values({ productId: args.productId, buyerId: args.buyerId, orderId: args.orderId, rating: args.rating, comment, visible: 1 }).returning({ id: schema.productReviews.id });
+      // Moderation (2026-10-31): a submitted review is PENDING and
+      // hidden — it becomes public only when the admin approves it.
+      const inserted = await db.insert(schema.productReviews).values({ productId: args.productId, buyerId: args.buyerId, orderId: args.orderId, rating: args.rating, comment, visible: 0, status: "pending" }).returning({ id: schema.productReviews.id });
       ctx.invalidateQueries();
       return { ok: true, error: null, id: inserted[0]?.id ?? null };
     },
@@ -4518,7 +4520,7 @@ export const Actions = {
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
-      const rows = await db.select().from(schema.productReviews).where(and(eq(schema.productReviews.productId, args.productId), eq(schema.productReviews.visible, 1))).orderBy(desc(schema.productReviews.id));
+      const rows = await db.select().from(schema.productReviews).where(and(eq(schema.productReviews.productId, args.productId), eq(schema.productReviews.visible, 1), eq(schema.productReviews.status, "approved"))).orderBy(desc(schema.productReviews.id));
       const reviews = [];
       for (const r of rows) {
         const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
@@ -4532,11 +4534,12 @@ export const Actions = {
   }),
 
   // Homepage "What Our Customers Say" carousel (2026-10-31): the newest
-  // VISIBLE reviews across all products — same verified-purchase rows as
-  // listProductReviews, so nothing here can ever be invented: a review
-  // exists only when a buyer wrote it on a Delivered order, and a hidden
-  // (visible = 0) review is never returned. Public, like the per-product
-  // list; buyer names are first-name-only, as there.
+  // APPROVED + visible reviews across all products — same
+  // verified-purchase rows as listProductReviews, so nothing here can
+  // ever be invented: a review exists only when a buyer wrote it on a
+  // Delivered order, and a pending, rejected or hidden review is never
+  // returned. Public, like the per-product list; buyer names are
+  // first-name-only, as there.
   listRecentReviews: defineAction({
     auth: "public",
     request: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
@@ -4545,7 +4548,7 @@ export const Actions = {
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
-      const rows = await db.select().from(schema.productReviews).where(eq(schema.productReviews.visible, 1)).orderBy(desc(schema.productReviews.id)).limit(args.limit);
+      const rows = await db.select().from(schema.productReviews).where(and(eq(schema.productReviews.visible, 1), eq(schema.productReviews.status, "approved"))).orderBy(desc(schema.productReviews.id)).limit(args.limit);
       const reviews = [];
       for (const r of rows) {
         const p = await db.select({ name: schema.products.name }).from(schema.products).where(eq(schema.products.id, r.productId)).limit(1);
@@ -4571,7 +4574,7 @@ export const Actions = {
   listAllReviews: defineAction({
     auth: { arg: "adminId", role: "admin" },
     request: z.object({ adminId: z.number() }),
-    response: z.object({ reviews: z.array(z.object({ id: z.number(), productId: z.number(), productName: z.string(), buyerName: z.string(), orderId: z.number(), rating: z.number(), comment: z.string(), visible: z.number(), createdAt: z.string() })) }),
+    response: z.object({ reviews: z.array(z.object({ id: z.number(), productId: z.number(), productName: z.string(), buyerName: z.string(), orderId: z.number(), rating: z.number(), comment: z.string(), visible: z.number(), status: z.string(), createdAt: z.string() })) }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
       const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
@@ -4581,7 +4584,7 @@ export const Actions = {
       for (const r of rows) {
         const p = await db.select({ name: schema.products.name }).from(schema.products).where(eq(schema.products.id, r.productId)).limit(1);
         const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
-        out.push({ id: r.id, productId: r.productId, productName: p[0]?.name ?? "Product", buyerName: u[0]?.name ?? "", orderId: r.orderId, rating: r.rating, comment: r.comment, visible: r.visible, createdAt: r.createdAt.toISOString() });
+        out.push({ id: r.id, productId: r.productId, productName: p[0]?.name ?? "Product", buyerName: u[0]?.name ?? "", orderId: r.orderId, rating: r.rating, comment: r.comment, visible: r.visible, status: r.status, createdAt: r.createdAt.toISOString() });
       }
       return { reviews: out };
     },
@@ -4598,6 +4601,28 @@ export const Actions = {
       await db.update(schema.productReviews).set({ visible: args.visible }).where(eq(schema.productReviews.id, args.reviewId));
       ctx.invalidateQueries();
       return { ok: true, error: null };
+    },
+  }),
+
+  // Review moderation (2026-10-31): a submitted review is pending and
+  // never public until the admin approves it. Approve publishes it
+  // (approved + visible); reject buries it (rejected + hidden). The
+  // admin can re-approve a rejected review to restore it, and can hide
+  // an approved review later via adminSetReviewVisible (unpublish).
+  adminModerateReview: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number(), reviewId: z.number(), decision: z.enum(["approve", "reject"]) }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable(), status: z.string().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the admin can moderate reviews.", status: null };
+      const row = await db.select().from(schema.productReviews).where(eq(schema.productReviews.id, args.reviewId)).limit(1);
+      if (!row[0]) return { ok: false, error: "Review not found.", status: null };
+      const patch = args.decision === "approve" ? { status: "approved", visible: 1 } : { status: "rejected", visible: 0 };
+      await db.update(schema.productReviews).set(patch).where(eq(schema.productReviews.id, args.reviewId));
+      ctx.invalidateQueries();
+      return { ok: true, error: null, status: patch.status };
     },
   }),
 
