@@ -2597,6 +2597,7 @@ export const Actions = {
       headerLogoUrl: z.string(),
       headerBrandMode: z.string(),
       storefrontTheme: z.string(),
+      reviewsSectionEnabled: z.boolean(),
       sessionsEnabled: z.boolean(),
     }),
     async handler(ctx) {
@@ -2629,6 +2630,7 @@ export const Actions = {
         headerLogoUrl: s.headerLogoBlobKey ? await ctx.blobs.getUrl(s.headerLogoBlobKey) : (s.headerLogoUrl ?? ""),
         headerBrandMode: (s as { headerBrandMode?: string }).headerBrandMode ?? "both",
         storefrontTheme: (s as { storefrontTheme?: string }).storefrontTheme ?? "premium",
+        reviewsSectionEnabled: ((s as { reviewsSectionEnabled?: number }).reviewsSectionEnabled ?? 1) === 1,
         sessionsEnabled: true,
       };
     },
@@ -4594,6 +4596,99 @@ export const Actions = {
       const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
       if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the admin can moderate reviews." };
       await db.update(schema.productReviews).set({ visible: args.visible }).where(eq(schema.productReviews.id, args.reviewId));
+      ctx.invalidateQueries();
+      return { ok: true, error: null };
+    },
+  }),
+
+  // ---- Store-added carousel entries (Admin → Reviews) ----
+  // Public list: visible entries only, newest first. No buyer, no
+  // rating, no verified mark — the frontend labels every one of these
+  // "Added by store" so they can never pass as customer reviews.
+  listStoreEntries: defineAction({
+    auth: "public",
+    request: z.object({}),
+    response: z.object({
+      entries: z.array(z.object({ id: z.number(), text: z.string(), createdAt: z.string() })),
+    }),
+    async handler(ctx) {
+      const db = ctx.db<typeof schema>();
+      const rows = await db.select().from(schema.storeReviews).where(eq(schema.storeReviews.visible, 1)).orderBy(desc(schema.storeReviews.id));
+      return { entries: rows.map((r) => ({ id: r.id, text: r.text, createdAt: r.createdAt.toISOString() })) };
+    },
+  }),
+
+  listAllStoreEntries: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number() }),
+    response: z.object({
+      entries: z.array(z.object({ id: z.number(), text: z.string(), visible: z.number(), createdAt: z.string() })),
+    }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { entries: [] };
+      const rows = await db.select().from(schema.storeReviews).orderBy(desc(schema.storeReviews.id));
+      return { entries: rows.map((r) => ({ id: r.id, text: r.text, visible: r.visible, createdAt: r.createdAt.toISOString() })) };
+    },
+  }),
+
+  adminAddStoreEntry: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number(), text: z.string().min(1).max(500) }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable(), id: z.number().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the admin can add store entries.", id: null };
+      const text = args.text.trim();
+      if (!text) return { ok: false, error: "Write a message first.", id: null };
+      const inserted = await db.insert(schema.storeReviews).values({ text, visible: 1 }).returning({ id: schema.storeReviews.id });
+      ctx.invalidateQueries();
+      return { ok: true, error: null, id: inserted[0]?.id ?? null };
+    },
+  }),
+
+  adminSetStoreEntryVisible: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number(), entryId: z.number(), visible: z.number().int().min(0).max(1) }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the admin can change store entries." };
+      await db.update(schema.storeReviews).set({ visible: args.visible }).where(eq(schema.storeReviews.id, args.entryId));
+      ctx.invalidateQueries();
+      return { ok: true, error: null };
+    },
+  }),
+
+  adminDeleteStoreEntry: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number(), entryId: z.number() }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the admin can delete store entries." };
+      await db.delete(schema.storeReviews).where(eq(schema.storeReviews.id, args.entryId));
+      ctx.invalidateQueries();
+      return { ok: true, error: null };
+    },
+  }),
+
+  // Homepage reviews section ON/OFF (Admin → Reviews). Hiding the
+  // section never touches any review or entry row.
+  adminSetReviewsSectionEnabled: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number(), enabled: z.number().int().min(0).max(1) }),
+    response: z.object({ ok: z.boolean(), error: z.string().nullable() }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the admin can change this setting." };
+      const s = await getSettingsRow(db);
+      await db.update(schema.settings).set({ reviewsSectionEnabled: args.enabled }).where(eq(schema.settings.id, s.id));
       ctx.invalidateQueries();
       return { ok: true, error: null };
     },

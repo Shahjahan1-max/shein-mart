@@ -416,6 +416,11 @@ export const settings = pgTable("settings", {
   // the default), "logo" (logo only; the name shows until a logo is
   // uploaded), or "text" (name only).
   headerBrandMode: text("header_brand_mode").notNull().default("both"),
+  // Homepage reviews section ON/OFF (Admin → Reviews, 2026-10-31):
+  // 1 = the "What Our Customers Say" carousel shows on the shop (when
+  // there is anything to show, else its honest empty state); 0 hides
+  // the whole section from visitors.
+  reviewsSectionEnabled: integer("reviews_section_enabled").notNull().default(1),
   // Storefront theme (Admin → Theme & Design): "premium" (the existing
   // theme, the default) or "fresh" (Fresh Market). Only the storefront
   // look changes; products, orders, users, wallet and all business
@@ -431,6 +436,20 @@ export const settings = pgTable("settings", {
 // merchant name) whose product_url links out to the merchant's own
 // product page, where the visitor buys. Managed from Admin → External
 // Products; seeded once with real merchant listings.
+// Store-added carousel entries (Admin → Reviews, 2026-10-31 compromise):
+// messages the ADMIN writes for the homepage reviews carousel. These are
+// NOT customer reviews: no buyer, no order, no rating and no "Verified"
+// mark is ever attached, and the frontend labels them "Added by store"
+// with a distinct card. visible = 0 hides the entry from the carousel.
+export const storeReviews = pgTable("store_reviews", {
+  id: serial("id").primaryKey(),
+  text: text("text").notNull().default(""),
+  visible: integer("visible").notNull().default(1),
+  createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export const externalProducts = pgTable("external_products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
