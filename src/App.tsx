@@ -11413,13 +11413,13 @@ const NAV: NavItem[] =
           </div>
         )}
         <header ref={headerRef} className="site-header sticky top-0 z-40 border-b-2 border-[var(--gold)] bg-[var(--bg)] shadow-[0_1px_16px_rgba(15,23,42,0.10)] pt-safe">
-          <div className={`hdr-row mx-auto flex ${containerW} flex-nowrap items-center gap-x-1.5 px-3 sm:px-4 py-2.5`}>
+          <div className={`hdr-row mx-auto flex ${containerW} flex-nowrap items-center gap-x-1 sm:gap-x-1.5 px-2 sm:px-4 py-2.5`}>
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
               aria-label={ui.t("menu.open")}
               aria-expanded={drawerOpen}
-              className="hdr-drawer shrink-0 rounded-full bg-[var(--surface-alt)] px-2.5 leading-none text-[var(--text)] min-h-11 py-0.5 text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
+              className="hdr-drawer shrink-0 rounded-full bg-[var(--surface-alt)] px-2 sm:px-2.5 leading-none text-[var(--text)] min-h-11 py-0.5 text-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
             >
               ☰
             </button>
@@ -11427,10 +11427,10 @@ const NAV: NavItem[] =
               type="button"
               onClick={() => (user?.role === "seller" ? goSellerTab("home") : setView("shop"))}
               aria-label={`${storeName} home`}
-              className="hdr-brand flex min-w-0 flex-1 items-center text-left font-display font-extrabold tracking-tight text-[var(--accent)] text-xl sm:text-2xl"
+              className="hdr-brand flex min-w-0 flex-1 items-center text-left font-display font-extrabold tracking-tight text-[var(--accent)] text-base sm:text-2xl"
             >
               {headerLogoShown ? (
-                <img src={headerLogoUrl} alt="" className="hdr-logo mr-1.5 h-9 w-9 shrink-0 rounded-xl object-contain sm:h-10 sm:w-10" />
+                <img src={headerLogoUrl} alt="" className="hdr-logo mr-1 h-8 w-8 shrink-0 rounded-xl object-contain sm:mr-1.5 sm:h-10 sm:w-10" />
               ) : null}
               {headerNameShown && <span className="truncate">{storeName}</span>}
               {headerNameShown && !headerLogoShown ? <span className="text-[var(--gold)]">.</span> : null}
@@ -11443,7 +11443,7 @@ const NAV: NavItem[] =
             <span className="hdr-tagline ml-2 hidden shrink-0 text-xs font-medium text-[var(--dim)] lg:block">
               {ui.t("header.tagline")}
             </span>
-            <div className="hdr-actions ml-auto flex shrink-0 items-center gap-1.5">
+            <div className="hdr-actions ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
               
               {user?.role === "seller" && (
                 <div className="relative shrink-0">
@@ -11452,7 +11452,7 @@ const NAV: NavItem[] =
                     onClick={() => { const next = !notifOpen; setNotifOpen(next); if (next && sellerUnread > 0) { /* keep unread until panel viewed */ } }}
                     aria-label={`${ui.t("notif.bell")}${sellerUnread > 0 ? `, ${sellerUnread} unread` : ""}`}
                     aria-expanded={notifOpen}
-                    className="hdr-bell relative rounded-full bg-[var(--surface-alt)] px-2.5 leading-none min-h-11 py-0.5 text-lg"
+                    className="hdr-bell relative rounded-full bg-[var(--surface-alt)] px-2 sm:px-2.5 leading-none min-h-11 py-0.5 text-lg"
                   >
                     🔔
                     {sellerUnread > 0 && (
@@ -11533,7 +11533,7 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="My account"
-                  className="hdr-user max-w-[26vw] shrink-0 truncate rounded-lg bg-[var(--accent)] px-3.5 font-semibold text-[var(--accent-ink)] min-h-11 py-0.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
+                  className="hdr-user max-w-[26vw] shrink-0 truncate rounded-lg bg-[var(--accent)] px-3 sm:px-3.5 font-semibold text-[var(--accent-ink)] min-h-11 py-0.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
                 >
                   {user.name.split(" ")[0]}
                 </button>
@@ -11542,9 +11542,9 @@ const NAV: NavItem[] =
                   type="button"
                   onClick={() => setView("account")}
                   aria-label="Sign in or register"
-                  className="hdr-signin flex min-h-10 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3.5 text-sm font-bold text-[var(--accent-ink)] shadow-sm hover:brightness-110 sm:min-h-11 sm:px-5 sm:text-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
+                  className="hdr-signin flex min-h-10 items-center gap-1.5 rounded-full bg-[var(--accent)] px-3 text-sm font-bold text-[var(--accent-ink)] shadow-sm hover:brightness-110 sm:min-h-11 sm:px-5 sm:text-[15px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
                 >
-                  {iconUser}
+                  <span className="hidden sm:inline-flex">{iconUser}</span>
                   {ui.t("header.signIn")}
                 </button>
               )}
