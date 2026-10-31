@@ -1752,7 +1752,6 @@ function ShopView({
             {t("links.link")}
           </a>
         </div>
-        <p className="mt-3 text-xs text-[var(--dim)]">{t("links.note")}</p>
       </section>
 
       {cartToast && (
