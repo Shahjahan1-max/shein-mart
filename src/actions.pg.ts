@@ -4529,6 +4529,32 @@ export const Actions = {
     },
   }),
 
+  // Homepage "What Our Customers Say" carousel (2026-10-31): the newest
+  // VISIBLE reviews across all products — same verified-purchase rows as
+  // listProductReviews, so nothing here can ever be invented: a review
+  // exists only when a buyer wrote it on a Delivered order, and a hidden
+  // (visible = 0) review is never returned. Public, like the per-product
+  // list; buyer names are first-name-only, as there.
+  listRecentReviews: defineAction({
+    auth: "public",
+    request: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
+    response: z.object({
+      reviews: z.array(z.object({ id: z.number(), productId: z.number(), productName: z.string(), buyerName: z.string(), rating: z.number(), comment: z.string(), createdAt: z.string() })),
+    }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const rows = await db.select().from(schema.productReviews).where(eq(schema.productReviews.visible, 1)).orderBy(desc(schema.productReviews.id)).limit(args.limit);
+      const reviews = [];
+      for (const r of rows) {
+        const p = await db.select({ name: schema.products.name }).from(schema.products).where(eq(schema.products.id, r.productId)).limit(1);
+        const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
+        const first = (u[0]?.name ?? "").trim().split(/\s+/)[0] ?? "";
+        reviews.push({ id: r.id, productId: r.productId, productName: p[0]?.name ?? "Product", buyerName: first || "Buyer", rating: r.rating, comment: r.comment, createdAt: r.createdAt.toISOString() });
+      }
+      return { reviews };
+    },
+  }),
+
   listMyReviews: defineAction({
     auth: { arg: "buyerId" },
     request: z.object({ buyerId: z.number() }),
