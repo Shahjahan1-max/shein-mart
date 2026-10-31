@@ -11152,6 +11152,10 @@ export function App() {
   // Day/night toggle icons: clean line-art sun/moon (no emoji).
   const iconSun = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12h2.5M19 12h2.5M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8" /></svg>);
   const iconMoon = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>);
+  // Header Customer Support headset (2026-10-31): original line-art in
+  // the codebase's stroke style — headband, two ear cups, mic boom +
+  // mic dot. No site's icon file copied.
+  const iconHeadset = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 shrink-0"><path d="M4 14a8 8 0 0 1 16 0" /><rect x="2.5" y="13.5" width="4" height="6" rx="2" /><rect x="17.5" y="13.5" width="4" height="6" rx="2" /><path d="M19.5 19.5v.5a3.5 3.5 0 0 1-3.5 3.5H14" /><circle cx="13" cy="23" r="1" fill="currentColor" stroke="none" /></svg>);
 const NAV: NavItem[] =
     user?.role === "seller"
       ? [
@@ -11510,6 +11514,19 @@ const NAV: NavItem[] =
                 className="hdr-toggle flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] sm:h-12 sm:w-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
               >
                 {theme === "dark" ? iconSun : iconMoon}
+              </button>
+              {/* Header Customer Support (2026-10-31): Kogan-style
+                  headset button beside the account button. Opens the
+                  Customer Support overview — the same destination as
+                  the drawer Support row — never a direct chat jump. */}
+              <button
+                type="button"
+                onClick={goSupport}
+                aria-label={ui.t("menu.support")}
+                title={ui.t("menu.support")}
+                className="hdr-support flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-alt)] text-[var(--text)] sm:h-12 sm:w-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]"
+              >
+                {iconHeadset}
               </button>
               {user ? (
                 <button
