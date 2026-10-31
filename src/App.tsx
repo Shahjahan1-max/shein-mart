@@ -990,6 +990,7 @@ function ShopView({
   onCategoryChange,
   search,
   onSearchChange,
+  filterSignal,
 }: {
   user: User;
   onNeedAuth: () => void;
@@ -1001,6 +1002,7 @@ function ShopView({
   onCategoryChange: (c: string) => void;
   search: string;
   onSearchChange: (s: string) => void;
+  filterSignal?: number;
 }) {
   const { t, fmt, lang } = useUi();
   const queryClient = useQueryClient();
@@ -1025,6 +1027,16 @@ function ShopView({
   // filtering and counts.
   const [visibleCount, setVisibleCount] = useState(40);
   useEffect(() => { setVisibleCount(40); }, [category, search]);
+  // Bottom-nav Filter tap: scroll to the catalog filter bar and flash
+  // it gold briefly so the tap visibly "opens the filters".
+  const [catalogFlash, setCatalogFlash] = useState(false);
+  useEffect(() => {
+    if (!filterSignal) return;
+    document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setCatalogFlash(true);
+    const id = window.setTimeout(() => setCatalogFlash(false), 1600);
+    return () => window.clearTimeout(id);
+  }, [filterSignal]);
   // Site-wide store visit: once per visitor per day (localStorage day flag
   // + server-side UNIQUE guard). Failures are swallowed: counting must
   // never break the shop. Counts from the day this feature went live.
@@ -1540,7 +1552,7 @@ function ShopView({
 
       <div
         id="catalog"
-        className="sticky z-30 -mx-3 mt-3 scroll-mt-[calc(var(--header-h,3.5rem)+1rem)] bg-[var(--bg)] px-3 py-2 min-[400px]:-mx-4 min-[400px]:px-4"
+        className={`sticky z-30 -mx-3 mt-3 scroll-mt-[calc(var(--header-h,3.5rem)+1rem)] bg-[var(--bg)] px-3 py-2 min-[400px]:-mx-4 min-[400px]:px-4 ${catalogFlash ? "rounded-xl ring-2 ring-[var(--gold)]" : ""}`}
         style={{ top: "var(--header-h, 44px)" }}
       >
         <div
@@ -1638,6 +1650,7 @@ function ShopView({
         </div>
       )}
 
+      <CustomerReviewsCarousel />
 
       {/* The "Shop from Other Platforms" external section is NOT
           rendered on the shop/home page any more (owner's request):
@@ -2358,6 +2371,89 @@ function ProductReviews({ productId }: { productId: number }) {
             ))}
           </ul>
         </>
+      )}
+    </section>
+  );
+}
+
+// Homepage "What Our Customers Say" carousel (2026-10-31): auto-scrolls
+// like the Featured marquee (same track classes: continuous loop, pause
+// on hover/focus, manual scroll under reduced motion). Two honest kinds
+// of cards, never mixed up:
+//  - Buyer reviews (listRecentReviews): visible reviews buyers wrote on
+//    Delivered orders — stars, first name only, product name, and the
+//    existing "Verified purchase" badge. Nothing here is invented.
+//  - Store-added entries (listStoreEntries): messages the ADMIN wrote.
+//    They carry NO stars, NO name and NO verified mark — only an
+//    "Added by the store" badge on a gold-bordered card, so no visitor
+//    can mistake one for a customer review. No city is shown for either
+//    kind (reviews store none).
+// The Admin's section switch (settings) hides the whole section when
+// OFF. With zero content of either kind and the section ON, an honest
+// empty state shows instead of placeholder reviews.
+function CustomerReviewsCarousel() {
+  const { t } = useUi();
+  const settingsQ = useQuery({ queryKey: ["settings"], queryFn: () => api.getSettings({}) });
+  const q = useQuery({
+    queryKey: ["recent-reviews"],
+    queryFn: () => api.listRecentReviews({ limit: 20 }),
+  });
+  const sq = useQuery({
+    queryKey: ["store-entries"],
+    queryFn: () => api.listStoreEntries({}),
+  });
+  if (settingsQ.data && settingsQ.data.reviewsSectionEnabled === false) return null;
+  const reviews = q.data?.reviews ?? [];
+  const entries = sq.data?.entries ?? [];
+  const buyerCard = (r: any, key: string) => (
+    <article key={key} className="w-[280px] shrink-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm sm:w-[320px]">
+      <p aria-label={`${r.rating} out of 5 stars`}>
+        <span className="text-[var(--gold)]">{"★".repeat(r.rating)}</span>
+        <span className="text-[var(--dim)]">{"☆".repeat(5 - r.rating)}</span>
+      </p>
+      {r.comment && <p className="mt-2 text-sm leading-relaxed text-[var(--text)]">{r.comment}</p>}
+      <p className="mt-3 text-xs font-semibold text-[var(--dim)]">{r.productName}</p>
+      <p className="mt-1 flex flex-wrap items-center gap-2 text-sm font-semibold text-[var(--text)]">
+        {r.buyerName}
+        <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[11px] font-bold text-[var(--accent-ink)]">{t("reviews.verified")}</span>
+      </p>
+    </article>
+  );
+  const storeCard = (e: any, key: string) => (
+    <article key={key} className="w-[280px] shrink-0 rounded-2xl border-2 border-[var(--gold)] bg-[var(--surface-alt)] p-4 shadow-sm sm:w-[320px]">
+      <p className="text-sm leading-relaxed text-[var(--text)]">{e.text}</p>
+      <p className="mt-3">
+        <span className="rounded-full bg-[var(--gold)] px-2 py-0.5 text-[11px] font-bold text-[var(--gold-ink)]">{t("rev.storeAdded")}</span>
+      </p>
+    </article>
+  );
+  const row = (prefix: string) => (
+    <>
+      {reviews.map((r: any) => buyerCard(r, `${prefix}-${r.id}`))}
+      {entries.map((e: any) => storeCard(e, `${prefix}-store-${e.id}`))}
+    </>
+  );
+  return (
+    <section aria-label={t("rev.title")} className="mt-12">
+      <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)]">
+        {t("rev.title")}
+      </h2>
+      <p className="mt-1 text-sm text-[var(--dim)]">{t("rev.sub")}</p>
+      {q.isPending || sq.isPending || settingsQ.isPending ? (
+        <p className="mt-3 text-sm text-[var(--dim)]">{t("shop.loading")}</p>
+      ) : reviews.length === 0 && entries.length === 0 ? (
+        <p className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-5 text-sm text-[var(--dim)]">{t("rev.empty")}</p>
+      ) : (
+        <div className="feat-marquee mt-5 overflow-hidden">
+          <div className="feat-marquee-track flex w-max">
+            <div className="flex gap-3 pr-3">
+              {row("rev")}
+            </div>
+            <div className="flex gap-3 pr-3" aria-hidden="true" inert>
+              {row("rev-dup")}
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );
@@ -6242,8 +6338,133 @@ const ORDER_STATUSES = [
   "Cancelled",
 ] as const;
 
-type AdminSection = "overview" | "sellers" | "users" | "products" | "sellerProducts" | "external" | "profit" | "orders" | "wallet" | "support" | "theme" | "settings";
+type AdminSection = "overview" | "sellers" | "users" | "products" | "sellerProducts" | "external" | "profit" | "orders" | "wallet" | "support" | "reviews" | "theme" | "settings";
 type DocKind = "photo" | "logo" | "docFront" | "docBack";
+
+// Admin → Reviews (2026-10-31): manages BOTH kinds of homepage
+// carousel content in one place — real buyer reviews (hide/show only;
+// they are written by buyers on Delivered orders, never by the admin)
+// and store-added entries (add, hide/show, delete). Store entries are
+// labelled "Added by store" on the homepage and never carry a customer
+// name, rating or verified mark. The section switch hides the whole
+// carousel from visitors without deleting anything.
+function AdminReviewsSection({ adminId }: { adminId: number }) {
+  const { t } = useUi();
+  const queryClient = useQueryClient();
+  const settingsQ = useQuery({ queryKey: ["settings"], queryFn: () => api.getSettings({}) });
+  const allQ = useQuery({ queryKey: ["admin-reviews", adminId], queryFn: () => api.listAllReviews({ adminId }) });
+  const storeQ = useQuery({ queryKey: ["admin-store-entries", adminId], queryFn: () => api.listAllStoreEntries({ adminId }) });
+  const [entryText, setEntryText] = useState("");
+  const [entryMsg, setEntryMsg] = useState<string | null>(null);
+  const [deleteArmed, setDeleteArmed] = useState<number | null>(null);
+  const inv = () => {
+    queryClient.invalidateQueries({ queryKey: ["settings"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-reviews"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-store-entries"] });
+    queryClient.invalidateQueries({ queryKey: ["recent-reviews"] });
+    queryClient.invalidateQueries({ queryKey: ["store-entries"] });
+  };
+  const sectionOn = settingsQ.data?.reviewsSectionEnabled ?? true;
+  return (
+    <div className="mt-3 flex flex-col gap-4">
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <p className="font-semibold text-[var(--text)]">{t("adm.revSection")}</p>
+        <p className="mt-1 text-sm text-[var(--dim)]">{t("adm.revSectionNote")}</p>
+        <button
+          type="button"
+          onClick={async () => { await api.adminSetReviewsSectionEnabled({ adminId, enabled: sectionOn ? 0 : 1 }); inv(); }}
+          className={primaryBtn + " mt-3 px-4 py-2 text-sm"}
+        >
+          {sectionOn ? t("adm.turnOffSection") : t("adm.turnOnSection")}
+        </button>
+      </div>
+      <form
+        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const text = entryText.trim();
+          if (!text) return;
+          const r = await api.adminAddStoreEntry({ adminId, text });
+          if (!r.ok) { setEntryMsg(r.error ?? "Failed."); return; }
+          setEntryMsg(t("adm.storeEntryAdded"));
+          setEntryText("");
+          inv();
+        }}
+      >
+        <p className="font-semibold text-[var(--text)]">{t("adm.addStoreEntry")}</p>
+        <textarea
+          value={entryText}
+          maxLength={500}
+          onChange={(e) => setEntryText(e.target.value)}
+          placeholder={t("adm.storeEntryPh")}
+          className={inputCls + " mt-2 min-h-[5rem] w-full"}
+          aria-label="Store entry message"
+        />
+        <div className="mt-2 flex items-center gap-3">
+          <button type="submit" className={primaryBtn + " px-4 py-2 text-sm"}>{t("adm.addStoreEntry")}</button>
+          {entryMsg && <span className="text-sm text-[var(--dim)]">{entryMsg}</span>}
+        </div>
+      </form>
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <p className="font-semibold text-[var(--text)]">{t("adm.storeEntries")}</p>
+        {(storeQ.data?.entries ?? []).length === 0 ? (
+          <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noStoreEntries")}</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-2">
+            {(storeQ.data?.entries ?? []).map((en: any) => (
+              <li key={en.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-[var(--surface-alt)] px-3 py-2 text-sm">
+                <span className="min-w-0 flex-1 text-[var(--text)]">{en.text}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${en.visible === 1 ? "bg-[var(--accent)] text-[var(--accent-ink)]" : "bg-[var(--surface)] text-[var(--dim)]"}`}>{en.visible === 1 ? t("adm.showEntry") : t("adm.hideEntry")}</span>
+                <button type="button" onClick={async () => { await api.adminSetStoreEntryVisible({ adminId, entryId: en.id, visible: en.visible === 1 ? 0 : 1 }); inv(); }} className="font-semibold text-[var(--accent)]">{en.visible === 1 ? t("adm.hideEntry") : t("adm.showEntry")}</button>
+                {deleteArmed === en.id ? (
+                  <span className="flex items-center gap-2">
+                    <button type="button" onClick={async () => { await api.adminDeleteStoreEntry({ adminId, entryId: en.id }); setDeleteArmed(null); inv(); }} className="font-bold text-rose-600">{t("adm.delete")}</button>
+                    <button type="button" onClick={() => setDeleteArmed(null)} className="text-[var(--dim)]">{t("adm.cancel")}</button>
+                  </span>
+                ) : (
+                  <button type="button" onClick={() => setDeleteArmed(en.id)} className="font-semibold text-rose-600">{t("adm.delete")}</button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <p className="font-semibold text-[var(--text)]">{t("adm.buyerReviews")}</p>
+        <p className="mt-1 text-sm text-[var(--dim)]">{t("adm.revModNote")}</p>
+        {(allQ.data?.reviews ?? []).length === 0 ? (
+          <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noBuyerReviews")}</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-2">
+            {(allQ.data?.reviews ?? []).map((r: any) => (
+              <li key={r.id} className="rounded-lg bg-[var(--surface-alt)] px-3 py-2 text-sm">
+                <p className="font-semibold text-[var(--text)]">
+                  <span className="text-[var(--gold)]">{"★".repeat(r.rating)}</span>
+                  <span className="text-[var(--dim)]">{"☆".repeat(5 - r.rating)}</span>
+                  <span className="ml-1">{r.buyerName} · {r.productName}</span>
+                  <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${r.status === "approved" ? "bg-[var(--accent)] text-[var(--accent-ink)]" : r.status === "rejected" ? "bg-rose-100 text-rose-700" : "bg-[var(--amber-bg)] text-[var(--gold)]"}`}>{r.status === "approved" ? t("adm.revApproved") : r.status === "rejected" ? t("adm.revRejected") : t("adm.revPending")}</span>
+                </p>
+                {r.comment && <p className="mt-1 text-[var(--text)]">{r.comment}</p>}
+                <div className="mt-1 flex flex-wrap gap-3">
+                  {r.status === "pending" && (<>
+                    <button type="button" onClick={async () => { await api.adminModerateReview({ adminId, reviewId: r.id, decision: "approve" }); inv(); }} className="font-semibold text-[var(--accent)]">{t("adm.approve")}</button>
+                    <button type="button" onClick={async () => { await api.adminModerateReview({ adminId, reviewId: r.id, decision: "reject" }); inv(); }} className="font-semibold text-rose-600">{t("adm.reject")}</button>
+                  </>)}
+                  {r.status === "approved" && (
+                    <button type="button" onClick={async () => { await api.adminSetReviewVisible({ adminId, reviewId: r.id, visible: r.visible === 1 ? 0 : 1 }); inv(); }} className="font-semibold text-[var(--accent)]">{r.visible === 1 ? t("adm.hideEntry") : t("adm.showEntry")}</button>
+                  )}
+                  {r.status === "rejected" && (
+                    <button type="button" onClick={async () => { await api.adminModerateReview({ adminId, reviewId: r.id, decision: "approve" }); inv(); }} className="font-semibold text-[var(--accent)]">{t("adm.approve")}</button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function SellerDocCard({ adminId, sellerId, kind, label, fileName, hasFile, contentType, size, onView }: {
   adminId: number; sellerId: number; kind: DocKind; label: string; fileName: string | null; hasFile: boolean; contentType: string | null; size: number | null;
@@ -8329,6 +8550,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
     { id: "orders", label: t("adm.sec.orders"), badge: ov.orders.length, isNew: true, alert: actCounts.orders },
     { id: "wallet", label: t("adm.sec.wallet"), badge: (walletRequests.data?.requests ?? []).filter((r) => r.status === "pending").length, alert: actCounts.wallet },
     { id: "support", label: t("adm.sec.support"), badge: ov.pendingSupport + (chatThreads.data?.threads.filter((x) => x.awaitingReply).length ?? 0) + ((resetRequests.data?.requests ?? []).filter((r) => r.status === "pending").length), alert: actCounts.chats + actCounts.tickets + actCounts.resets },
+    { id: "reviews", label: t("adm.sec.reviews"), isNew: true },
     { id: "theme", label: t("adm.sec.theme"), isNew: true },
     { id: "settings", label: t("adm.sec.settings"), isNew: true },
   ];
@@ -9342,6 +9564,11 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               <button type="button" aria-label={`Delete ticket ${tk.id}`} onClick={() => { setTicketDeleteId(tk.id); setTicketDeleteMsg(null); }} className="mt-2 text-xs font-bold text-rose-600">🗑 {t("adm.deleteTicket")}</button>
             )}
             </div>))}</div>}
+          </div>)}
+
+          {section === "reviews" && (<div>
+            <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-[var(--text)]">{t("adm.sec.reviews")} <NewBadge id="sec-reviews" /></h3>
+            <AdminReviewsSection adminId={user.id} />
           </div>)}
 
           {section === "theme" && (<div>
@@ -10737,6 +10964,9 @@ export function App() {
     window.scrollTo(0, 0);
   }, [view, sellerTab]);
   const [shopSearch, setShopSearch] = useState("");
+  // Bottom-nav Filter tab signal (2026-10-31): each tap bumps this and
+  // ShopView scrolls to the catalog filter bar + flashes it gold.
+  const [filterSignal, setFilterSignal] = useState(0);
 
   // Language & Prices switches (Admin → Settings): pickers show only
   // what is ON. English is always ON. If the visitor's selected language
@@ -10870,8 +11100,10 @@ export function App() {
   const sellerPending = sellerDashQ.data?.pendingShipment ?? 0;
 
   // Bottom / desktop navigation: Products / Wallet / Seller are
-  // seller-only. Buyers get Cart and Orders tabs here (Cart moved out
-  // of the header and the drawer; Orders also out of the drawer).
+  // seller-only. Buyers get Shop, Cart, Filter and Orders tabs here
+  // (Cart moved out of the header and the drawer; Orders also out of
+  // the drawer); guests and admins get Shop, Cart and Filter (2026-10-31:
+  // the owner overrode the old Cart-in-drawer-only choice).
   // Support and Account are NOT footer tabs: they live in the drawer
   // (Customer Support, My Account) and the header account button, so
   // the footer chat dot went away with the Support tab.
@@ -10898,6 +11130,8 @@ export function App() {
   const iconGear = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2.1 2.1M16.9 16.9 19 19M19 5l-2.1 2.1M7.1 16.9 5 19" /></svg>);
   // New footer Cart icon: a shopping bag (replaces the old 🛒 emoji).
   const iconBag = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M5.5 8h13l-1.1 12.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8L5.5 8Z" /><path d="M8.5 10.5V6.8a3.5 3.5 0 0 1 7 0v3.7" /></svg>);
+  // Footer Filter icon: a funnel — original line art in the same style.
+  const iconFilter = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><path d="M4 6h16" /><path d="M7 12h10" /><path d="M10 18h4" /></svg>);
   // Orders tab icon: clipboard with a check — original line art in the
   // same stroke style as the other footer icons (no emoji).
   const iconOrders = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={navIconCls}><rect x="5" y="4.5" width="14" height="17" rx="2" /><path d="M9 4.5a2 2 0 0 1 6 0" /><path d="M9 13.5l2.2 2.2 4.3-4.7" /></svg>);
@@ -10934,13 +11168,17 @@ const NAV: NavItem[] =
             // Register → "Apply as seller".
             { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
             { key: "cart", view: "cart", label: ui.t("nav.cart"), icon: iconBag },
+            { key: "filter", label: ui.t("nav.filter"), icon: iconFilter },
             { key: "orders", view: "orders", label: ui.t("menu.orders"), icon: iconOrders },
           ]
         : [
-            // Guests and admins: Shop only in the footer — Support
-            // and Account live in the drawer (and the header button),
-            // not as footer tabs.
+            // Guests and admins (2026-10-31): Shop + Cart + Filter in
+            // the footer. Support and Account still live in the drawer
+            // (and the header button), not as footer tabs. The Cart tab
+            // opens the cart page; guests see its sign-in empty state.
             { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
+            { key: "cart", view: "cart", label: ui.t("nav.cart"), icon: iconBag },
+            { key: "filter", label: ui.t("nav.filter"), icon: iconFilter },
           ];
   // General Support / Customer Service entry: land on the Customer
   // Support overview page first — Live Chat card, WhatsApp, Email,
@@ -10967,12 +11205,21 @@ const NAV: NavItem[] =
   }
   function navGo(n: NavItem) {
     if (n.sellerTab) goSellerTab(n.sellerTab);
+    else if (n.key === "filter") goFilter();
     else if (n.view === "support") goSupport();
     else if (n.view) setView(n.view);
   }
   function navCurrent(n: NavItem): boolean {
     if (n.sellerTab) return view === "seller" && sellerTab === n.sellerTab;
     return view === n.view;
+  }
+  // Bottom-nav Filter tab (2026-10-31): back to the shop and bump
+  // the signal; ShopView scrolls to the catalog filter bar (category
+  // chips + search — the filters that already exist on the shop; no
+  // new filter type is invented) and flashes it gold.
+  function goFilter() {
+    setView("shop");
+    setFilterSignal((n) => n + 1);
   }
   // Desktop top nav: Collections jumps to the homepage collection
   // section (resetting any filter first, like the hero button).
@@ -11577,6 +11824,7 @@ const NAV: NavItem[] =
               onCategoryChange={setShopCategory}
               search={shopSearch}
               onSearchChange={setShopSearch}
+              filterSignal={filterSignal}
             />
           )}
           {view === "external" && <ExternalProductsPage />}
