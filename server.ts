@@ -242,6 +242,13 @@ CREATE TABLE IF NOT EXISTS product_reviews (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT product_reviews_order_product_unique UNIQUE (order_id, product_id)
 );
+-- Review moderation (2026-10-31): new submissions start pending +
+-- hidden; legacy rows that were public (visible = 1) are grandfathered
+-- to approved so they don't vanish. Idempotent: later runs only match
+-- rows still pending AND visible, which new submissions never are
+-- (they insert visible = 0) and rejected rows never are.
+ALTER TABLE product_reviews ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
+UPDATE product_reviews SET status = 'approved' WHERE visible = 1 AND status = 'pending';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cod_confirmed INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cod_confirmed_at TIMESTAMPTZ;
 CREATE OR REPLACE FUNCTION guard_wallet_ledger() RETURNS trigger AS $$
