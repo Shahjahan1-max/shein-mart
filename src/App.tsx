@@ -1737,21 +1737,19 @@ function ShopView({
             href={AMAZON_INDIA_URL}
             target="_blank"
             rel="noreferrer"
-            aria-label={`${t("links.link")}: Amazon India`}
-            className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-4 py-2 font-display text-sm font-bold text-[var(--text)]"
+            className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-[var(--border)] px-4 py-2 font-display text-sm font-bold text-[var(--text)]"
           >
             <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M5.5 8h13l-1.1 12.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8L5.5 8Z" /><path d="M8.5 10.5V6.8a3.5 3.5 0 0 1 7 0v3.7" /></svg>
-            {t("links.link")}
+            Amazon India
           </a>
           <a
             href={SHEIN_INDIA_URL}
             target="_blank"
             rel="noreferrer"
-            aria-label={`${t("links.link")}: SHEIN India`}
-            className="flex items-center gap-2 rounded-lg border border-[var(--border)] px-4 py-2 font-display text-sm font-bold text-[var(--text)]"
+            className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-[var(--border)] px-4 py-2 font-display text-sm font-bold text-[var(--text)]"
           >
             <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M12 6.5V5a1.5 1.5 0 0 1 1.5-1.5" /><path d="M12 6.5 3.5 15h17L12 6.5Z" /></svg>
-            {t("links.link")}
+            SHEIN India
           </a>
         </div>
       </section>

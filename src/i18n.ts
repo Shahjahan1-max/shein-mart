@@ -183,7 +183,6 @@ export const STR = {
   "links.note": {
     en: "External links — not affiliated with Amazon or SHEIN.",
     hi: "बाहरी लिंक — Amazon या SHEIN से कोई संबंध नहीं है।", ar: "روابط خارجية — غير تابع لـ Amazon أو SHEIN."},
-  "links.link": { en: "External Link", hi: "बाहरी लिंक" , ar: "رابط خارجي"},
 
   // Daily updates + fresh arrivals (shop page)
       "daily.badge": { en: "New products added daily", hi: "रोज़ नए प्रोडक्ट जुड़ते हैं" , ar: "تُضاف منتجات جديدة يوميًا"},
