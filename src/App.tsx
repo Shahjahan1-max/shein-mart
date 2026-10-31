@@ -10966,6 +10966,20 @@ export function App() {
   // Bottom-nav Filter tab signal (2026-10-31): each tap bumps this and
   // ShopView scrolls to the catalog filter bar + flashes it gold.
   const [filterSignal, setFilterSignal] = useState(0);
+  // Back-to-top arrow (2026-10-31): appears once the visitor has
+  // scrolled down, like other platforms; tap scrolls smoothly to top.
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    const update = () => { setShowBackToTop(window.scrollY > 600); };
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
 
   // Language & Prices switches (Admin → Settings): pickers show only
   // what is ON. English is always ON. If the visitor's selected language
@@ -11926,6 +11940,21 @@ const NAV: NavItem[] =
             pendingShipment={sellerPending}
             walletUnread={walletUnread}
           />
+        )}
+
+        {showBackToTop && (
+          <button
+            type="button"
+            aria-label={ui.t("nav.top")}
+            title={ui.t("nav.top")}
+            onClick={() => {
+              const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+              window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+            }}
+            className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--accent)] shadow-[0_8px_28px_rgba(15,23,42,0.18)] transition hover:bg-[var(--surface-alt)] sm:bottom-24 sm:right-6 sm:h-12 sm:w-12"
+          >
+            <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M12 19V5" /><path d="M5 12l7-7 7 7" /></svg>
+          </button>
         )}
 
         {view !== "seller" && user?.role !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (

@@ -50,6 +50,7 @@ export const STR = {
   "nav.shop": { en: "Shop", hi: "दुकान" , ar: "المتجر"},
   "nav.cart": { en: "Cart", hi: "कार्ट" , ar: "سلة التسوق"},
   "nav.filter": { en: "Filter", hi: "फ़िल्टर" , ar: "تصفية"},
+  "nav.top": { en: "Back to top", hi: "ऊपर जाएँ" , ar: "العودة إلى الأعلى"},
     "nav.products": { en: "Products", hi: "प्रोडक्ट" , ar: "المنتجات"},
   "nav.seller": { en: "Seller", hi: "विक्रेता" , ar: "البائع"},
       "nav.admin": { en: "Admin", hi: "एडमिन" , ar: "المسؤول"},
