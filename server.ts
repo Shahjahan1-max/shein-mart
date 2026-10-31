@@ -186,6 +186,14 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_logo_size INTEGER;
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_logo_url TEXT NOT NULL DEFAULT '';
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS header_brand_mode TEXT NOT NULL DEFAULT 'both';
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS storefront_theme TEXT NOT NULL DEFAULT 'premium';
+-- Homepage reviews section switch + store-added entries (2026-10-31).
+-- Placed AFTER the settings table is created (DDL runs in order).
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS reviews_section_enabled INTEGER NOT NULL DEFAULT 1;
+CREATE TABLE IF NOT EXISTS store_reviews (
+  id SERIAL PRIMARY KEY, text TEXT NOT NULL DEFAULT '',
+  visible INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS support_telegram TEXT NOT NULL DEFAULT '';
 CREATE TABLE IF NOT EXISTS external_products (
   id SERIAL PRIMARY KEY, name TEXT NOT NULL, brand TEXT NOT NULL DEFAULT '',
