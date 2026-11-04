@@ -189,6 +189,10 @@ ALTER TABLE settings ADD COLUMN IF NOT EXISTS storefront_theme TEXT NOT NULL DEF
 -- Homepage reviews section switch + store-added entries (2026-10-31).
 -- Placed AFTER the settings table is created (DDL runs in order).
 ALTER TABLE settings ADD COLUMN IF NOT EXISTS reviews_section_enabled INTEGER NOT NULL DEFAULT 1;
+-- Footer Contact Us section (2026-11-04).
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS support_phone TEXT NOT NULL DEFAULT '';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS operating_markets TEXT NOT NULL DEFAULT '';
+ALTER TABLE settings ADD COLUMN IF NOT EXISTS contact_section_enabled INTEGER NOT NULL DEFAULT 1;
 CREATE TABLE IF NOT EXISTS store_reviews (
   id SERIAL PRIMARY KEY, text TEXT NOT NULL DEFAULT '',
   visible INTEGER NOT NULL DEFAULT 1,
