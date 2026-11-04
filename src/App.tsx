@@ -11945,7 +11945,7 @@ const NAV: NavItem[] =
             <button type="button" onClick={() => goInfo("terms")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.terms")}</button>
             <button type="button" onClick={() => goInfo("returns")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.returns")}</button>
           </div>
-          {contactSectionOn && (
+          {contactSectionOn && view === "shop" && (
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
               <h3 className="font-display text-lg font-bold text-[var(--text)]">{ui.t("foot.contactUs")}</h3>
               <p className="mt-1 text-sm text-[var(--dim)]">
