@@ -7058,7 +7058,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   const [editing, setEditing] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [pform, setPform] = useState({ name: "", category: "Electronics", description: "", basePrice: "", oldPrice: "", profitPercent: "20", stock: "50" });
-  const [sform, setSform] = useState({ storeName: "", supportWhatsapp: "", supportEmail: "", supportTelegram: "", defaultProfitPercent: "20" });
+  const [sform, setSform] = useState({ storeName: "", supportWhatsapp: "", supportEmail: "", supportTelegram: "", supportPhone: "", operatingMarkets: "", contactSectionEnabled: true, defaultProfitPercent: "20" });
   // Language & Prices (Settings section): per-language / per-currency ON/OFF
   const [lpForm, setLpForm] = useState({ langHindiEnabled: true, langArabicEnabled: true, currencyInrEnabled: true, currencyUsdEnabled: true, currencyUsdtEnabled: true });
   const [lpServerErr, setLpServerErr] = useState<string | null>(null);
@@ -7095,7 +7095,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   // AdminView remounts each time the Admin Panel is opened, so saved
   // values are still picked up fresh on the next visit.
   const formsInitRef = useRef(false);
-  useEffect(() => { if (settings && !formsInitRef.current) { formsInitRef.current = true; setSform({ storeName: settings.storeName, supportWhatsapp: settings.supportWhatsapp, supportEmail: settings.supportEmail, supportTelegram: settings.supportTelegram ?? "", defaultProfitPercent: String(settings.defaultProfitPercent) }); setDepForm({ usdtDepositAddress: settings.usdtDepositAddress ?? "", depositNetwork: settings.depositNetwork ?? "BEP20 (BNB Smart Chain)", localDepositNote: (settings.localDepositNote ?? "").trim() ? settings.localDepositNote : t("dep.local") }); setLpForm({ langHindiEnabled: settings.langHindiEnabled ?? true, langArabicEnabled: settings.langArabicEnabled ?? true, currencyInrEnabled: settings.currencyInrEnabled ?? true, currencyUsdEnabled: settings.currencyUsdEnabled ?? true, currencyUsdtEnabled: settings.currencyUsdtEnabled ?? true }); setPmForm({ upiEnabled: settings.paymentUpiEnabled ?? true, bankEnabled: settings.paymentBankEnabled ?? true, usdtEnabled: settings.paymentUsdtEnabled ?? true }); } }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (settings && !formsInitRef.current) { formsInitRef.current = true; setSform({ storeName: settings.storeName, supportWhatsapp: settings.supportWhatsapp, supportEmail: settings.supportEmail, supportTelegram: settings.supportTelegram ?? "", supportPhone: settings.supportPhone ?? "", operatingMarkets: settings.operatingMarkets ?? "", contactSectionEnabled: settings.contactSectionEnabled ?? true, defaultProfitPercent: String(settings.defaultProfitPercent) }); setDepForm({ usdtDepositAddress: settings.usdtDepositAddress ?? "", depositNetwork: settings.depositNetwork ?? "BEP20 (BNB Smart Chain)", localDepositNote: (settings.localDepositNote ?? "").trim() ? settings.localDepositNote : t("dep.local") }); setLpForm({ langHindiEnabled: settings.langHindiEnabled ?? true, langArabicEnabled: settings.langArabicEnabled ?? true, currencyInrEnabled: settings.currencyInrEnabled ?? true, currencyUsdEnabled: settings.currencyUsdEnabled ?? true, currencyUsdtEnabled: settings.currencyUsdtEnabled ?? true }); setPmForm({ upiEnabled: settings.paymentUpiEnabled ?? true, bankEnabled: settings.paymentBankEnabled ?? true, usdtEnabled: settings.paymentUsdtEnabled ?? true }); } }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const invalidateAdmin = () => { queryClient.invalidateQueries({ queryKey: ["admin-overview"] }); queryClient.invalidateQueries({ queryKey: ["seller-applications"] }); queryClient.invalidateQueries({ queryKey: ["admin-wallet"] }); queryClient.invalidateQueries({ queryKey: ["seller-finance"] }); queryClient.invalidateQueries({ queryKey: ["wallet"] }); };
   const upsert = useMutation({ mutationFn: () => api.adminUpsertProduct({ adminId: user!.id, id: editing?.id ?? null, name: pform.name, category: pform.category, description: pform.description, basePrice: parseInt(pform.basePrice, 10) || 0, oldPrice: pform.oldPrice ? parseInt(pform.oldPrice, 10) : null, profitPercent: parseInt(pform.profitPercent, 10) || 0, stock: parseInt(pform.stock, 10) || 0, imageAsset: editing?.imageAsset ?? null }), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["products"] }); setShowForm(false); setEditing(null); } });
@@ -7301,7 +7301,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
       saveLogo.mutate({ mode: "upload", dataBase64: enc.dataBase64, fileName: logoFile.name, contentType: enc.mimeType || logoFile.type });
     } catch { setLogoErr(t("theme.logoReadErr")); }
   }
-  const saveSettings = useMutation({ mutationFn: () => api.updateSettings({ userId: user!.id, storeName: sform.storeName, supportWhatsapp: sform.supportWhatsapp, supportEmail: sform.supportEmail, supportTelegram: sform.supportTelegram, defaultProfitPercent: parseInt(sform.defaultProfitPercent, 10) || 20 }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings"] }) });
+  const saveSettings = useMutation({ mutationFn: () => api.updateSettings({ userId: user!.id, storeName: sform.storeName, supportWhatsapp: sform.supportWhatsapp, supportEmail: sform.supportEmail, supportTelegram: sform.supportTelegram, supportPhone: sform.supportPhone, operatingMarkets: sform.operatingMarkets, contactSectionEnabled: sform.contactSectionEnabled, defaultProfitPercent: parseInt(sform.defaultProfitPercent, 10) || 20 }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings"] }) });
   const saveDepositSettings = useMutation({
     // An untouched (or cleared) Local Deposit Note is saved as "" so the
     // seller deposit page falls back to the built-in default line in the
@@ -9583,6 +9583,9 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               <Field label={t("adm.waNumber")}><input value={sform.supportWhatsapp} onChange={(e) => setSform({ ...sform, supportWhatsapp: e.target.value })} placeholder="+92 3XX XXXXXXX / +91 98XXX XXXXX" className={inputCls} aria-label="Support WhatsApp number" /></Field>
               <Field label={t("adm.supportEmail")}><input value={sform.supportEmail} onChange={(e) => setSform({ ...sform, supportEmail: e.target.value })} placeholder="support@example.com" className={inputCls} aria-label="Support email" /></Field>
               <Field label={t("adm.telegram")}><input value={sform.supportTelegram} onChange={(e) => setSform({ ...sform, supportTelegram: e.target.value })} placeholder="Telegram username, e.g. sheinmart_support" className={inputCls} aria-label="Support Telegram username" /></Field>
+              <Field label={t("adm.supportPhone")}><input value={sform.supportPhone} onChange={(e) => setSform({ ...sform, supportPhone: e.target.value })} placeholder="+92 3XX XXXXXXX" className={inputCls} aria-label="Support helpline phone" /></Field>
+              <Field label={t("adm.operatingMarkets")}><input value={sform.operatingMarkets} onChange={(e) => setSform({ ...sform, operatingMarkets: e.target.value })} placeholder="e.g. Pakistan, India & Worldwide" className={inputCls} aria-label="Operating markets" /></Field>
+              <div className="sm:col-span-2"><SwitchRow label={t("adm.contactSection")} checked={sform.contactSectionEnabled} onToggle={() => setSform({ ...sform, contactSectionEnabled: !sform.contactSectionEnabled })} switchLabel="Footer Contact section ON or OFF" /></div>
               <div className="sm:col-span-2"><button type="submit" disabled={saveSettings.isPending} className={primaryBtn}>{saveSettings.isSuccess ? t("adm.saved") : t("adm.saveSettings")}</button></div>
             </form>
             <p className="mt-3 rounded-lg bg-[var(--surface-alt)] px-3 py-2 text-xs text-[var(--dim)]">{t("adm.platformLinks")} · {t("links.note")}</p>
@@ -10930,6 +10933,12 @@ export function App() {
     }
   }, [settings.data?.sessionsEnabled, user]);
   const storeName = settings.data?.storeName ?? "sheinmart";
+  // Footer Contact Us section (2026-11-04): values come from Admin →
+  // Settings; empty until the Admin fills them, never invented.
+  const contactEmail = (settings.data?.supportEmail ?? "").trim();
+  const contactPhone = (settings.data?.supportPhone ?? "").trim();
+  const contactMarkets = (settings.data?.operatingMarkets ?? "").trim();
+  const contactSectionOn = settings.data?.contactSectionEnabled ?? true;
   // Admin-set header logo (Admin → Theme & Design → Header Logo):
   // an uploaded image or a pasted image URL; empty = text brand.
   const headerLogoUrl = settings.data?.headerLogoUrl ?? "";
@@ -11911,6 +11920,58 @@ const NAV: NavItem[] =
         </main>
 
         <footer className={`mx-auto ${containerW} px-3 min-[400px]:px-4 ${(layoutDesign === "menu" || layoutDesign === "minimal") ? "pb-8" : "pb-28 sm:pb-20"}`}>
+          {contactSectionOn && (
+            <div className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+              <h3 className="font-display text-lg font-bold text-[var(--text)]">{ui.t("foot.contactUs")}</h3>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {contactEmail ? (
+                  <a href={`mailto:${contactEmail}`} className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-alt)] text-[var(--gold)]">
+                      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3.5 7 8.5 6 8.5-6" /></svg>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold uppercase tracking-wide text-[var(--dim)]">{ui.t("foot.supportEmail")}</span>
+                      <span className="block break-all font-semibold text-[var(--accent)]">{contactEmail}</span>
+                    </span>
+                  </a>
+                ) : null}
+                {contactPhone ? (
+                  <a href={`tel:${contactPhone.replace(/[^+0-9]/g, "")}`} className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-alt)] text-[var(--gold)]">
+                      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.45c.9.34 1.84.57 2.8.7A2 2 0 0 1 22 16.9z" /></svg>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold uppercase tracking-wide text-[var(--dim)]">{ui.t("foot.helpline")}</span>
+                      <span className="block font-semibold text-[var(--accent)]">{contactPhone}</span>
+                    </span>
+                  </a>
+                ) : null}
+                <button type="button" onClick={goSupport} className="flex items-start gap-3 text-start">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-alt)] text-[var(--gold)]">
+                    <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.6 0-3.1-.4-4.4-1.2L3 20l1.2-5.1A8.5 8.5 0 1 1 21 11.5Z" /><path d="M8 11.5h8" /><path d="M8 8.5h5" /></svg>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs font-bold uppercase tracking-wide text-[var(--dim)]">{ui.t("foot.liveChat")}</span>
+                    <span className="block font-semibold text-[var(--accent)]">{ui.t("foot.liveChatSub")} →</span>
+                  </span>
+                </button>
+                {contactMarkets ? (
+                  <p className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-alt)] text-[var(--gold)]">
+                      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a13.5 13.5 0 0 1 0 18" /><path d="M12 3a13.5 13.5 0 0 0 0 18" /></svg>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold uppercase tracking-wide text-[var(--dim)]">{ui.t("foot.markets")}</span>
+                      <span className="block font-semibold text-[var(--text)]">{contactMarkets}</span>
+                    </span>
+                  </p>
+                ) : null}
+                {!contactEmail && !contactPhone && !contactMarkets ? (
+                  <p className="text-sm text-[var(--dim)] sm:col-span-2">{ui.t("foot.contactSoon")}</p>
+                ) : null}
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-sm text-[var(--dim)] sm:flex-row sm:items-center">
             <p>
               <strong className="font-display text-[var(--accent)]">{storeName}</strong>{" "}
