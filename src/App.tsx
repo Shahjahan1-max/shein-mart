@@ -11927,9 +11927,31 @@ const NAV: NavItem[] =
         </main>
 
         <footer className={`mx-auto ${containerW} px-3 min-[400px]:px-4 ${(layoutDesign === "menu" || layoutDesign === "minimal") ? "pb-8" : "pb-28 sm:pb-20"}`}>
+          <div className="flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-sm text-[var(--dim)] sm:flex-row sm:items-center">
+            <p>
+              <strong className="font-display text-[var(--accent)]">{storeName}</strong>
+            </p>
+            <button
+              type="button"
+              onClick={goSupport}
+              className="font-semibold text-[var(--accent)] sm:ml-auto"
+            >
+              {ui.t("foot.support")}
+            </button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-[var(--border)] pt-3 text-sm">
+            <button type="button" onClick={() => goInfo("about")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.about")}</button>
+            <button type="button" onClick={() => goInfo("privacy")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.privacy")}</button>
+            <button type="button" onClick={() => goInfo("terms")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.terms")}</button>
+            <button type="button" onClick={() => goInfo("returns")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.returns")}</button>
+          </div>
           {contactSectionOn && (
-            <div className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
               <h3 className="font-display text-lg font-bold text-[var(--text)]">{ui.t("foot.contactUs")}</h3>
+              <p className="mt-1 text-sm text-[var(--dim)]">
+                <strong className="font-display text-[var(--accent)]">{storeName}</strong>{" "}
+                {ui.t("foot.text")}
+              </p>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 {contactEmail ? (
                   <a href={`mailto:${contactEmail}`} className="flex items-start gap-3">
@@ -11990,25 +12012,6 @@ const NAV: NavItem[] =
               </div>
             </div>
           )}
-          <div className="flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-sm text-[var(--dim)] sm:flex-row sm:items-center">
-            <p>
-              <strong className="font-display text-[var(--accent)]">{storeName}</strong>{" "}
-              {ui.t("foot.text")}
-            </p>
-            <button
-              type="button"
-              onClick={goSupport}
-              className="font-semibold text-[var(--accent)] sm:ml-auto"
-            >
-              {ui.t("foot.support")}
-            </button>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-[var(--border)] pt-3 text-sm">
-            <button type="button" onClick={() => goInfo("about")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.about")}</button>
-            <button type="button" onClick={() => goInfo("privacy")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.privacy")}</button>
-            <button type="button" onClick={() => goInfo("terms")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.terms")}</button>
-            <button type="button" onClick={() => goInfo("returns")} className="font-medium text-[var(--dim)] hover:text-[var(--accent)]">{ui.t("foot.returns")}</button>
-          </div>
         </footer>
 
         {user?.role === "seller" && view !== "seller" && view !== "admin" && (
