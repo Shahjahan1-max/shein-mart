@@ -364,6 +364,11 @@ export const settings = pgTable("settings", {
   // username (with or without @) or a full t.me link; the frontend
   // resolves it to a t.me URL for the support page button.
   supportTelegram: text("support_telegram").notNull().default(""),
+  // Footer Contact Us section (Admin → Settings): helpline phone and
+  // operating-markets line. Both start empty — nothing invented is
+  // ever shown publicly; the Admin fills them when real details exist.
+  supportPhone: text("support_phone").notNull().default(""),
+  operatingMarkets: text("operating_markets").notNull().default(""),
   defaultProfitPercent: integer("default_profit_percent").notNull().default(20),
   colorScheme: text("color_scheme").notNull().default("navy"),
   layoutDesign: text("layout_design").notNull().default("classic"),
@@ -421,6 +426,7 @@ export const settings = pgTable("settings", {
   // there is anything to show, else its honest empty state); 0 hides
   // the whole section from visitors.
   reviewsSectionEnabled: integer("reviews_section_enabled").notNull().default(1),
+  contactSectionEnabled: integer("contact_section_enabled").notNull().default(1),
   // Storefront theme (Admin → Theme & Design): "premium" (the existing
   // theme, the default) or "fresh" (Fresh Market). Only the storefront
   // look changes; products, orders, users, wallet and all business
