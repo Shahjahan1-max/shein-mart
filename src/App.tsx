@@ -10938,6 +10938,13 @@ export function App() {
   const contactEmail = (settings.data?.supportEmail ?? "").trim();
   const contactPhone = (settings.data?.supportPhone ?? "").trim();
   const contactMarkets = (settings.data?.operatingMarkets ?? "").trim();
+  const contactWhatsappRaw = (settings.data?.supportWhatsapp ?? "").trim();
+  const contactWhatsappDigits = contactWhatsappRaw.replace(/[^0-9]/g, "").replace(/^00/, "");
+  const contactWhatsappIntl = contactWhatsappDigits.length === 11 && contactWhatsappDigits.startsWith("0")
+    ? `92${contactWhatsappDigits.slice(1)}`
+    : contactWhatsappDigits.length === 10
+      ? `91${contactWhatsappDigits}`
+      : contactWhatsappDigits;
   const contactSectionOn = settings.data?.contactSectionEnabled ?? true;
   // Admin-set header logo (Admin → Theme & Design → Header Logo):
   // an uploaded image or a pasted image URL; empty = text brand.
@@ -11946,6 +11953,17 @@ const NAV: NavItem[] =
                     </span>
                   </a>
                 ) : null}
+                {contactWhatsappRaw ? (
+                  <a href={`https://wa.me/${contactWhatsappIntl}`} target="_blank" rel="noreferrer" className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-alt)] text-[#25d366]">
+                      <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.6 0-3.1-.4-4.4-1.2L3 20l1.2-5.1A8.5 8.5 0 1 1 21 11.5Z" fill="currentColor" stroke="none" /><g transform="translate(5.9,5.9) scale(0.55)" stroke="#fff" strokeWidth="3"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.13.96.36 1.9.7 2.8a2 2 0 0 1-.45 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.45c.9.34 1.84.57 2.8.7A2 2 0 0 1 22 16.9z" /></g></svg>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold uppercase tracking-wide text-[var(--dim)]">{ui.t("foot.whatsapp")}</span>
+                      <span className="block font-semibold text-[var(--accent)]">{contactWhatsappRaw}</span>
+                    </span>
+                  </a>
+                ) : null}
                 <button type="button" onClick={goSupport} className="flex items-start gap-3 text-start">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-alt)] text-[var(--gold)]">
                     <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.6 0-3.1-.4-4.4-1.2L3 20l1.2-5.1A8.5 8.5 0 1 1 21 11.5Z" /><path d="M8 11.5h8" /><path d="M8 8.5h5" /></svg>
@@ -11966,7 +11984,7 @@ const NAV: NavItem[] =
                     </span>
                   </p>
                 ) : null}
-                {!contactEmail && !contactPhone && !contactMarkets ? (
+                {!contactEmail && !contactPhone && !contactMarkets && !contactWhatsappRaw ? (
                   <p className="text-sm text-[var(--dim)] sm:col-span-2">{ui.t("foot.contactSoon")}</p>
                 ) : null}
               </div>

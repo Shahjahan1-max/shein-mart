@@ -914,6 +914,7 @@ export const STR = {
   "foot.contactUs": { en: "Contact Us", hi: "संपर्क करें" , ar: "اتصل بنا"},
   "foot.supportEmail": { en: "Official support email", hi: "आधिकारिक सहायता ईमेल" , ar: "البريد الإلكتروني الرسمي للدعم"},
   "foot.helpline": { en: "Customer helpline", hi: "ग्राहक हेल्पलाइन" , ar: "خط مساعدة العملاء"},
+  "foot.whatsapp": { en: "WhatsApp", hi: "WhatsApp" , ar: "واتساب"},
   "foot.liveChat": { en: "Live Chat", hi: "लाइव चैट" , ar: "دردشة مباشرة"},
   "foot.liveChatSub": { en: "Chat with Customer Service", hi: "ग्राहक सेवा से चैट करें" , ar: "تحدث مع خدمة العملاء"},
   "foot.markets": { en: "Operating markets", hi: "संचालन क्षेत्र" , ar: "الأسواق التي نعمل فيها"},
