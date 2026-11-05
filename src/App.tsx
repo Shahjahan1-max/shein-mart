@@ -1123,17 +1123,39 @@ function ShopView({
   // changing every 10 seconds continuously (loops back to the start).
   // The headline stays the store's; only the featured product photo
   // — and the detail page its click opens — rotates.
+  // Shuffle (2026-11-05): the old code always started at index 0 and
+  // cycled in the same fixed order, so every page open showed the same
+  // first products again and again. The order below is shuffled once
+  // when the pool loads, so each open starts on a different product
+  // and follows a different sequence, with no repeats until the whole
+  // pool has been shown.
   const heroProducts = useMemo(() => {
     const list = allProducts.data?.products ?? [];
     return list.filter((p) => resolveProductImage(p.imageAsset) !== undefined);
   }, [allProducts.data]);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [heroOrder, setHeroOrder] = useState<number[]>([]);
+  useEffect(() => {
+    if (heroProducts.length < 2) return;
+    setHeroOrder((prev) => {
+      if (prev.length === heroProducts.length) return prev;
+      const arr = heroProducts.map((_, i) => i);
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+      }
+      return arr;
+    });
+  }, [heroProducts.length]);
   useEffect(() => {
     if (heroProducts.length < 2) return;
     const id = window.setInterval(() => setHeroIndex((i) => (i + 1) % heroProducts.length), 10000);
     return () => window.clearInterval(id);
   }, [heroProducts.length]);
-  const heroProduct = heroProducts.length > 0 ? heroProducts[heroIndex % heroProducts.length] : undefined;
+  const heroSlot = heroOrder.length > 0 ? heroOrder[heroIndex % heroOrder.length] : heroIndex;
+  const heroProduct = heroProducts.length > 0 ? heroProducts[heroSlot % heroProducts.length] : undefined;
   // Hero spotlight transition (2026-10-30): the previous product stays
   // mounted for 850 ms so it can arc out while the new one arcs in.
   // Timing, data source and click behaviour are untouched.
