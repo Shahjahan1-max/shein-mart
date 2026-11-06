@@ -1756,7 +1756,7 @@ function ShopView({
             </div>
             <div className="mt-6 flex items-center gap-3">
               <button type="button" onClick={clearShopFilters} className="shrink-0 px-3 py-2.5 text-sm font-bold text-[var(--dim)] hover:text-[var(--accent)]">{t("filt.clear")}</button>
-              <button type="button" onClick={() => onFilterOpenChange(false)} className={primaryBtn + " flex-1 px-5 py-3"}>{t("filt.show")} ({displayProducts.length})</button>
+              <button type="button" onClick={() => onFilterOpenChange(false)} className={primaryBtn + " flex-1 px-5 py-3"}>{t("filt.show")}</button>
             </div>
           </div>
         </div>
