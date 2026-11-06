@@ -1464,6 +1464,21 @@ export const STR = {
   // Shop grid view toggle
   "shop.grid2": { en: "Roomier grid — fewer, larger products", hi: "बड़ा ग्रिड — कम, बड़े प्रोडक्ट" , ar: "شبكة أوسع — منتجات أقل وأكبر"},
   "shop.grid3": { en: "Denser grid — more, smaller products", hi: "छोटा ग्रिड — ज़्यादा, छोटे प्रोडक्ट" , ar: "شبكة أكثف — منتجات أكثر وأصغر"},
+  // Filters panel
+  "filt.title": { en: "Filters", hi: "फ़िल्टर" , ar: "عوامل التصفية"},
+  "filt.sort": { en: "Sort by", hi: "क्रमबद्ध करें" , ar: "ترتيب حسب"},
+  "filt.featured": { en: "Featured", hi: "चुनिंदा" , ar: "مميز"},
+  "filt.priceAsc": { en: "Price: Low to High", hi: "कीमत: कम से ज़्यादा" , ar: "السعر: من الأقل إلى الأعلى"},
+  "filt.priceDesc": { en: "Price: High to Low", hi: "कीमत: ज़्यादा से कम" , ar: "السعر: من الأعلى إلى الأقل"},
+  "filt.discount": { en: "Biggest discount", hi: "सबसे ज़्यादा छूट" , ar: "أكبر خصم"},
+  "filt.price": { en: "Price range", hi: "कीमत की सीमा" , ar: "نطاق السعر"},
+  "filt.min": { en: "Min", hi: "न्यूनतम" , ar: "الأدنى"},
+  "filt.max": { en: "Max", hi: "अधिकतम" , ar: "الأقصى"},
+  "filt.category": { en: "Category", hi: "श्रेणी" , ar: "الفئة"},
+  "filt.clear": { en: "Clear all", hi: "सभी हटाएँ" , ar: "مسح الكل"},
+  "filt.show": { en: "Show products", hi: "प्रोडक्ट दिखाएँ" , ar: "عرض المنتجات"},
+  "filt.noMatch": { en: "No products match these filters.", hi: "इन फ़िल्टर से कोई प्रोडक्ट नहीं मिला।" , ar: "لا توجد منتجات تطابق عوامل التصفية هذه."},
+  "filt.close": { en: "Close filters", hi: "फ़िल्टर बंद करें" , ar: "إغلاق عوامل التصفية"},
   "shop.headerSearchPh": { en: "Search products…", hi: "प्रोडक्ट खोजें…" , ar: "ابحث عن المنتجات…"},
 
   // Dismissible NEW highlight
