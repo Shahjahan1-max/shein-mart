@@ -990,7 +990,14 @@ function ShopView({
   onCategoryChange,
   search,
   onSearchChange,
-  filterSignal,
+  filterOpen,
+  onFilterOpenChange,
+  sortMode,
+  onSortModeChange,
+  priceMin,
+  onPriceMinChange,
+  priceMax,
+  onPriceMaxChange,
 }: {
   user: User;
   onNeedAuth: () => void;
@@ -1002,7 +1009,14 @@ function ShopView({
   onCategoryChange: (c: string) => void;
   search: string;
   onSearchChange: (s: string) => void;
-  filterSignal?: number;
+  filterOpen: boolean;
+  onFilterOpenChange: (open: boolean) => void;
+  sortMode: "featured" | "priceAsc" | "priceDesc" | "discount";
+  onSortModeChange: (m: "featured" | "priceAsc" | "priceDesc" | "discount") => void;
+  priceMin: string;
+  onPriceMinChange: (v: string) => void;
+  priceMax: string;
+  onPriceMaxChange: (v: string) => void;
 }) {
   const { t, fmt, lang } = useUi();
   const queryClient = useQueryClient();
@@ -1026,17 +1040,7 @@ function ShopView({
   // Arrivals and collection cards are untouched, as are ordering,
   // filtering and counts.
   const [visibleCount, setVisibleCount] = useState(40);
-  useEffect(() => { setVisibleCount(40); }, [category, search]);
-  // Bottom-nav Filter tap: scroll to the catalog filter bar and flash
-  // it gold briefly so the tap visibly "opens the filters".
-  const [catalogFlash, setCatalogFlash] = useState(false);
-  useEffect(() => {
-    if (!filterSignal) return;
-    document.getElementById("catalog")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    setCatalogFlash(true);
-    const id = window.setTimeout(() => setCatalogFlash(false), 1600);
-    return () => window.clearTimeout(id);
-  }, [filterSignal]);
+  useEffect(() => { setVisibleCount(40); }, [category, search, sortMode, priceMin, priceMax]);
   // Site-wide store visit: once per visitor per day (localStorage day flag
   // + server-side UNIQUE guard). Failures are swallowed: counting must
   // never break the shop. Counts from the day this feature went live.
@@ -1089,6 +1093,30 @@ function ShopView({
     if (start === 0) return list;
     return [...list.slice(start), ...list.slice(0, start)];
   }, [products.data, gridRotationSeed]);
+
+  // Filter panel sorting + price range (2026-11-06): applied client-side
+  // on the rotated grid list. "Featured" keeps the rotation order.
+  const displayProducts = useMemo(() => {
+    let list = rotatedProducts;
+    const min = priceMin.trim() === "" ? NaN : Number(priceMin);
+    const max = priceMax.trim() === "" ? NaN : Number(priceMax);
+    if (!Number.isNaN(min)) list = list.filter((p) => p.buyerPrice >= min);
+    if (!Number.isNaN(max)) list = list.filter((p) => p.buyerPrice <= max);
+    if (sortMode === "priceAsc") return [...list].sort((a, b) => a.buyerPrice - b.buyerPrice);
+    if (sortMode === "priceDesc") return [...list].sort((a, b) => b.buyerPrice - a.buyerPrice);
+    if (sortMode === "discount") return [...list].sort((a, b) => {
+      const da = a.oldPrice ? (a.oldPrice - a.buyerPrice) / a.oldPrice : 0;
+      const db = b.oldPrice ? (b.oldPrice - b.buyerPrice) / b.oldPrice : 0;
+      return db - da;
+    });
+    return list;
+  }, [rotatedProducts, sortMode, priceMin, priceMax]);
+  function clearShopFilters() {
+    onSortModeChange("featured");
+    onPriceMinChange("");
+    onPriceMaxChange("");
+    setCategory("All");
+  }
 
   const allProducts = useQuery({
     queryKey: ["products", { category: "All", search: "" }],
@@ -1574,7 +1602,7 @@ function ShopView({
 
       <div
         id="catalog"
-        className={`sticky z-30 -mx-3 mt-3 scroll-mt-[calc(var(--header-h,3.5rem)+1rem)] bg-[var(--bg)] px-3 py-2 min-[400px]:-mx-4 min-[400px]:px-4 ${catalogFlash ? "rounded-xl ring-2 ring-[var(--gold)]" : ""}`}
+        className="sticky z-30 -mx-3 mt-3 scroll-mt-[calc(var(--header-h,3.5rem)+1rem)] bg-[var(--bg)] px-3 py-2 min-[400px]:-mx-4 min-[400px]:px-4"
         style={{ top: "var(--header-h, 44px)" }}
       >
         <div
@@ -1649,9 +1677,9 @@ function ShopView({
       {products.data && products.data.products.length === 0 && (
         <p className="py-10 text-center text-[var(--dim)]">{t("shop.empty")}</p>
       )}
-      {products.data && products.data.products.length > 0 && (
+      {products.data && products.data.products.length > 0 && displayProducts.length > 0 && (
         <div className={gridCls}>
-          {rotatedProducts.slice(0, visibleCount).map((p) => (
+          {displayProducts.slice(0, visibleCount).map((p) => (
             <ProductCard
               key={p.id}
               product={p}
@@ -1666,9 +1694,71 @@ function ShopView({
           ))}
         </div>
       )}
-      {products.data && rotatedProducts.length > visibleCount && (
+      {products.data && products.data.products.length > 0 && displayProducts.length === 0 && (
+        <div className="py-10 text-center">
+          <p className="text-[var(--dim)]">{t("filt.noMatch")}</p>
+          <button type="button" onClick={clearShopFilters} className="mt-3 rounded-xl bg-[var(--accent)] px-5 py-2.5 text-sm font-bold text-[var(--accent-ink)]">{t("filt.clear")}</button>
+        </div>
+      )}
+      {products.data && displayProducts.length > visibleCount && (
         <div className="mt-4 text-center">
-          <button type="button" onClick={() => setVisibleCount((n) => Math.min(rotatedProducts.length, n + 40))} className={primaryBtn + " px-5 py-2.5"}>{t("shop.loadMore")}</button>
+          <button type="button" onClick={() => setVisibleCount((n) => Math.min(displayProducts.length, n + 40))} className={primaryBtn + " px-5 py-2.5"}>{t("shop.loadMore")}</button>
+        </div>
+      )}
+
+      {/* Filter panel (2026-11-06): sort + price range + category. Bottom
+          sheet on phones, right drawer on desktop. Applies live; the
+          Show button only closes it. */}
+      {filterOpen && (
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={t("filt.title")}>
+          <button type="button" aria-label={t("filt.close")} onClick={() => onFilterOpenChange(false)} className="absolute inset-0 h-full w-full bg-black/40" />
+          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-[var(--surface)] p-5 shadow-2xl sm:left-auto sm:right-0 sm:top-0 sm:h-full sm:max-h-none sm:w-[400px] sm:rounded-l-3xl sm:rounded-tr-none">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl font-bold text-[var(--text)]">{t("filt.title")}</h2>
+              <button type="button" aria-label={t("filt.close")} onClick={() => onFilterOpenChange(false)} className="rounded-full px-3 py-1 text-lg font-bold text-[var(--dim)] hover:bg-[var(--surface-alt)]">×</button>
+            </div>
+            <div className="mt-5">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--dim)]">{t("filt.sort")}</h3>
+              <div className="mt-2 grid gap-2">
+                {([
+                  ["featured", "filt.featured"],
+                  ["priceAsc", "filt.priceAsc"],
+                  ["priceDesc", "filt.priceDesc"],
+                  ["discount", "filt.discount"],
+                ] as const).map(([mode, key]) => (
+                  <button key={mode} type="button" aria-pressed={sortMode === mode} onClick={() => onSortModeChange(mode)} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold ${sortMode === mode ? "border-[var(--gold)] bg-[var(--surface-alt)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--text)]"}`}>
+                    <span aria-hidden className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${sortMode === mode ? "border-[var(--gold)] bg-[var(--gold)]" : "border-[var(--dim)]"}`}>{sortMode === mode ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}</span>
+                    {t(key)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-6">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--dim)]">{t("filt.price")}</h3>
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-[var(--dim)]">{t("filt.min")} (₹)</span>
+                  <input type="number" inputMode="numeric" min={0} value={priceMin} onChange={(e) => onPriceMinChange(e.target.value)} placeholder="0" className={`${inputCls} mt-1 w-full`} aria-label={t("filt.min")} />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-[var(--dim)]">{t("filt.max")} (₹)</span>
+                  <input type="number" inputMode="numeric" min={0} value={priceMax} onChange={(e) => onPriceMaxChange(e.target.value)} placeholder="—" className={`${inputCls} mt-1 w-full`} aria-label={t("filt.max")} />
+                </label>
+              </div>
+            </div>
+            <div className="mt-6">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--dim)]">{t("filt.category")}</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {CATEGORIES.map((c) => (
+                  <Chip key={c} active={category === c} onClick={() => goCategory(c)} label={`Category ${c}`}>{trCategory(lang, c)}</Chip>
+                ))}
+              </div>
+            </div>
+            <div className="mt-6 flex items-center gap-3">
+              <button type="button" onClick={clearShopFilters} className="shrink-0 px-3 py-2.5 text-sm font-bold text-[var(--dim)] hover:text-[var(--accent)]">{t("filt.clear")}</button>
+              <button type="button" onClick={() => onFilterOpenChange(false)} className={primaryBtn + " flex-1 px-5 py-3"}>{t("filt.show")} ({displayProducts.length})</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -11003,7 +11093,17 @@ export function App() {
   const [shopSearch, setShopSearch] = useState("");
   // Bottom-nav Filter tab signal (2026-10-31): each tap bumps this and
   // ShopView scrolls to the catalog filter bar + flashes it gold.
-  const [filterSignal, setFilterSignal] = useState(0);
+  // Filter panel (2026-11-06): Filter now opens a real panel (sort +
+  // price range + category) instead of only scrolling to the catalog
+  // bar. State lives here so the bottom-nav Filter tab can open it.
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [sortMode, setSortMode] = useState<"featured" | "priceAsc" | "priceDesc" | "discount">("featured");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const activeFilterCount =
+    (sortMode !== "featured" ? 1 : 0) +
+    (priceMin.trim() !== "" || priceMax.trim() !== "" ? 1 : 0) +
+    (shopCategory !== "All" ? 1 : 0);
   // Back-to-top arrow (2026-10-31): appears once the visitor has
   // scrolled down, like other platforms; tap scrolls smoothly to top.
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -11281,13 +11381,12 @@ const NAV: NavItem[] =
     if (n.sellerTab) return view === "seller" && sellerTab === n.sellerTab;
     return view === n.view;
   }
-  // Bottom-nav Filter tab (2026-10-31): back to the shop and bump
-  // the signal; ShopView scrolls to the catalog filter bar (category
-  // chips + search — the filters that already exist on the shop; no
-  // new filter type is invented) and flashes it gold.
+  // Bottom-nav Filter tab (2026-11-06): opens the real filter panel
+  // (sort + price range + category). From any view it returns to the
+  // shop first.
   function goFilter() {
     setView("shop");
-    setFilterSignal((n) => n + 1);
+    setFilterOpen(true);
   }
   // Desktop top nav: Collections jumps to the homepage collection
   // section (resetting any filter first, like the hero button).
@@ -11905,7 +12004,14 @@ const NAV: NavItem[] =
               onCategoryChange={setShopCategory}
               search={shopSearch}
               onSearchChange={setShopSearch}
-              filterSignal={filterSignal}
+              filterOpen={filterOpen}
+              onFilterOpenChange={setFilterOpen}
+              sortMode={sortMode}
+              onSortModeChange={setSortMode}
+              priceMin={priceMin}
+              onPriceMinChange={setPriceMin}
+              priceMax={priceMax}
+              onPriceMaxChange={setPriceMax}
             />
           )}
           {view === "external" && <ExternalProductsPage />}
@@ -12095,7 +12201,7 @@ const NAV: NavItem[] =
                 {n.isNew && <NewBadge id="nav-products" className="absolute right-0.5 top-0.5" />}
                 {n.key === "wallet" && walletUnread > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
                 {n.key === "seller" && sellerPending > 0 && <span aria-hidden className="absolute right-2 top-1.5 h-2 w-2 rounded-full bg-[var(--gold)]" />}
-                                {n.key === "cart" && cartCount > 0 && <span aria-hidden className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[10px] font-bold text-[var(--gold-ink)]">{cartCount > 99 ? "99+" : cartCount}</span>}
+                                {n.key === "cart" && cartCount > 0 && <span aria-hidden className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[10px] font-bold text-[var(--gold-ink)]">{cartCount > 99 ? "99+" : cartCount}</span>}{n.key === "filter" && activeFilterCount > 0 && <span aria-hidden className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[10px] font-bold text-[var(--gold-ink)]">{activeFilterCount}</span>}
                 <span className="flex leading-none">{n.icon}</span>
                 <span className="max-w-full truncate px-0.5">{n.label}</span>
               </button>
@@ -12124,7 +12230,7 @@ const NAV: NavItem[] =
               {n.isNew && <NewBadge id="nav-products" />}
               {n.key === "wallet" && walletUnread > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
               {n.key === "seller" && sellerPending > 0 && <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-[var(--gold)]" />}
-                            {n.key === "cart" && cartCount > 0 && <span aria-hidden className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[11px] font-bold text-[var(--gold-ink)]">{cartCount > 99 ? "99+" : cartCount}</span>}
+                            {n.key === "cart" && cartCount > 0 && <span aria-hidden className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[11px] font-bold text-[var(--gold-ink)]">{cartCount > 99 ? "99+" : cartCount}</span>}{n.key === "filter" && activeFilterCount > 0 && <span aria-hidden className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[11px] font-bold text-[var(--gold-ink)]">{activeFilterCount}</span>}
             </button>
           ))}
           {user?.role === "admin" && (
