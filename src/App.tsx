@@ -12061,7 +12061,7 @@ const NAV: NavItem[] =
           </button>
         )}
 
-        {view !== "seller" && user?.role !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
+        {view !== "seller" && view !== "admin" && user?.role !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
         <nav
           aria-label="Main navigation"
           className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] shadow-[0_-6px_20px_rgba(15,23,42,0.08)] pb-safe sm:hidden"
@@ -12091,7 +12091,7 @@ const NAV: NavItem[] =
         </nav>
 
         )}
-        {view !== "seller" && user?.role !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
+        {view !== "seller" && view !== "admin" && user?.role !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
         <nav
           aria-label="Desktop navigation"
           className="scrollbar-none fixed bottom-5 left-1/2 z-40 hidden max-w-[calc(100vw-1.5rem)] -translate-x-1/2 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_8px_28px_rgba(15,23,42,0.12)] sm:flex"
