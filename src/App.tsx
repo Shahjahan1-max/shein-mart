@@ -1708,7 +1708,7 @@ function ShopView({
         aria-label={user?.role === "seller" ? t("acc.sellerDash") : t("menu.becomeSeller")}
         className="mt-12 rounded-3xl border border-[var(--border)] bg-[var(--surface)] p-6 sm:p-10"
       >
-        <div className="max-w-2xl">
+        <div className="mx-auto max-w-2xl text-center">
           <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)] sm:text-4xl">
             {user?.role === "seller" ? t("acc.sellerDash") : t("menu.becomeSeller")}
           </h2>
@@ -10989,7 +10989,7 @@ export function App() {
   const colorScheme = settings.data?.colorScheme ?? "navy";
   const layoutDesign = settings.data?.layoutDesign ?? "classic";
   // "wide" layout: a wider storefront container on laptops and large screens.
-  const containerW = layoutDesign === "wide" ? "max-w-7xl" : "max-w-6xl";
+  const containerW = layoutDesign === "wide" ? "max-w-7xl 2xl:max-w-[1600px]" : "max-w-6xl xl:max-w-7xl 2xl:max-w-[1440px]";
   useEffect(() => {
     document.documentElement.dataset.scheme = colorScheme;
   }, [colorScheme]);
@@ -11007,9 +11007,22 @@ export function App() {
   // Back-to-top arrow (2026-10-31): appears once the visitor has
   // scrolled down, like other platforms; tap scrolls smoothly to top.
   const [showBackToTop, setShowBackToTop] = useState(false);
+  // Bottom navs auto-hide (2026-11-06): the floating Shop/Cart/Filter
+  // bars cover product names, prices and buttons while scrolling, so
+  // they slide away on scroll-down and return on scroll-up, like other
+  // platforms. State changes only on direction flips, never per frame.
+  const [navHidden, setNavHidden] = useState(false);
   useEffect(() => {
     let raf = 0;
-    const update = () => { setShowBackToTop(window.scrollY > 600); };
+    let lastY = window.scrollY;
+    let hidden = false;
+    const update = () => {
+      const y = window.scrollY;
+      setShowBackToTop(y > 600);
+      if (y > lastY && y > 140 && !hidden) { hidden = true; setNavHidden(true); }
+      else if (y < lastY && hidden) { hidden = false; setNavHidden(false); }
+      lastY = y;
+    };
     const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
     update();
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -11647,8 +11660,8 @@ const NAV: NavItem[] =
                   value={shopSearch}
                   onChange={(e) => setShopSearch(e.target.value)}
                   onFocus={() => { if (view !== "shop") setView("shop"); }}
-                  placeholder={ui.t("shop.searchPlaceholder")}
-                  aria-label={ui.t("shop.searchPlaceholder")}
+                  placeholder={ui.t("shop.searchShort")}
+                  aria-label={ui.t("shop.searchShort")}
                   className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--dim)]"
                 />
               </label>
@@ -12064,7 +12077,7 @@ const NAV: NavItem[] =
         {view !== "seller" && view !== "admin" && user?.role !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
         <nav
           aria-label="Main navigation"
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] shadow-[0_-6px_20px_rgba(15,23,42,0.08)] pb-safe sm:hidden"
+          className={`fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] shadow-[0_-6px_20px_rgba(15,23,42,0.08)] pb-safe transition-all duration-300 sm:hidden ${navHidden ? "translate-y-[160%] opacity-0 pointer-events-none" : ""}`}
         >
           <div className="grid" style={{ gridTemplateColumns: `repeat(${NAV.length}, minmax(0, 1fr))` }}>
             {NAV.map((n) => (
@@ -12094,7 +12107,7 @@ const NAV: NavItem[] =
         {view !== "seller" && view !== "admin" && user?.role !== "seller" && layoutDesign !== "menu" && layoutDesign !== "minimal" && (
         <nav
           aria-label="Desktop navigation"
-          className="scrollbar-none fixed bottom-5 left-1/2 z-40 hidden max-w-[calc(100vw-1.5rem)] -translate-x-1/2 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_8px_28px_rgba(15,23,42,0.12)] sm:flex"
+          className={`scrollbar-none fixed bottom-5 left-1/2 z-40 hidden max-w-[calc(100vw-1.5rem)] -translate-x-1/2 gap-1 overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--surface)] p-1.5 shadow-[0_8px_28px_rgba(15,23,42,0.12)] transition-all duration-300 sm:flex ${navHidden ? "translate-y-[160%] opacity-0 pointer-events-none" : ""}`}
         >
           {NAV.map((n) => (
             <button

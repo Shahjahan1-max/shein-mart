@@ -82,6 +82,7 @@ export const STR = {
   "shop.searchPlaceholder": {
     en: "Search products… (e.g. watch, kurta, lipstick)",
     hi: "प्रोडक्ट खोजें… (जैसे घड़ी, कुर्ता, लिपस्टिक)", ar: "ابحث عن المنتجات… (مثال: ساعة، كورتا، أحمر شفاه)"},
+  "shop.searchShort": { en: "Search products…", hi: "प्रोडक्ट खोजें…" , ar: "ابحث عن منتجات…"},
   "shop.clearSearch": { en: "Clear search", hi: "खोज साफ़ करें" , ar: "مسح البحث"},
   "shop.loadMore": { en: "Load more", hi: "और देखें" , ar: "عرض المزيد"},
   "shop.loading": { en: "Loading products…", hi: "प्रोडक्ट लोड हो रहे हैं…" , ar: "جارٍ تحميل المنتجات…"},
@@ -1461,8 +1462,8 @@ export const STR = {
   "theme.logoUrlEmpty": { en: "Paste an image URL first.", hi: "पहले इमेज URL पेस्ट करें।", ar: "الصق رابط صورة أولاً." },
 
   // Shop grid view toggle
-  "shop.grid2": { en: "Show products in 2 columns", hi: "प्रोडक्ट 2 कॉलम में दिखाएँ" , ar: "عرض المنتجات في عمودين"},
-  "shop.grid3": { en: "Show products in 3 columns", hi: "प्रोडक्ट 3 कॉलम में दिखाएँ" , ar: "عرض المنتجات في 3 أعمدة"},
+  "shop.grid2": { en: "Roomier grid — fewer, larger products", hi: "बड़ा ग्रिड — कम, बड़े प्रोडक्ट" , ar: "شبكة أوسع — منتجات أقل وأكبر"},
+  "shop.grid3": { en: "Denser grid — more, smaller products", hi: "छोटा ग्रिड — ज़्यादा, छोटे प्रोडक्ट" , ar: "شبكة أكثف — منتجات أكثر وأصغر"},
   "shop.headerSearchPh": { en: "Search products…", hi: "प्रोडक्ट खोजें…" , ar: "ابحث عن المنتجات…"},
 
   // Dismissible NEW highlight
