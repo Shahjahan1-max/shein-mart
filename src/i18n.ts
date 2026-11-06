@@ -55,8 +55,8 @@ export const STR = {
   "nav.seller": { en: "Seller", hi: "विक्रेता" , ar: "البائع"},
       "nav.admin": { en: "Admin", hi: "एडमिन" , ar: "المسؤول"},
   "header.tagline": {
-    en: "Dropshipping Marketplace · India",
-    hi: "ड्रॉपशिपिंग मार्केटप्लेस · भारत", ar: "سوق الدروبشيبينغ · الهند"},
+    en: "Dropshipping Marketplace",
+    hi: "ड्रॉपशिपिंग मार्केटप्लेस", ar: "سوق الدروبشيبينغ"},
   "header.signIn": { en: "Sign In", hi: "साइन इन" , ar: "تسجيل الدخول"},
   "header.currency": { en: "Currency", hi: "मुद्रा" , ar: "العملة"},
   "header.language": { en: "Language", hi: "भाषा" , ar: "اللغة"},
