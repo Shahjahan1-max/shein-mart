@@ -140,6 +140,9 @@ export const planPurchases = pgTable("plan_purchases", {
     .notNull()
     .$defaultFn(() => new Date()),
   decidedAt: timestamp("decided_at", { precision: 3, withTimezone: true, mode: "date" }),
+  // Plans last 1 year (2026-11-07): the plan is active only while
+  // expiresAt is in the future; after that the seller falls back to Free.
+  expiresAt: timestamp("expires_at", { precision: 3, withTimezone: true, mode: "date" }),
 });
 
 export const cartItems = pgTable("cart_items", {
@@ -452,6 +455,13 @@ export const settings = pgTable("settings", {
   // the whole section from visitors.
   reviewsSectionEnabled: integer("reviews_section_enabled").notNull().default(1),
   contactSectionEnabled: integer("contact_section_enabled").notNull().default(1),
+  // Seller paid plans (Admin → Plans, 2026-11-07): the admin changes the
+  // paid-plan prices (USD) and switches each plan ON/OFF here. Defaults
+  // are the launch prices: Growth $300 ON, Business $500 ON.
+  planGrowthPriceUsd: integer("plan_growth_price_usd").notNull().default(300),
+  planBusinessPriceUsd: integer("plan_business_price_usd").notNull().default(500),
+  planGrowthEnabled: integer("plan_growth_enabled").notNull().default(1),
+  planBusinessEnabled: integer("plan_business_enabled").notNull().default(1),
   // Storefront theme (Admin → Theme & Design): "premium" (the existing
   // theme, the default) or "fresh" (Fresh Market). Only the storefront
   // look changes; products, orders, users, wallet and all business

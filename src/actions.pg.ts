@@ -8,7 +8,7 @@
 // otherwise the profit stays with the main store.
 
 import { defineAction, z, type ActionsModule, type Ctx } from "./space-shim";
-import { and, asc, desc, eq, gte, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, lt, ne, sql } from "drizzle-orm";
 import * as schema from "./schema.pg";
 import { createHash, randomBytes } from "node:crypto";
 
@@ -143,24 +143,60 @@ async function getSettingsRow(db: Db) {
 // purchase, no expiry. The seller's current plan is their latest APPROVED
 // plan purchase, else Free.
 // The store's fixed rate (₹83 = $1; same as USD_RATE in the frontend's
-// i18n.ts). Plan prices are in USD; the wallet is INR, so a purchase
-// debits priceUsd * 83 from the seller's Available balance.
+// i18n.ts). Plan PRICES live in settings (Admin → Plans changes them);
+// the wallet is INR, so a purchase debits priceUsd * 83 from the
+// seller's Available balance. Limits, commission bonus and duration are
+// plan constants: Free 100 products, no bonus; Growth 500 products,
+// +5% commission; Business unlimited, +10% commission. Every paid plan
+// lasts 1 year (365 days) from purchase, then the seller falls back to
+// Free (their products stay; they just cannot add more until they renew).
 const USD_RATE_INR = 83;
 const SELLER_PLANS = {
-  free: { id: "free", priceUsd: 0, priceInr: 0, productLimit: 100 },
-  growth: { id: "growth", priceUsd: 300, priceInr: 300 * USD_RATE_INR, productLimit: 500 },
-  business: { id: "business", priceUsd: 500, priceInr: 500 * USD_RATE_INR, productLimit: null },
+  free: { id: "free", productLimit: 100, commissionBonusPct: 0, durationDays: 0 },
+  growth: { id: "growth", productLimit: 500, commissionBonusPct: 5, durationDays: 365 },
+  business: { id: "business", productLimit: null, commissionBonusPct: 10, durationDays: 365 },
 } as const;
 type SellerPlanId = keyof typeof SELLER_PLANS;
-async function getSellerPlanId(db: Db, sellerId: number): Promise<SellerPlanId> {
-  const approved = await db
+async function getActivePlanPurchase(db: Db, sellerId: number) {
+  // Only a NON-EXPIRED approved purchase counts: plans last 1 year.
+  const rows = await db
     .select()
     .from(schema.planPurchases)
-    .where(and(eq(schema.planPurchases.sellerId, sellerId), eq(schema.planPurchases.status, "approved")))
+    .where(and(
+      eq(schema.planPurchases.sellerId, sellerId),
+      eq(schema.planPurchases.status, "approved"),
+      gt(schema.planPurchases.expiresAt, new Date()),
+    ))
     .orderBy(desc(schema.planPurchases.id))
     .limit(1);
-  const pid = approved[0]?.planId;
+  return rows[0] ?? null;
+}
+async function getSellerPlanId(db: Db, sellerId: number): Promise<SellerPlanId> {
+  const row = await getActivePlanPurchase(db, sellerId);
+  const pid = row?.planId;
   return pid === "growth" || pid === "business" ? pid : "free";
+}
+
+// Paid-plan prices + ON/OFF switches (Admin → Plans; stored in settings).
+// Prices are USD; the wallet debit is priceUsd * 83 (₹). Defaults match
+// the launch prices: Growth $300 ON, Business $500 ON.
+async function getPlanConfig(db: Db): Promise<{
+  growth: { priceUsd: number; enabled: boolean };
+  business: { priceUsd: number; enabled: boolean };
+}> {
+  const s = await getSettingsRow(db);
+  const price = (v: number | null | undefined, fallback: number) =>
+    typeof v === "number" && Number.isFinite(v) && v >= 1 ? Math.round(v) : fallback;
+  return {
+    growth: {
+      priceUsd: price((s as { planGrowthPriceUsd?: number }).planGrowthPriceUsd, 300),
+      enabled: (((s as { planGrowthEnabled?: number }).planGrowthEnabled ?? 1) === 1),
+    },
+    business: {
+      priceUsd: price((s as { planBusinessPriceUsd?: number }).planBusinessPriceUsd, 500),
+      enabled: (((s as { planBusinessEnabled?: number }).planBusinessEnabled ?? 1) === 1),
+    },
+  };
 }
 
 function profitOf(basePrice: number, pct: number) {
@@ -841,6 +877,13 @@ async function computeSellerFinance(db: Db, sellerId: number): Promise<Finance> 
   type Raw = { id: string; kind: string; amount: number; direction: string; method: string; reference: string; note: string; status: string; createdAt: string; sortAt: number; effect: number; hasScreenshot?: boolean };
   const raw: Raw[] = [];
   const ordersBd: z.infer<typeof orderBreakdownOut>[] = [];
+  // Paid-plan commission bonus (2026-11-07): Growth +5%, Business +10%
+  // extra commission on the base price of the seller's own items. The
+  // buyer price never changes — the bonus is extra earnings for the
+  // seller, credited when the order is Delivered, while the plan is
+  // active. Free sellers get no bonus.
+  const planId = await getSellerPlanId(db, sellerId);
+  const bonusPct = SELLER_PLANS[planId].commissionBonusPct;
   let earningsCleared = 0;
   let completionCredits = 0;
   let pendingOrderHolds = 0;
@@ -895,9 +938,14 @@ async function computeSellerFinance(db: Db, sellerId: number): Promise<Finance> 
         // credit, plus the profit). Orders completed without a wallet
         // payment credit their profit only — no cost was ever held.
         const credit = paid ? orderAmount : profit;
-        completionCredits += credit;
-        earningsCleared += profit;
-        clearedAmount = credit;
+        // Plan commission bonus: extra earnings on this order's own
+        // items, at the plan's bonus rate on each item's base price.
+        const bonus = bonusPct > 0
+          ? mine.reduce((s, it) => s + profitOf(it.basePrice, bonusPct) * it.qty, 0)
+          : 0;
+        completionCredits += credit + bonus;
+        earningsCleared += profit + bonus;
+        clearedAmount = credit + bonus;
         if (paid) {
           raw.push({ id: `hold-${o.id}`, kind: "order_payment_held", amount: payableCost, direction: "debit", method: "Order Payment Held", reference: `Order #${o.id}`, note: "Order cost held while this order was in Shipment.", status: "completed", createdAt: pay.createdAt.toISOString(), sortAt: pay.createdAt.getTime(), effect: -payableCost });
           correctionTotal += payableCost;
@@ -908,6 +956,12 @@ async function computeSellerFinance(db: Db, sellerId: number): Promise<Finance> 
           totalOrderPayments += payableCost;
         } else {
           raw.push({ id: `completed-${o.id}`, kind: "order_completed", amount: credit, direction: "credit", method: "Order Completed", reference: `Order #${o.id}`, note: "Order profit credited to your Available Balance.", status: "completed", createdAt: o.createdAt.toISOString(), sortAt: o.createdAt.getTime(), effect: credit });
+        }
+        if (bonus > 0) {
+          // The bonus is a separate ledger line so the seller can see
+          // exactly what the plan earned them; the Order Completed line
+          // above stays the base credit, so nothing is counted twice.
+          raw.push({ id: `plan-bonus-${o.id}`, kind: "plan_bonus", amount: bonus, direction: "credit", method: "Plan Bonus", reference: `Order #${o.id}`, note: `${planId === "growth" ? "Growth" : "Business"} plan — +${bonusPct}% extra commission on this order.`, status: "completed", createdAt: o.createdAt.toISOString(), sortAt: o.createdAt.getTime() + 2000, effect: bonus });
         }
       } else if (o.status === "Shipped") {
         if (paid) {
@@ -2632,6 +2686,10 @@ export const Actions = {
       headerBrandMode: z.string(),
       storefrontTheme: z.string(),
       reviewsSectionEnabled: z.boolean(),
+      planGrowthPriceUsd: z.number(),
+      planBusinessPriceUsd: z.number(),
+      planGrowthEnabled: z.boolean(),
+      planBusinessEnabled: z.boolean(),
       sessionsEnabled: z.boolean(),
     }),
     async handler(ctx) {
@@ -2668,6 +2726,10 @@ export const Actions = {
         headerBrandMode: (s as { headerBrandMode?: string }).headerBrandMode ?? "both",
         storefrontTheme: (s as { storefrontTheme?: string }).storefrontTheme ?? "premium",
         reviewsSectionEnabled: ((s as { reviewsSectionEnabled?: number }).reviewsSectionEnabled ?? 1) === 1,
+        planGrowthPriceUsd: ((s as { planGrowthPriceUsd?: number }).planGrowthPriceUsd ?? 300),
+        planBusinessPriceUsd: ((s as { planBusinessPriceUsd?: number }).planBusinessPriceUsd ?? 500),
+        planGrowthEnabled: (((s as { planGrowthEnabled?: number }).planGrowthEnabled ?? 1) === 1),
+        planBusinessEnabled: (((s as { planBusinessEnabled?: number }).planBusinessEnabled ?? 1) === 1),
         sessionsEnabled: true,
       };
     },
@@ -2963,6 +3025,10 @@ export const Actions = {
       supportPhone: z.string().max(30).optional(),
       operatingMarkets: z.string().max(120).optional(),
       contactSectionEnabled: z.boolean().optional(),
+      planGrowthPriceUsd: z.number().int().min(1).max(100000).optional(),
+      planBusinessPriceUsd: z.number().int().min(1).max(100000).optional(),
+      planGrowthEnabled: z.boolean().optional(),
+      planBusinessEnabled: z.boolean().optional(),
       defaultProfitPercent: z.number().int().min(0).max(200),
     }),
     response: z.object({ ok: z.literal(true) }),
@@ -2987,6 +3053,10 @@ export const Actions = {
           ...(args.supportPhone !== undefined ? { supportPhone: args.supportPhone } : {}),
           ...(args.operatingMarkets !== undefined ? { operatingMarkets: args.operatingMarkets } : {}),
           ...(args.contactSectionEnabled !== undefined ? { contactSectionEnabled: args.contactSectionEnabled ? 1 : 0 } : {}),
+          ...(args.planGrowthPriceUsd !== undefined ? { planGrowthPriceUsd: args.planGrowthPriceUsd } : {}),
+          ...(args.planBusinessPriceUsd !== undefined ? { planBusinessPriceUsd: args.planBusinessPriceUsd } : {}),
+          ...(args.planGrowthEnabled !== undefined ? { planGrowthEnabled: args.planGrowthEnabled ? 1 : 0 } : {}),
+          ...(args.planBusinessEnabled !== undefined ? { planBusinessEnabled: args.planBusinessEnabled ? 1 : 0 } : {}),
           defaultProfitPercent: args.defaultProfitPercent,
         })
         .where(eq(schema.settings.id, 1));
@@ -3931,28 +4001,42 @@ export const Actions = {
     response: z.object({
       planId: z.enum(["free", "growth", "business"]),
       productLimit: z.number().nullable(),
-      priceUsd: z.number(),
-      priceInr: z.number(),
+      commissionBonusPct: z.number(),
+      expiresAt: z.string().nullable(),
       productsUsed: z.number(),
       availableBalance: z.number(),
+      growthPriceUsd: z.number(),
+      growthPriceInr: z.number(),
+      growthEnabled: z.boolean(),
+      businessPriceUsd: z.number(),
+      businessPriceInr: z.number(),
+      businessEnabled: z.boolean(),
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
       const me = await db.select().from(schema.users).where(eq(schema.users.id, args.sellerId)).limit(1);
       if (!me[0] || me[0].role !== "seller") throw new Error("Only seller accounts can view their plan.");
       const planId = await getSellerPlanId(db, args.sellerId);
+      const active = await getActivePlanPurchase(db, args.sellerId);
       const mine = await db
         .select({ id: schema.sellerProducts.id })
         .from(schema.sellerProducts)
         .where(eq(schema.sellerProducts.sellerId, args.sellerId));
       const f = await computeSellerFinance(db, args.sellerId);
+      const cfg = await getPlanConfig(db);
       return {
         planId,
         productLimit: SELLER_PLANS[planId].productLimit,
-        priceUsd: SELLER_PLANS[planId].priceUsd,
-        priceInr: SELLER_PLANS[planId].priceInr,
+        commissionBonusPct: SELLER_PLANS[planId].commissionBonusPct,
+        expiresAt: active?.expiresAt ? active.expiresAt.toISOString() : null,
         productsUsed: mine.length,
         availableBalance: f.availableBalance,
+        growthPriceUsd: cfg.growth.priceUsd,
+        growthPriceInr: cfg.growth.priceUsd * USD_RATE_INR,
+        growthEnabled: cfg.growth.enabled,
+        businessPriceUsd: cfg.business.priceUsd,
+        businessPriceInr: cfg.business.priceUsd * USD_RATE_INR,
+        businessEnabled: cfg.business.enabled,
       };
     },
   }),
@@ -3980,6 +4064,7 @@ export const Actions = {
       priceInr: z.number(),
       availableBalance: z.number(),
       reason: z.string(),
+      expiresAt: z.string().nullable(),
     }),
     async handler(ctx, args) {
       const db = ctx.db<typeof schema>();
@@ -3989,46 +4074,54 @@ export const Actions = {
         .where(eq(schema.users.id, args.sellerId))
         .limit(1);
       const plan = SELLER_PLANS[args.planId];
+      const cfg = await getPlanConfig(db);
+      const cfgPlan = args.planId === "growth" ? cfg.growth : cfg.business;
+      const priceInr = cfgPlan.priceUsd * USD_RATE_INR;
       const fail = (reason: string, availableBalance: number) => ({
         ok: true as const, purchased: false, planId: args.planId,
-        priceInr: plan.priceInr, availableBalance, reason,
+        priceInr, availableBalance, reason, expiresAt: null as string | null,
       });
       if (!seller[0] || seller[0].role !== "seller") return fail("not_seller", 0);
       if (seller[0].verificationStatus === "pending") return fail("pending_verification", 0);
       if (seller[0].verificationStatus === "rejected") return fail("not_approved", 0);
+      if (!cfgPlan.enabled) return fail("plan_disabled", 0);
       const current = await getSellerPlanId(db, args.sellerId);
       if (current === "business") return fail("already_business", 0);
       if (current === args.planId) return fail("already_have", 0);
       const f = await computeSellerFinance(db, args.sellerId);
-      if (f.availableBalance < plan.priceInr) return fail("insufficient_balance", f.availableBalance);
+      if (f.availableBalance < priceInr) return fail("insufficient_balance", f.availableBalance);
       // Debit first, then record the plan: the debit is the money
       // movement, visible in the seller's wallet ledger; the plan row is
-      // the activation record the plan lookup reads.
+      // the activation record the plan lookup reads. The plan lasts 1
+      // year from this purchase.
       const planName = args.planId === "growth" ? "Growth" : "Business";
+      const expiresAt = new Date(Date.now() + plan.durationDays * 24 * 60 * 60 * 1000);
       await db.insert(schema.walletTransactions).values({
         sellerId: args.sellerId,
         type: "plan_purchase",
-        amount: plan.priceInr,
+        amount: priceInr,
         method: "Wallet",
         reference: `${planName} Plan`,
-        note: `Plan purchase — ${planName} plan ($${plan.priceUsd}, ₹${plan.priceInr.toLocaleString("en-IN")}) paid from wallet balance.`,
+        note: `Plan purchase — ${planName} plan ($${cfgPlan.priceUsd}, ₹${priceInr.toLocaleString("en-IN")}) paid from wallet balance. Valid for 1 year.`,
         status: "completed",
       });
       await db.insert(schema.planPurchases).values({
         sellerId: args.sellerId,
         planId: args.planId,
-        amountUsd: plan.priceUsd,
+        amountUsd: cfgPlan.priceUsd,
         method: "Wallet",
         reference: `${planName} Plan`,
-        note: `Paid from wallet balance (₹${plan.priceInr.toLocaleString("en-IN")}).`,
+        note: `Paid from wallet balance (₹${priceInr.toLocaleString("en-IN")}). Valid for 1 year.`,
         status: "approved",
         decidedAt: new Date(),
+        expiresAt,
       });
       const after = await computeSellerFinance(db, args.sellerId);
       ctx.invalidateQueries();
       return {
         ok: true as const, purchased: true, planId: args.planId,
-        priceInr: plan.priceInr, availableBalance: after.availableBalance, reason: "",
+        priceInr, availableBalance: after.availableBalance, reason: "",
+        expiresAt: expiresAt.toISOString(),
       };
     },
   }),
