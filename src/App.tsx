@@ -1199,7 +1199,8 @@ function ShopView({
     }
   }, [heroProduct]);
   // Shop by collection: only categories that actually have products and
-  // a real photo, headline categories first, then by size, max 6.
+  // a real photo, headline categories first, then by size — all of them,
+  // so every category is visible at once (2026-11-07).
   const collectionCards = useMemo(() => {
     const list = allProducts.data?.products ?? [];
     if (list.length === 0) return [];
@@ -1213,7 +1214,7 @@ function ShopView({
       if (pa !== -1 || pb !== -1) return (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
       return counts[b]! - counts[a]!;
     });
-    return cats.slice(0, 6).map((c) => ({ category: c, photo: categoryPhoto[c]! }));
+    return cats.map((c) => ({ category: c, photo: categoryPhoto[c]! }));
   }, [allProducts.data, categoryPhoto]);
   // Featured: biggest real discounts first, topped up with the rest, plus
   // the day's Fresh Arrivals (the "New Today" section was removed
@@ -1514,14 +1515,14 @@ function ShopView({
             {t("coll.title")}
           </h2>
           <p className="mt-1 text-sm text-[var(--dim)]">{t("coll.sub")}</p>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
             {collectionCards.map((c) => (
               <button
                 key={c.category}
                 type="button"
                 onClick={() => goCategory(c.category)}
                 aria-label={`${trCategory(lang, c.category)}`}
-                className="coll-card group overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] text-left shadow-sm transition-shadow hover:shadow-lg"
+                className="coll-card group overflow-hidden rounded-3xl border border-[var(--border)] bg-[var(--surface)] text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
               >
                 <span className="block aspect-[4/3] overflow-hidden">
                   <img
@@ -1531,10 +1532,11 @@ function ShopView({
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </span>
-                <span className="flex items-baseline justify-between gap-2 px-4 py-3">
-                  <span className="font-display text-lg font-bold text-[var(--text)]">
+                <span className="flex items-baseline justify-between gap-2 px-4 py-2.5">
+                  <span className="font-display text-base font-bold text-[var(--text)]">
                     {trCategory(lang, c.category)}
                   </span>
+                  <span aria-hidden className="text-[var(--gold)] opacity-0 transition-opacity group-hover:opacity-100">→</span>
                 </span>
               </button>
             ))}
