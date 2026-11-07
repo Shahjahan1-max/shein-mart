@@ -763,6 +763,9 @@ function ProductCard({
 
 const AMAZON_INDIA_URL = "https://www.amazon.in";
 const SHEIN_INDIA_URL = "https://www.sheinindia.in/";
+const ALIBABA_URL = "https://www.alibaba.com";
+const ALIEXPRESS_URL = "https://www.aliexpress.com";
+const EBAY_URL = "https://www.ebay.com";
 
 const GRID_KEY = "sheinstore-grid-cols";
 
@@ -1146,6 +1149,23 @@ function ShopView({
     return map;
   }, [allProducts.data]);
 
+  // Partner Platforms marquee (2026-11-07): the DealX-style row of
+  // platform tiles that auto-scrolls sideways at the top of the shop.
+  // Icons are original stroke glyphs in the codebase style — no
+  // platform's official logo is copied or hosted. Tiles are plain
+  // external links (new tab), no partnership is claimed beyond the
+  // section heading the owner asked for.
+  const PARTNER_PLATFORMS = [
+    { name: "Amazon", url: AMAZON_INDIA_URL, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 shrink-0"><path d="M5.5 8h13l-1.1 12.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8L5.5 8Z" /><path d="M8.5 10.5V6.8a3.5 3.5 0 0 1 7 0v3.7" /></svg>) },
+    { name: "Alibaba", url: ALIBABA_URL, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 shrink-0"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.5 2.6 3.9 5.7 3.9 9s-1.4 6.4-3.9 9c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3Z" /></svg>) },
+    { name: "AliExpress", url: ALIEXPRESS_URL, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 shrink-0"><path d="M3.5 3.5h7l9 9-7 7-9-9v-7Z" /><circle cx="8" cy="8" r="1.5" /></svg>) },
+    { name: "eBay", url: EBAY_URL, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 shrink-0"><path d="M4 9.5 5.5 4.5h13L20 9.5" /><path d="M4 9.5h16V20H4V9.5Z" /><path d="M10 20v-5.5h4V20" /></svg>) },
+    { name: "SHEIN", url: SHEIN_INDIA_URL, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 shrink-0"><path d="M12 6.5V5a1.5 1.5 0 0 1 1.5-1.5" /><path d="M12 6.5 3.5 15h17L12 6.5Z" /></svg>) },
+  ];
+  // One half of the marquee track: the set repeated 4x so a half is
+  // wider than any viewport and the -50% loop stays seamless.
+  const partnerTiles = [...PARTNER_PLATFORMS, ...PARTNER_PLATFORMS, ...PARTNER_PLATFORMS, ...PARTNER_PLATFORMS];
+
   // Premium homepage hero rotation (user request 2026-10-28): the
   // hero photo cycles through every product with a real photo,
   // changing every 10 seconds continuously (loops back to the start).
@@ -1498,6 +1518,39 @@ function ShopView({
         )}
       </section>
 
+      {category === "All" && !search.trim() && (
+        <section aria-label={t("part.title")} className="mt-6">
+          <h2 className="font-display text-2xl font-extrabold tracking-tight text-[var(--text)]">
+            {t("part.title")}
+          </h2>
+          {/* Auto-scrolling platform tiles: same seamless-loop pattern as
+              the Featured marquee (two identical halves, -50% shift,
+              pauses on hover/focus, static under reduced motion). */}
+          <div className="feat-marquee mt-4 overflow-hidden">
+            <div className="feat-marquee-track flex w-max">
+              {[0, 1].map((half) => (
+                <div key={half} className="flex gap-3 pr-3" aria-hidden={half === 1}>
+                  {partnerTiles.map((p, i) => (
+                    <a
+                      key={`${half}-${i}`}
+                      href={p.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      tabIndex={half === 1 ? -1 : undefined}
+                      aria-label={p.name}
+                      className="flex w-[120px] shrink-0 flex-col items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-4 text-center shadow-sm transition-shadow hover:shadow-md"
+                    >
+                      <span aria-hidden className="text-[var(--gold)]">{p.icon}</span>
+                      <span className="font-display text-sm font-bold text-[var(--text)]">{p.name}</span>
+                    </a>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 shadow-sm">
         <p className="text-[13px] font-semibold text-[var(--text)]">{t("daily.explore")}</p>
         <span className="ml-auto rounded-full bg-[var(--accent)] px-2.5 py-1 font-display text-[11px] font-bold text-[var(--accent-ink)]">
@@ -1839,32 +1892,6 @@ function ShopView({
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
-        <h3 className="font-display text-lg font-bold text-[var(--text)]">
-          {t("links.title")}
-        </h3>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <a
-            href={AMAZON_INDIA_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-[var(--border)] px-4 py-2 font-display text-sm font-bold text-[var(--text)]"
-          >
-            <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M5.5 8h13l-1.1 12.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8L5.5 8Z" /><path d="M8.5 10.5V6.8a3.5 3.5 0 0 1 7 0v3.7" /></svg>
-            Amazon India
-          </a>
-          <a
-            href={SHEIN_INDIA_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-[var(--border)] px-4 py-2 font-display text-sm font-bold text-[var(--text)]"
-          >
-            <svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M12 6.5V5a1.5 1.5 0 0 1 1.5-1.5" /><path d="M12 6.5 3.5 15h17L12 6.5Z" /></svg>
-            SHEIN India
-          </a>
         </div>
       </section>
 
