@@ -8969,8 +8969,8 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               { title: "", ids: ["overview", "sellers", "users", "products"] },
               { title: "Product Management", ids: ["sellerProducts", "external"] },
               { title: "Operations", ids: ["orders"] },
-              { title: "Finance", ids: ["wallet", "profit"] },
-              { title: "Support", ids: ["support"] },
+              { title: "Finance", ids: ["wallet", "profit", "plans"] },
+              { title: "Support", ids: ["support", "reviews"] },
               { title: "System", ids: ["theme", "settings"] },
             ].map((g) => (
               <div key={g.title}>
@@ -9017,14 +9017,16 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               <span className="hidden min-w-0 sm:block"><span className="block max-w-32 truncate text-sm font-bold leading-tight text-[var(--text)]">{user.name}</span><span className="block text-[11px] font-semibold leading-tight text-[var(--dim)]">Admin</span></span>
             </span>
           </div>
-          {/* Mobile section nav: every admin section as a horizontally
+          {/* Section nav: every admin section as a horizontally
               scrollable pill row above the content, so no section hides
-              behind the hamburger drawer on phones. Desktop keeps the
-              sidebar (this row is lg:hidden). Sticky under the site
-              header so it stays reachable while scrolling. Same labels,
-              alert counts and badges as the sidebar; the sidebar NEW
-              pills are deliberately not duplicated here (same ids). */}
-          <div className="sticky top-[var(--header-h,56px)] z-30 mb-4 overflow-x-auto bg-[var(--bg)] py-2 lg:hidden" role="navigation" aria-label={t("adm.title")}>
+              behind the hamburger drawer on phones — and, since
+              2026-11-07 at the owner's request, the same quick sideways
+              access on laptops too (the sidebar stays alongside it).
+              Sticky under the site header so it stays reachable while
+              scrolling. Same labels, alert counts and badges as the
+              sidebar; the sidebar NEW pills are deliberately not
+              duplicated here (same ids). */}
+          <div className="sticky top-[var(--header-h,56px)] z-30 mb-4 overflow-x-auto bg-[var(--bg)] py-2" role="navigation" aria-label={t("adm.title")}>
             <div className="flex gap-2 whitespace-nowrap">
               {sections.map((sec) => (
                 <button key={sec.id} type="button" aria-current={section === sec.id ? "page" : undefined} onClick={() => setSection(sec.id)}
