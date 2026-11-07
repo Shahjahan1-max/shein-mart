@@ -602,6 +602,7 @@ export const STR = {
   "plan.expired": { en: "Expired — renew to keep the benefits.", hi: "समाप्त हो गया — लाभ जारी रखने के लिए नवीनीकृत करें।" , ar: "انتهت الصلاحية — جدّد للحفاظ على المزايا."},
   "plan.disabled": { en: "Not available right now", hi: "अभी उपलब्ध नहीं है" , ar: "غير متوفرة الآن"},
   "plan.insufficient": { en: "Not enough in your wallet — this plan costs {price}, you have {balance}. Deposit first, then buy.", hi: "आपके वॉलेट में पर्याप्त राशि नहीं है — इस प्लान की कीमत {price} है, आपके पास {balance} है। पहले जमा करें, फिर खरीदें।", ar: "رصيد محفظتك غير كافٍ — تكلفة هذه الخطة {price}، ولديك {balance}. أودع أولًا ثم اشترِ."},
+  "plan.shortfall": { en: "Shortfall: {amount}", hi: "कमी: {amount}" , ar: "النقص: {amount}"},
   "plan.alreadyHave": { en: "You already have this plan.", hi: "आपके पास यह प्लान पहले से है।" , ar: "لديك هذه الخطة بالفعل."},
   "plan.alreadyBusiness": { en: "You already have the Business plan.", hi: "आपके पास बिज़नेस प्लान पहले से है।" , ar: "لديك خطة الأعمال بالفعل."},
   "plan.pendingVerification": { en: "Your account is pending verification. Plans open after verification.", hi: "आपका खाता सत्यापन के लिए लंबित है। सत्यापन के बाद प्लान खुलेंगे।", ar: "حسابك بانتظار التحقق. تُفتح الخطط بعد التحقق."},

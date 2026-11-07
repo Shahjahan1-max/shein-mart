@@ -5752,28 +5752,58 @@ function SellerView({
     enabled: isSeller,
   });
   const plan = planQ.data ?? null;
-  const [buyMsg, setBuyMsg] = useState<string | null>(null);
+  // Buy result, shown INLINE under the clicked plan card (2026-11-07):
+  // the old message sat at the top of the Plans tab, so a seller who
+  // clicked a card low on the page saw nothing happen until scrolling
+  // up. One result only, tied to the card that was clicked — the top
+  // message is gone, so nothing ever shows twice. The result scrolls
+  // itself into view the moment it appears.
+  type BuyResult =
+    | { planId: "growth" | "business"; kind: "insufficient"; text: string; priceInr: number; balance: number; shortfall: number }
+    | { planId: "growth" | "business"; kind: "done" | "error"; text: string };
+  const [buyResult, setBuyResult] = useState<BuyResult | null>(null);
+  const [buyingPlanId, setBuyingPlanId] = useState<"growth" | "business" | null>(null);
+  const buyResultRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (buyResult) buyResultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [buyResult]);
   const buyPlan = useMutation({
     mutationFn: (planId: "growth" | "business") => api.buyPlanWithWallet({ sellerId: user!.id, planId }),
-    onSuccess: (r) => {
+    onSuccess: (r, planId) => {
+      setBuyingPlanId(null);
       queryClient.invalidateQueries({ queryKey: ["seller-plan"] });
       queryClient.invalidateQueries({ queryKey: ["seller-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       if (!r.purchased) {
-        setBuyMsg(
-          r.reason === "insufficient_balance"
-            ? t("plan.insufficient").replace("{price}", fmt(r.priceInr)).replace("{balance}", fmt(r.availableBalance))
-            : r.reason === "already_have" ? t("plan.alreadyHave")
+        if (r.reason === "insufficient_balance") {
+          setBuyResult({
+            planId,
+            kind: "insufficient",
+            text: t("plan.insufficient").replace("{price}", fmt(r.priceInr)).replace("{balance}", fmt(r.availableBalance)),
+            priceInr: r.priceInr,
+            balance: r.availableBalance,
+            shortfall: Math.max(0, r.priceInr - r.availableBalance),
+          });
+          return;
+        }
+        setBuyResult({
+          planId,
+          kind: "error",
+          text:
+            r.reason === "already_have" ? t("plan.alreadyHave")
             : r.reason === "already_business" ? t("plan.alreadyBusiness")
             : r.reason === "plan_disabled" ? t("plan.planDisabled")
             : r.reason === "pending_verification" ? t("plan.pendingVerification")
             : t("plan.planDisabled"),
-        );
+        });
         return;
       }
-      setBuyMsg(t("plan.bought"));
+      setBuyResult({ planId, kind: "done", text: t("plan.bought") });
     },
-    onError: (e) => setBuyMsg(String(e)),
+    onError: (e, planId) => {
+      setBuyingPlanId(null);
+      setBuyResult({ planId, kind: "error", text: String(e) });
+    },
   });
   // Wallet tab dot: unread wallet-credit events (same cache key the
   // app bottom nav reads). Opening the Wallet tab clears the dot at
@@ -6282,9 +6312,6 @@ function SellerView({
               <button type="button" onClick={() => setTab("wallet")} className="ml-auto text-sm font-bold text-[var(--accent)]">{t("seller.goWallet")} →</button>
             </div>
           )}
-          {buyMsg && (
-            <p role="status" className="mt-3 rounded-xl border border-[var(--gold)] bg-[var(--amber-bg)] px-4 py-3 text-sm font-semibold text-[var(--text)]">{buyMsg}</p>
-          )}
           {!verified && (
             <p className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-3 text-sm text-[var(--dim)]">{t("plan.pendingVerification")}</p>
           )}
@@ -6318,9 +6345,20 @@ function SellerView({
                     ) : !c.enabled ? (
                       <span className="text-sm font-semibold text-[var(--dim)]">{t("plan.disabled")}</span>
                     ) : (
-                      <button type="button" disabled={!verified || buyPlan.isPending} onClick={() => { setBuyMsg(null); buyPlan.mutate(c.id); }} className={goldBtn + " w-full px-4 py-2.5 text-sm disabled:opacity-50"}>{buyPlan.isPending ? t("plan.buying") : t("plan.buy")}</button>
+                      <button type="button" disabled={!verified || buyPlan.isPending} onClick={() => { setBuyResult(null); setBuyingPlanId(c.id); buyPlan.mutate(c.id); }} className={goldBtn + " flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm disabled:opacity-50"}>{buyPlan.isPending && buyingPlanId === c.id ? (<><span aria-hidden className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /><span>{t("plan.buying")}</span></>) : t("plan.buy")}</button>
                     )}
                   </div>
+                  {buyResult && buyResult.planId === c.id && (
+                    <div ref={buyResultRef} role="status" className={`mt-3 rounded-xl border px-4 py-3 text-sm ${buyResult.kind === "done" ? "border-[var(--border)] bg-[var(--success-bg)] text-[var(--success-text)]" : "border-[var(--gold)] bg-[var(--amber-bg)] text-[var(--text)]"}`}>
+                      <p className="font-semibold">{buyResult.text}</p>
+                      {buyResult.kind === "insufficient" && (
+                        <>
+                          <p className="mt-1.5">{t("plan.shortfall").replace("{amount}", fmt(buyResult.shortfall))}</p>
+                          <button type="button" onClick={() => setTab("wallet")} className="mt-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-bold text-[var(--accent-ink)]">💰 {t("w.deposit")}</button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
