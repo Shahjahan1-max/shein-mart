@@ -2582,6 +2582,14 @@ function CustomerReviewsCarousel() {
       {entries.map((e: any) => storeCard(e, `${prefix}-store-${e.id}`))}
     </>
   );
+  // Few cards: a looping marquee needs two identical halves, and with
+  // only a handful of reviews the seam sits inside the visible row —
+  // the first review shows twice at once, which reads as a duplicated
+  // review. So the marquee runs only once one half (5+ cards, ~1600px)
+  // fills the viewport; below that the cards sit in a plain static row
+  // (scrollable sideways on small screens), each shown exactly once
+  // (2026-11-07).
+  const marquee = reviews.length + entries.length >= 5;
   return (
     <section aria-label={t("rev.title")} className="mt-12">
       <h2 className="font-display text-3xl font-extrabold tracking-tight text-[var(--text)]">
@@ -2592,7 +2600,7 @@ function CustomerReviewsCarousel() {
         <p className="mt-3 text-sm text-[var(--dim)]">{t("shop.loading")}</p>
       ) : reviews.length === 0 && entries.length === 0 ? (
         <p className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-5 text-sm text-[var(--dim)]">{t("rev.empty")}</p>
-      ) : (
+      ) : marquee ? (
         <div className="feat-marquee mt-5 overflow-hidden">
           <div className="feat-marquee-track flex w-max">
             <div className="flex gap-3 pr-3">
@@ -2602,6 +2610,10 @@ function CustomerReviewsCarousel() {
               {row("rev-dup")}
             </div>
           </div>
+        </div>
+      ) : (
+        <div className="mt-5 flex gap-3 overflow-x-auto pb-1">
+          {row("rev")}
         </div>
       )}
     </section>
