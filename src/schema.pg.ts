@@ -117,6 +117,31 @@ export const sellerProducts = pgTable("seller_products", {
     .$defaultFn(() => new Date()),
 });
 
+// Seller paid-plan purchases (2026-11-07): a seller on the Free plan may
+// add up to 100 products to their store; beyond that they buy a paid plan
+// (Growth $300 = 500 products, Business $500 = unlimited, one-time
+// purchase, no expiry) with WALLET money — the INR equivalent (₹83 = $1,
+// the store's fixed rate) is debited from their Available balance and
+// the plan activates at once. No external payment, no proof, no admin
+// step. The seller's current plan is their latest APPROVED purchase,
+// else Free. status is always "approved" (kept for the record).
+export const planPurchases = pgTable("plan_purchases", {
+  id: serial("id").primaryKey(),
+  sellerId: integer("seller_id")
+    .notNull()
+    .references(() => users.id),
+  planId: text("plan_id").notNull(),
+  amountUsd: integer("amount_usd").notNull(),
+  method: text("method").notNull().default(""),
+  reference: text("reference").notNull().default(""),
+  note: text("note").notNull().default(""),
+  status: text("status").notNull().default("approved"),
+  createdAt: timestamp("created_at", { precision: 3, withTimezone: true, mode: "date" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  decidedAt: timestamp("decided_at", { precision: 3, withTimezone: true, mode: "date" }),
+});
+
 export const cartItems = pgTable("cart_items", {
   id: serial("id").primaryKey(),
   buyerId: integer("buyer_id")

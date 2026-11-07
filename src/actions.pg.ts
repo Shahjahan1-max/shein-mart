@@ -138,6 +138,31 @@ async function getSettingsRow(db: Db) {
   return inserted[0]!;
 }
 
+// Seller paid plans (2026-11-07): Free = 100 products in the seller's own
+// store; Growth $300 = 500 products; Business $500 = unlimited. One-time
+// purchase, no expiry. The seller's current plan is their latest APPROVED
+// plan purchase, else Free.
+// The store's fixed rate (₹83 = $1; same as USD_RATE in the frontend's
+// i18n.ts). Plan prices are in USD; the wallet is INR, so a purchase
+// debits priceUsd * 83 from the seller's Available balance.
+const USD_RATE_INR = 83;
+const SELLER_PLANS = {
+  free: { id: "free", priceUsd: 0, priceInr: 0, productLimit: 100 },
+  growth: { id: "growth", priceUsd: 300, priceInr: 300 * USD_RATE_INR, productLimit: 500 },
+  business: { id: "business", priceUsd: 500, priceInr: 500 * USD_RATE_INR, productLimit: null },
+} as const;
+type SellerPlanId = keyof typeof SELLER_PLANS;
+async function getSellerPlanId(db: Db, sellerId: number): Promise<SellerPlanId> {
+  const approved = await db
+    .select()
+    .from(schema.planPurchases)
+    .where(and(eq(schema.planPurchases.sellerId, sellerId), eq(schema.planPurchases.status, "approved")))
+    .orderBy(desc(schema.planPurchases.id))
+    .limit(1);
+  const pid = approved[0]?.planId;
+  return pid === "growth" || pid === "business" ? pid : "free";
+}
+
 function profitOf(basePrice: number, pct: number) {
   return Math.round((basePrice * pct) / 100);
 }
@@ -955,6 +980,12 @@ async function computeSellerFinance(db: Db, sellerId: number): Promise<Finance> 
     else if (r.type === "withdraw" && r.status === "pending") { pendingWithdrawal += r.amount; raw.push({ id: `tx-${r.id}`, kind: "withdraw", amount: r.amount, direction: "debit", method: r.method, reference: r.reference, note: r.note, status: r.status, createdAt: r.createdAt.toISOString(), sortAt: r.createdAt.getTime(), effect: -r.amount }); }
     else if (r.type === "withdraw") { raw.push({ id: `tx-${r.id}`, kind: "withdraw", amount: r.amount, direction: "debit", method: r.method, reference: r.reference, note: r.note, status: r.status, createdAt: r.createdAt.toISOString(), sortAt: r.createdAt.getTime(), effect: 0 }); }
     else if (r.type === "admin_withdraw") { if (r.status === "completed") { usedAmount += r.amount; totalWithdrawn += r.amount; withdrawalsList.push({ id: r.id, kind: "admin_withdraw", amount: r.amount, method: "Customer Service Withdrawal", paymentReference: "", note: r.note, status: "Paid", createdAt: r.createdAt.toISOString() }); } raw.push({ id: `tx-${r.id}`, kind: "admin_withdraw", amount: r.amount, direction: "debit", method: "Customer Service Withdrawal", reference: "", note: r.note, status: r.status, createdAt: r.createdAt.toISOString(), sortAt: r.createdAt.getTime(), effect: r.status === "completed" ? -r.amount : 0 }); }
+    else if (r.type === "plan_purchase" && r.status === "completed") {
+      // Plan bought with wallet money (2026-11-07): a completed purchase
+      // is a one-time debit from Available — it never touches Pending.
+      usedAmount += r.amount;
+      raw.push({ id: `tx-${r.id}`, kind: "plan_purchase", amount: r.amount, direction: "debit", method: "Plan Purchase", reference: r.reference, note: r.note, status: r.status, createdAt: r.createdAt.toISOString(), sortAt: r.createdAt.getTime(), effect: -r.amount });
+    }
     // order_payment rows are handled in the order loop above (the hold
     // and its release/completion depend on the order's status) — never
     // counted a second time here.
@@ -3792,7 +3823,7 @@ export const Actions = {
   addToMyStore: defineAction({
     auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number(), productId: z.number() }),
-    response: z.object({ ok: z.literal(true), alreadyAdded: z.boolean() }),
+    response: z.object({ ok: z.literal(true), alreadyAdded: z.boolean(), limitReached: z.boolean(), limitPlan: z.string() }),
     async handler(ctx, args): Promise<{ ok: true; alreadyAdded: boolean }> {
       const db = ctx.db<typeof schema>();
       const seller = await db
@@ -3823,13 +3854,27 @@ export const Actions = {
           ),
         )
         .limit(1);
-      if (existing[0]) return { ok: true as const, alreadyAdded: true };
+      if (existing[0]) return { ok: true as const, alreadyAdded: true, limitReached: false, limitPlan: "" };
+      // Paid-plan product limit (2026-11-07): Free sellers may add up to
+      // 100 products; Growth 500; Business unlimited. The count is the
+      // seller's own store rows.
+      const planId = await getSellerPlanId(db, args.sellerId);
+      const limit = SELLER_PLANS[planId].productLimit;
+      if (limit !== null) {
+        const mine = await db
+          .select({ id: schema.sellerProducts.id })
+          .from(schema.sellerProducts)
+          .where(eq(schema.sellerProducts.sellerId, args.sellerId));
+        if (mine.length >= limit) {
+          return { ok: true as const, alreadyAdded: false, limitReached: true, limitPlan: planId };
+        }
+      }
       await db.insert(schema.sellerProducts).values({
         sellerId: args.sellerId,
         productId: args.productId,
       });
       ctx.invalidateQueries();
-      return { ok: true as const, alreadyAdded: false };
+      return { ok: true as const, alreadyAdded: false, limitReached: false, limitPlan: "" };
     },
   }),
 
@@ -3877,6 +3922,158 @@ export const Actions = {
       return { products: out };
     },
   }),
+
+  // Seller's current plan + usage + wallet balance (for the seller
+  // dashboard's plan card, products banner and Plans section).
+  getSellerPlan: defineAction({
+    auth: { arg: "sellerId" },
+    request: z.object({ sellerId: z.number() }),
+    response: z.object({
+      planId: z.enum(["free", "growth", "business"]),
+      productLimit: z.number().nullable(),
+      priceUsd: z.number(),
+      priceInr: z.number(),
+      productsUsed: z.number(),
+      availableBalance: z.number(),
+    }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.sellerId)).limit(1);
+      if (!me[0] || me[0].role !== "seller") throw new Error("Only seller accounts can view their plan.");
+      const planId = await getSellerPlanId(db, args.sellerId);
+      const mine = await db
+        .select({ id: schema.sellerProducts.id })
+        .from(schema.sellerProducts)
+        .where(eq(schema.sellerProducts.sellerId, args.sellerId));
+      const f = await computeSellerFinance(db, args.sellerId);
+      return {
+        planId,
+        productLimit: SELLER_PLANS[planId].productLimit,
+        priceUsd: SELLER_PLANS[planId].priceUsd,
+        priceInr: SELLER_PLANS[planId].priceInr,
+        productsUsed: mine.length,
+        availableBalance: f.availableBalance,
+      };
+    },
+  }),
+
+  // Buy a paid plan with wallet money (2026-11-07): the seller pays from
+  // their Available wallet balance — no external payment, no proof, no
+  // admin step. The purchase is instant: the INR equivalent of the USD
+  // price (₹83 = $1, the store's fixed rate) is debited from Available
+  // as a plan_purchase ledger line, and the plan activates at once.
+  // Business refusals come back as data (purchased: false + a reason
+  // code), NOT as a thrown error: the dispatcher turns throws into a
+  // generic 500 and api.ts discards the message, so a thrown
+  // "insufficient balance" would reach the seller only as
+  // "Action buyPlanWithWallet failed: 500".
+  buyPlanWithWallet: defineAction({
+    auth: { arg: "sellerId" },
+    request: z.object({
+      sellerId: z.number(),
+      planId: z.enum(["growth", "business"]),
+    }),
+    response: z.object({
+      ok: z.literal(true),
+      purchased: z.boolean(),
+      planId: z.string(),
+      priceInr: z.number(),
+      availableBalance: z.number(),
+      reason: z.string(),
+    }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const seller = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, args.sellerId))
+        .limit(1);
+      const plan = SELLER_PLANS[args.planId];
+      const fail = (reason: string, availableBalance: number) => ({
+        ok: true as const, purchased: false, planId: args.planId,
+        priceInr: plan.priceInr, availableBalance, reason,
+      });
+      if (!seller[0] || seller[0].role !== "seller") return fail("not_seller", 0);
+      if (seller[0].verificationStatus === "pending") return fail("pending_verification", 0);
+      if (seller[0].verificationStatus === "rejected") return fail("not_approved", 0);
+      const current = await getSellerPlanId(db, args.sellerId);
+      if (current === "business") return fail("already_business", 0);
+      if (current === args.planId) return fail("already_have", 0);
+      const f = await computeSellerFinance(db, args.sellerId);
+      if (f.availableBalance < plan.priceInr) return fail("insufficient_balance", f.availableBalance);
+      // Debit first, then record the plan: the debit is the money
+      // movement, visible in the seller's wallet ledger; the plan row is
+      // the activation record the plan lookup reads.
+      const planName = args.planId === "growth" ? "Growth" : "Business";
+      await db.insert(schema.walletTransactions).values({
+        sellerId: args.sellerId,
+        type: "plan_purchase",
+        amount: plan.priceInr,
+        method: "Wallet",
+        reference: `${planName} Plan`,
+        note: `Plan purchase — ${planName} plan ($${plan.priceUsd}, ₹${plan.priceInr.toLocaleString("en-IN")}) paid from wallet balance.`,
+        status: "completed",
+      });
+      await db.insert(schema.planPurchases).values({
+        sellerId: args.sellerId,
+        planId: args.planId,
+        amountUsd: plan.priceUsd,
+        method: "Wallet",
+        reference: `${planName} Plan`,
+        note: `Paid from wallet balance (₹${plan.priceInr.toLocaleString("en-IN")}).`,
+        status: "approved",
+        decidedAt: new Date(),
+      });
+      const after = await computeSellerFinance(db, args.sellerId);
+      ctx.invalidateQueries();
+      return {
+        ok: true as const, purchased: true, planId: args.planId,
+        priceInr: plan.priceInr, availableBalance: after.availableBalance, reason: "",
+      };
+    },
+  }),
+
+  // Admin: every plan purchase, newest first, with the seller's name.
+  listPlanPurchases: defineAction({
+    auth: { admin: true },
+    request: z.object({}),
+    response: z.object({
+      purchases: z.array(z.object({
+        id: z.number(),
+        sellerId: z.number(),
+        sellerName: z.string(),
+        storeName: z.string(),
+        planId: z.string(),
+        amountUsd: z.number(),
+        method: z.string(),
+        reference: z.string(),
+        status: z.string(),
+        createdAt: z.string(),
+      })),
+    }),
+    async handler(ctx) {
+      const db = ctx.db<typeof schema>();
+      const rows = await db.select().from(schema.planPurchases).orderBy(desc(schema.planPurchases.id));
+      const users = await db.select().from(schema.users);
+      const byId = new Map(users.map((u) => [u.id, u]));
+      return {
+        purchases: rows.map((r) => ({
+          id: r.id,
+          sellerId: r.sellerId,
+          sellerName: byId.get(r.sellerId)?.name ?? "",
+          storeName: byId.get(r.sellerId)?.storeName ?? "",
+          planId: r.planId,
+          amountUsd: r.amountUsd,
+          method: r.method,
+          reference: r.reference,
+          status: r.status,
+          createdAt: r.createdAt.toISOString(),
+        })),
+      };
+    },
+  }),
+
+
 
   getCart: defineAction({
     auth: { arg: "buyerId" },
