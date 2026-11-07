@@ -11984,7 +11984,7 @@ const NAV: NavItem[] =
               own Sign In button serves Account, and Cart lives only in
               the footer Cart tab — this row adds Shop / Collections /
               Seller / Search links, links left, search right-aligned). */}
-          {layoutDesign === "classic" && (
+          {layoutDesign === "classic" && view === "shop" && (
             <nav
               aria-label="Store sections"
               className={`topnav-row mx-auto hidden ${containerW} items-center gap-2 px-3 pb-2.5 sm:px-4 md:flex`}
