@@ -11127,6 +11127,28 @@ export function App() {
   const [view, setView] = useState<View>(storedTab?.view ?? "shop");
   const viewRef = useRef(view);
   viewRef.current = view;
+  // Support return view (2026-11-07): Customer Support is opened from
+  // all over the app (seller dashboard, admin, account, shop...). A
+  // browser/system back press from Support must return to the view it
+  // was opened from — a seller pressing back after opening Support from
+  // the seller dashboard expects the dashboard back, not the shop.
+  // goSupport()/goSupportChat() record the current view here; the
+  // back-guard handlers below read it. Cleared whenever the view leaves
+  // Support, so it never goes stale.
+  const supportReturnRef = useRef<View | null>(null);
+  useEffect(() => {
+    if (view !== "support") supportReturnRef.current = null;
+  }, [view]);
+  // Where a back press from the current view should land: Support
+  // returns to the view it was opened from; every other non-shop view
+  // returns home (Shop), as before. Pure read — both popstate handlers
+  // below call it for the same press, so it must not consume the return.
+  const resolveBackTarget = (): View => {
+    if (viewRef.current === "support" && supportReturnRef.current && supportReturnRef.current !== "support") {
+      return supportReturnRef.current;
+    }
+    return "shop";
+  };
   // Back guard (all pages): while the visitor is on ANY page other
   // than the home page (Shop), a browser/system back press must land
   // on the home page (Shop), not navigate away from the site.
@@ -11142,7 +11164,7 @@ export function App() {
     window.history.pushState({ shopGuard: true }, "");
     const onPop = () => {
       if (viewRef.current !== "shop") {
-        setView("shop");
+        setView(resolveBackTarget());
       }
     };
     window.addEventListener("popstate", onPop);
@@ -11480,7 +11502,7 @@ export function App() {
   // itself owns detail open/close while the shop is shown.
   useEffect(() => {
     if (view === "shop") return;
-    const onPop = () => { setView("shop"); };
+    const onPop = () => { setView(resolveBackTarget()); };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [view]);
@@ -11622,6 +11644,7 @@ const NAV: NavItem[] =
   // FAQ and ticket — so every service is visible. The chat itself
   // opens only from the overview's "Open Chat" button.
   function goSupport() {
+    if (view !== "support") supportReturnRef.current = view;
     setSupportStartInChat(false);
     setSupportVisit((v) => v + 1);
     setView("support");
@@ -11634,6 +11657,7 @@ const NAV: NavItem[] =
   // Explicit chat entry points (a button whose purpose IS the chat):
   // these still open the dedicated chat view directly.
   function goSupportChat() {
+    if (view !== "support") supportReturnRef.current = view;
     setSupportStartInChat(true);
     setChatFocusSignal((n) => n + 1);
     setSupportVisit((v) => v + 1);
