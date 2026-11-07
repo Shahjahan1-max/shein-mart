@@ -287,7 +287,7 @@ function loadSession(): User {
 // visitor never lands on a members-only tab.
 const VIEW_KEY = "sheinstore-view";
 const RESTORABLE_VIEWS: View[] = ["shop", "cart", "orders", "account", "seller", "support", "admin"];
-const SELLER_TABS: SellerTab[] = ["home", "products", "orders", "wallet", "my"];
+const SELLER_TABS: SellerTab[] = ["home", "products", "orders", "wallet", "my", "plans"];
 function readStoredTab(): { view: View; sellerTab: SellerTab } | null {
   try {
     const raw = localStorage.getItem(VIEW_KEY);
@@ -1312,6 +1312,11 @@ function ShopView({
     onSuccess: (r, p) => {
       queryClient.invalidateQueries({ queryKey: ["seller-products"] });
       queryClient.invalidateQueries({ queryKey: ["seller-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["seller-plan"] });
+      if (r.limitReached) {
+        flash(t("plan.limitReached").replace("{plan}", r.limitPlan === "growth" ? t("plan.growth") : t("plan.free")).replace("{limit}", r.limitPlan === "growth" ? "500" : "100"));
+        return;
+      }
       flash(
         r.alreadyAdded
           ? `${p.name} — ${t("shop.alreadyInStore")}`
@@ -3071,7 +3076,7 @@ function FileNameField({ label, value, onChange, required, kind, onUpload }: {
 }
 
 function formatBytes(n: number | null | undefined): string { if (!n) return ""; if (n < 1024) return `${n} B`; if (n < 1048576) return `${Math.round(n / 1024)} KB`; return `${(n / 1048576).toFixed(1)} MB`; }
-function kindLabel(kind: string): string { if (kind === "admin_credit") return "Customer Service Credit"; if (kind === "order_completed") return "Order Completed"; if (kind === "order_payment_held") return "Order Payment Held"; if (kind === "order_payment_released") return "Order Payment Released"; if (kind === "balance_correction") return "Balance Correction — completed orders"; if (kind === "deposit") return "Deposit"; if (kind === "withdraw") return "Withdrawal"; if (kind === "withdraw_paid") return "Withdrawal Paid"; if (kind === "admin_withdraw") return "Customer Service Withdrawal"; if (kind === "order_payment") return "Order Payment"; return kind; }
+function kindLabel(kind: string): string { if (kind === "admin_credit") return "Customer Service Credit"; if (kind === "order_completed") return "Order Completed"; if (kind === "order_payment_held") return "Order Payment Held"; if (kind === "order_payment_released") return "Order Payment Released"; if (kind === "balance_correction") return "Balance Correction — completed orders"; if (kind === "deposit") return "Deposit"; if (kind === "withdraw") return "Withdrawal"; if (kind === "withdraw_paid") return "Withdrawal Paid"; if (kind === "admin_withdraw") return "Customer Service Withdrawal"; if (kind === "order_payment") return "Order Payment"; if (kind === "plan_bonus") return "Plan Bonus"; if (kind === "plan_purchase") return "Plan Purchase"; return kind; }
 
 type WithdrawalEntry = { id: number; kind: string; amount: number; method: string; paymentReference: string; note: string; status: string; createdAt: string };
 type DepositEntry = { id: number; kind: string; amount: number; method: string; reference: string; note: string; createdAt: string };
@@ -4147,6 +4152,7 @@ const aGear = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentC
 const aLogout = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M15 4h4v16h-4" /><path d="M3 12h11M10 8l4 4-4 4" /></svg>);
 const aImage = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.5" /><path d="m5 19 5-5 3 3 2-2 4 4" /></svg>);
 const aKey = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="7.5" cy="15.5" r="4" /><path d="M10.5 12.5 20 3" /><path d="M16 7l2.5 2.5M18.5 4.5l1.5 1.5" /></svg>);
+const aCrown = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M3 8l4 3.5L12 5l5 6.5L21 8l-1.5 10h-15L3 8Z" /><path d="M5.5 21h13" /></svg>);
 const aWarn = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0"><path d="M12 4 22 20H2L12 4Z" /><path d="M12 10v4" /><path d="M12 17h.01" /></svg>);
 const aEye = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3" /></svg>);
 const aEyeOff = (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="3" /><path d="m4 4 16 16" /></svg>);
@@ -5555,7 +5561,7 @@ function WalletPanel({ user, compact, onGoSupport }: { user: NonNullable<User>; 
 
 /* ----------------------------- Seller dashboard --------------------------- */
 
-type SellerTab = "home" | "products" | "orders" | "wallet" | "my";
+type SellerTab = "home" | "products" | "orders" | "wallet" | "my" | "plans";
 
 /* Seller bottom bar (mobile/tablet only, FIXED to the viewport bottom
    with safe-area clearance): the single bottom navigation for sellers -
@@ -5723,6 +5729,38 @@ function SellerView({
     queryKey: ["wallet", user?.id],
     queryFn: () => api.getWallet({ sellerId: user!.id }),
     enabled: verified,
+  });
+  // Seller paid plans: current plan + usage + wallet balance + live
+  // prices, fetched once per seller. Buying invalidates this query
+  // plus the wallet and dashboard so every figure updates at once.
+  const planQ = useQuery({
+    queryKey: ["seller-plan", user?.id],
+    queryFn: () => api.getSellerPlan({ sellerId: user!.id }),
+    enabled: isSeller,
+  });
+  const plan = planQ.data ?? null;
+  const [buyMsg, setBuyMsg] = useState<string | null>(null);
+  const buyPlan = useMutation({
+    mutationFn: (planId: "growth" | "business") => api.buyPlanWithWallet({ sellerId: user!.id, planId }),
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: ["seller-plan"] });
+      queryClient.invalidateQueries({ queryKey: ["seller-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      if (!r.purchased) {
+        setBuyMsg(
+          r.reason === "insufficient_balance"
+            ? t("plan.insufficient").replace("{price}", fmt(r.priceInr)).replace("{balance}", fmt(r.availableBalance))
+            : r.reason === "already_have" ? t("plan.alreadyHave")
+            : r.reason === "already_business" ? t("plan.alreadyBusiness")
+            : r.reason === "plan_disabled" ? t("plan.planDisabled")
+            : r.reason === "pending_verification" ? t("plan.pendingVerification")
+            : t("plan.planDisabled"),
+        );
+        return;
+      }
+      setBuyMsg(t("plan.bought"));
+    },
+    onError: (e) => setBuyMsg(String(e)),
   });
   // Wallet tab dot: unread wallet-credit events (same cache key the
   // app bottom nav reads). Opening the Wallet tab clears the dot at
@@ -5912,6 +5950,10 @@ function SellerView({
             {aWallet}<span>{t("sd.tabWallet")}</span>
             {walletUnread > 0 && <span aria-hidden className="ml-auto h-2 w-2 rounded-full bg-[var(--gold)]" />}
           </button>
+          <button type="button" aria-current={tab === "plans" ? "page" : undefined} onClick={() => setTab("plans")} className={sideCls(tab === "plans")}>
+            {tab === "plans" && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-1 rounded-full bg-[var(--gold)]" />}
+            {aCrown}<span>{t("sd.tabPlans")}</span>
+          </button>
           <button type="button" aria-current={tab === "my" ? "page" : undefined} onClick={() => setTab("my")} className={sideCls(tab === "my")}>
             {tab === "my" && <span aria-hidden className="absolute bottom-2.5 left-0 top-2.5 w-1 rounded-full bg-[var(--gold)]" />}
             {aUser}<span>{t("sd.myProfile")}</span>
@@ -6095,6 +6137,26 @@ function SellerView({
               <button type="button" aria-label={t("seller.goWallet")} onClick={() => setTab("wallet")} className="rounded-full bg-[var(--surface)] px-4 py-2.5 text-sm font-bold text-[var(--accent-strong)]">{t("seller.goWallet")}</button>
             </div>
           </section>
+
+          {/* Your Plan card — current plan + usage + expiry + bonus at a
+              glance; the full plan list lives in the Plans tab. */}
+          {plan && (
+            <section aria-label={t("plan.yourPlan")} className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--dim)]">👑 {t("plan.yourPlan")} · <strong className="text-[var(--text)]">{t(`plan.${plan.planId}`)}</strong></p>
+                  <p className="mt-1 text-sm text-[var(--text)]">
+                    {plan.productLimit === null
+                      ? t("plan.usageUnlimited").replace("{used}", String(plan.productsUsed))
+                      : t("plan.usage").replace("{used}", String(plan.productsUsed)).replace("{limit}", String(plan.productLimit))}
+                    {plan.commissionBonusPct > 0 && <> · <strong className="text-[var(--accent)]">{t("plan.bonus").replace("{pct}", String(plan.commissionBonusPct))}</strong></>}
+                  </p>
+                  {plan.expiresAt && <p className="mt-0.5 text-xs text-[var(--dim)]">{t("plan.expires").replace("{date}", new Date(plan.expiresAt).toLocaleDateString())}</p>}
+                </div>
+                <button type="button" onClick={() => setTab("plans")} className={primaryBtn + " px-4 py-2.5 text-sm"}>{t("plan.viewPlans")}</button>
+              </div>
+            </section>
+          )}
         </>
       )}
 
@@ -6104,6 +6166,18 @@ function SellerView({
               products, as an open list (product, price, profit, stock)
               with Remove on every row — and nothing else below it.
               Products are added from the Shop. */}
+          {plan && plan.productLimit !== null && plan.productsUsed >= plan.productLimit && (
+            <div role="alert" className="mb-3 rounded-xl border-2 border-[var(--gold)] bg-[var(--amber-bg)] px-4 py-3 text-sm font-semibold text-[var(--text)]">
+              {t("plan.limitBannerFull").replace("{limit}", String(plan.productLimit)).replace("{plan}", t(`plan.${plan.planId}`))}
+              <button type="button" onClick={() => setTab("plans")} className="ml-2 font-bold text-[var(--accent)]">{t("plan.viewPlans")}</button>
+            </div>
+          )}
+          {plan && plan.productLimit !== null && plan.productsUsed < plan.productLimit && plan.productsUsed >= Math.floor(plan.productLimit * 0.8) && (
+            <div role="status" className="mb-3 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-3 text-sm text-[var(--text)]">
+              {t("plan.limitBanner").replace("{used}", String(plan.productsUsed)).replace("{limit}", String(plan.productLimit)).replace("{plan}", t(`plan.${plan.planId}`))}
+              <button type="button" onClick={() => setTab("plans")} className="ml-2 font-bold text-[var(--accent)]">{t("plan.viewPlans")}</button>
+            </div>
+          )}
           <section aria-label={t("sd.myProducts")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-display text-lg font-bold text-[var(--text)]">
@@ -6180,6 +6254,64 @@ function SellerView({
               shows ONLY the products this seller has added to their
               store, each with Remove. Products are added from the Shop
               (seller cards add directly to the seller's own store). */}
+        </>
+      )}
+
+      {tab === "plans" && (
+        <>
+          <h1 className="mb-1 font-display text-3xl font-extrabold tracking-tight text-[var(--text)]">{t("plan.title")}</h1>
+          <p className="text-sm text-[var(--dim)]">{t("plan.sub")}</p>
+          {plan && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 shadow-sm">
+              <span className="text-sm text-[var(--text)]">👛 {t("plan.walletBalance")}: <strong>{fmt(plan.availableBalance)}</strong></span>
+              <span className="text-sm text-[var(--text)]">{plan.productLimit === null ? t("plan.usageUnlimited").replace("{used}", String(plan.productsUsed)) : t("plan.usage").replace("{used}", String(plan.productsUsed)).replace("{limit}", String(plan.productLimit))}</span>
+              {plan.expiresAt && <span className="text-sm text-[var(--dim)]">{t("plan.expires").replace("{date}", new Date(plan.expiresAt).toLocaleDateString())}</span>}
+              <button type="button" onClick={() => setTab("wallet")} className="ml-auto text-sm font-bold text-[var(--accent)]">{t("seller.goWallet")} →</button>
+            </div>
+          )}
+          {buyMsg && (
+            <p role="status" className="mt-3 rounded-xl border border-[var(--gold)] bg-[var(--amber-bg)] px-4 py-3 text-sm font-semibold text-[var(--text)]">{buyMsg}</p>
+          )}
+          {!verified && (
+            <p className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] px-4 py-3 text-sm text-[var(--dim)]">{t("plan.pendingVerification")}</p>
+          )}
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            {([
+              { id: "free" as const, priceUsd: 0, priceInr: 0, enabled: true, limit: 100, bonus: 0 },
+              { id: "growth" as const, priceUsd: plan?.growthPriceUsd ?? 300, priceInr: plan?.growthPriceInr ?? 24900, enabled: plan?.growthEnabled ?? true, limit: 500, bonus: 5 },
+              { id: "business" as const, priceUsd: plan?.businessPriceUsd ?? 500, priceInr: plan?.businessPriceInr ?? 41500, enabled: plan?.businessEnabled ?? true, limit: null, bonus: 10 },
+            ] as const).map((c) => {
+              const isCurrent = plan?.planId === c.id;
+              return (
+                <div key={c.id} className={`relative flex flex-col rounded-2xl border-2 bg-[var(--surface)] p-5 shadow-sm ${isCurrent ? "border-[var(--gold)] ring-2 ring-[var(--gold)]/40" : "border-[var(--border)]"}`}>
+                  {isCurrent && <span className="absolute -top-3 left-4 rounded-full bg-[var(--gold)] px-3 py-0.5 text-xs font-extrabold text-[var(--gold-ink)]">✦ {t("plan.current")}</span>}
+                  <h3 className="font-display text-xl font-extrabold text-[var(--text)]">{t(`plan.${c.id}`)}</h3>
+                  <p className="mt-0.5 text-sm text-[var(--dim)]">{t(`plan.${c.id}Desc`)}</p>
+                  <p className="mt-3 font-display text-3xl font-extrabold text-[var(--text)]">
+                    {c.priceUsd === 0 ? t("plan.free") : `$${c.priceUsd}`}
+                    {c.priceUsd > 0 && <span className="ml-1 text-sm font-semibold text-[var(--dim)]">{t("plan.perYear")}</span>}
+                  </p>
+                  {c.priceUsd > 0 && <p className="mt-0.5 text-xs text-[var(--dim)]">{t("plan.walletPrice").replace("{inr}", fmt(c.priceInr))}</p>}
+                  <ul className="mt-3 flex flex-col gap-1.5 text-sm text-[var(--text)]">
+                    <li>📦 {c.limit === null ? t("plan.unlimited") : `${c.limit} ${t("plan.products")}`}</li>
+                    <li>💰 {c.bonus === 0 ? t("plan.bonusNone") : t("plan.bonus").replace("{pct}", String(c.bonus))}</li>
+                    <li>📅 {c.priceUsd === 0 ? t("plan.noExpiry") : t("plan.validity")}</li>
+                  </ul>
+                  <div className="mt-4">
+                    {isCurrent ? (
+                      <span className="inline-block rounded-full bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-[var(--accent-ink)]">✓ {t("plan.current")}</span>
+                    ) : c.id === "free" ? (
+                      <span className="text-sm text-[var(--dim)]">—</span>
+                    ) : !c.enabled ? (
+                      <span className="text-sm font-semibold text-[var(--dim)]">{t("plan.disabled")}</span>
+                    ) : (
+                      <button type="button" disabled={!verified || buyPlan.isPending} onClick={() => { setBuyMsg(null); buyPlan.mutate(c.id); }} className={goldBtn + " w-full px-4 py-2.5 text-sm disabled:opacity-50"}>{buyPlan.isPending ? t("plan.buying") : t("plan.buy")}</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
 
@@ -6481,7 +6613,7 @@ const ORDER_STATUSES = [
   "Cancelled",
 ] as const;
 
-type AdminSection = "overview" | "sellers" | "users" | "products" | "sellerProducts" | "external" | "profit" | "orders" | "wallet" | "support" | "reviews" | "theme" | "settings";
+type AdminSection = "overview" | "sellers" | "users" | "products" | "sellerProducts" | "external" | "profit" | "orders" | "wallet" | "support" | "reviews" | "plans" | "theme" | "settings";
 type DocKind = "photo" | "logo" | "docFront" | "docBack";
 
 // Admin → Reviews (2026-10-31): manages BOTH kinds of homepage
@@ -6491,6 +6623,90 @@ type DocKind = "photo" | "logo" | "docFront" | "docBack";
 // labelled "Added by store" on the homepage and never carry a customer
 // name, rating or verified mark. The section switch hides the whole
 // carousel from visitors without deleting anything.
+function AdminPlansSection({ adminId }: { adminId: number }) {
+  const { t, fmt } = useUi();
+  const queryClient = useQueryClient();
+  const settingsQ = useQuery({ queryKey: ["settings"], queryFn: () => api.getSettings({}) });
+  const purchQ = useQuery({ queryKey: ["admin-plan-purchases", adminId], queryFn: () => api.listPlanPurchases({ adminId }) });
+  const [growthPrice, setGrowthPrice] = useState("");
+  const [businessPrice, setBusinessPrice] = useState("");
+  const [growthOn, setGrowthOn] = useState(true);
+  const [businessOn, setBusinessOn] = useState(true);
+  const [init, setInit] = useState(false);
+  useEffect(() => {
+    if (settingsQ.data && !init) {
+      setGrowthPrice(String(settingsQ.data.planGrowthPriceUsd ?? 300));
+      setBusinessPrice(String(settingsQ.data.planBusinessPriceUsd ?? 500));
+      setGrowthOn(settingsQ.data.planGrowthEnabled ?? true);
+      setBusinessOn(settingsQ.data.planBusinessEnabled ?? true);
+      setInit(true);
+    }
+  }, [settingsQ.data]);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const save = useMutation({
+    mutationFn: () => {
+      const st = settingsQ.data!;
+      return api.updateSettings({
+        userId: adminId,
+        storeName: st.storeName,
+        supportWhatsapp: st.supportWhatsapp,
+        supportEmail: st.supportEmail,
+        defaultProfitPercent: st.defaultProfitPercent,
+        planGrowthPriceUsd: Math.max(1, parseInt(growthPrice, 10) || 300),
+        planBusinessPriceUsd: Math.max(1, parseInt(businessPrice, 10) || 500),
+        planGrowthEnabled: growthOn,
+        planBusinessEnabled: businessOn,
+      });
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["settings"] }); setSaveMsg(t("adm.planSaved")); },
+    onError: (e) => setSaveMsg(String(e)),
+  });
+  const purchases = purchQ.data?.purchases ?? [];
+  return (
+    <div className="mt-3 flex flex-col gap-4">
+      <form
+        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4"
+        onSubmit={(e) => { e.preventDefault(); setSaveMsg(null); save.mutate(); }}
+      >
+        <p className="font-semibold text-[var(--text)]">{t("adm.planTitle")}</p>
+        <p className="mt-1 text-sm text-[var(--dim)]">{t("adm.planSub")}</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Field label={t("adm.planGrowthPrice")}>
+            <input type="number" min={1} value={growthPrice} onChange={(e) => setGrowthPrice(e.target.value)} className={inputCls} aria-label="Growth plan price in USD" />
+          </Field>
+          <Field label={t("adm.planBusinessPrice")}>
+            <input type="number" min={1} value={businessPrice} onChange={(e) => setBusinessPrice(e.target.value)} className={inputCls} aria-label="Business plan price in USD" />
+          </Field>
+          <SwitchRow label={t("adm.planGrowthOn")} checked={growthOn} onToggle={() => setGrowthOn(!growthOn)} switchLabel="Growth plan ON or OFF" />
+          <SwitchRow label={t("adm.planBusinessOn")} checked={businessOn} onToggle={() => setBusinessOn(!businessOn)} switchLabel="Business plan ON or OFF" />
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <button type="submit" disabled={save.isPending || !settingsQ.data} className={primaryBtn + " px-4 py-2 text-sm"}>{t("adm.planSave")}</button>
+          {saveMsg && <span className="text-sm text-[var(--dim)]">{saveMsg}</span>}
+        </div>
+      </form>
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <p className="font-semibold text-[var(--text)]">{t("adm.planPurchases")}</p>
+        {purchases.length === 0 ? (
+          <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.planNoPurchases")}</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-2">
+            {purchases.map((p: any) => (
+              <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-[var(--surface-alt)] px-3 py-2 text-sm">
+                <span className="min-w-0 flex-1 text-[var(--text)]"><strong>{p.sellerName}</strong>{p.storeName ? ` · ${p.storeName}` : ""} · {t(`plan.${p.planId}`)}</span>
+                <span className="font-bold text-[var(--text)]">${p.amountUsd}</span>
+                <span className="text-[var(--dim)]">{p.method}</span>
+                <span className="text-[var(--dim)]">{p.status}</span>
+                <span className="text-xs text-[var(--dim)]">{new Date(p.createdAt).toLocaleDateString()}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AdminReviewsSection({ adminId }: { adminId: number }) {
   const { t } = useUi();
   const queryClient = useQueryClient();
@@ -8694,6 +8910,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
     { id: "wallet", label: t("adm.sec.wallet"), badge: (walletRequests.data?.requests ?? []).filter((r) => r.status === "pending").length, alert: actCounts.wallet },
     { id: "support", label: t("adm.sec.support"), badge: ov.pendingSupport + (chatThreads.data?.threads.filter((x) => x.awaitingReply).length ?? 0) + ((resetRequests.data?.requests ?? []).filter((r) => r.status === "pending").length), alert: actCounts.chats + actCounts.tickets + actCounts.resets },
     { id: "reviews", label: t("adm.sec.reviews"), isNew: true },
+    { id: "plans", label: t("adm.sec.plans"), isNew: true },
     { id: "theme", label: t("adm.sec.theme"), isNew: true },
     { id: "settings", label: t("adm.sec.settings"), isNew: true },
   ];
@@ -9712,6 +9929,11 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
           {section === "reviews" && (<div>
             <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-[var(--text)]">{t("adm.sec.reviews")} <NewBadge id="sec-reviews" /></h3>
             <AdminReviewsSection adminId={user.id} />
+          </div>)}
+
+          {section === "plans" && (<div>
+            <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-[var(--text)]">{t("adm.sec.plans")} <NewBadge id="sec-plans" /></h3>
+            <AdminPlansSection adminId={user.id} />
           </div>)}
 
           {section === "theme" && (<div>
