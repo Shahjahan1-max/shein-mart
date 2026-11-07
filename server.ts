@@ -92,6 +92,13 @@ CREATE TABLE IF NOT EXISTS seller_products (
   id SERIAL PRIMARY KEY, seller_id INTEGER NOT NULL REFERENCES users(id),
   product_id INTEGER NOT NULL REFERENCES products(id), created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS plan_purchases (
+  id SERIAL PRIMARY KEY, seller_id INTEGER NOT NULL REFERENCES users(id),
+  plan_id TEXT NOT NULL, amount_usd INTEGER NOT NULL, method TEXT NOT NULL DEFAULT '',
+  reference TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'approved',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(), decided_at TIMESTAMPTZ
+);
 CREATE TABLE IF NOT EXISTS cart_items (
   id SERIAL PRIMARY KEY, buyer_id INTEGER NOT NULL REFERENCES users(id),
   product_id INTEGER NOT NULL REFERENCES products(id), qty INTEGER NOT NULL DEFAULT 1,
