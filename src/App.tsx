@@ -1151,16 +1151,19 @@ function ShopView({
 
   // Partner Platforms marquee (2026-11-07): the DealX-style row of
   // platform tiles that auto-scrolls sideways at the top of the shop.
-  // Icons are original stroke glyphs in the codebase style — no
-  // platform's official logo is copied or hosted. Tiles are plain
-  // external links (new tab), no partnership is claimed beyond the
-  // section heading the owner asked for.
+  // Logo marks are the platforms' own wordmarks/logotypes, drawn inline
+  // (no logo file is hosted or hotlinked, so no third-party request):
+  // Amazon's "a" + orange smile, Alibaba.com in white on brand orange,
+  // AliExpress in brand orange, eBay in its four brand colours, SHEIN
+  // in black. Tiles keep a fixed white (or brand-orange) background so
+  // the marks stay true in light and dark mode. Tiles are plain
+  // external links (new tab).
   const PARTNER_PLATFORMS = [
-    { name: "Amazon", url: AMAZON_INDIA_URL, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 shrink-0"><path d="M5.5 8h13l-1.1 12.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8L5.5 8Z" /><path d="M8.5 10.5V6.8a3.5 3.5 0 0 1 7 0v3.7" /></svg>) },
-    { name: "Alibaba", url: ALIBABA_URL, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 shrink-0"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3c2.5 2.6 3.9 5.7 3.9 9s-1.4 6.4-3.9 9c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3Z" /></svg>) },
-    { name: "AliExpress", url: ALIEXPRESS_URL, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 shrink-0"><path d="M3.5 3.5h7l9 9-7 7-9-9v-7Z" /><circle cx="8" cy="8" r="1.5" /></svg>) },
-    { name: "eBay", url: EBAY_URL, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 shrink-0"><path d="M4 9.5 5.5 4.5h13L20 9.5" /><path d="M4 9.5h16V20H4V9.5Z" /><path d="M10 20v-5.5h4V20" /></svg>) },
-    { name: "SHEIN", url: SHEIN_INDIA_URL, icon: (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-9 w-9 shrink-0"><path d="M12 6.5V5a1.5 1.5 0 0 1 1.5-1.5" /><path d="M12 6.5 3.5 15h17L12 6.5Z" /></svg>) },
+    { name: "Amazon", url: AMAZON_INDIA_URL, tileCls: "bg-white", icon: (<svg aria-hidden viewBox="0 0 24 24" className="h-9 w-9 shrink-0"><text x="12" y="16" textAnchor="middle" fontSize="16" fontWeight="800" fill="#000000" fontFamily="Georgia, 'Times New Roman', serif">a</text><path d="M4 17.5 Q12 21.5 20 17.5" fill="none" stroke="#FF9900" strokeWidth="1.6" strokeLinecap="round" /><path d="M20 17.5 L17.8 16.9 M20 17.5 L19.4 19.7" fill="none" stroke="#FF9900" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>) },
+    { name: "Alibaba", url: ALIBABA_URL, tileCls: "border-[#FF6A00] bg-[#FF6A00]", icon: (<span className="text-[13px] font-extrabold tracking-tight text-white">Alibaba.com</span>) },
+    { name: "AliExpress", url: ALIEXPRESS_URL, tileCls: "bg-white", icon: (<span className="font-display text-[15px] font-extrabold tracking-tight text-[#E62E04]">AliExpress</span>) },
+    { name: "eBay", url: EBAY_URL, tileCls: "bg-white", icon: (<span className="text-[22px] font-extrabold leading-none tracking-tight"><span className="text-[#E53238]">e</span><span className="text-[#0064D2]">b</span><span className="text-[#F5AF02]">a</span><span className="text-[#86B817]">y</span></span>) },
+    { name: "SHEIN", url: SHEIN_INDIA_URL, tileCls: "bg-white", icon: (<span className="font-display text-[17px] font-extrabold tracking-[0.15em] text-black">SHEIN</span>) },
   ];
   // One half of the marquee track: the set repeated 4x so a half is
   // wider than any viewport and the -50% loop stays seamless.
@@ -1538,9 +1541,9 @@ function ShopView({
                       rel="noreferrer"
                       tabIndex={half === 1 ? -1 : undefined}
                       aria-label={p.name}
-                      className="flex w-[120px] shrink-0 flex-col items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3 py-4 text-center shadow-sm transition-shadow hover:shadow-md"
+                      className={`flex w-[120px] shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border border-[var(--border)] px-3 py-4 text-center shadow-sm transition-shadow hover:shadow-md ${p.tileCls}`}
                     >
-                      <span aria-hidden className="text-[var(--gold)]">{p.icon}</span>
+                      <span aria-hidden className="flex h-9 items-center justify-center">{p.icon}</span>
                       <span className="font-display text-sm font-bold text-[var(--text)]">{p.name}</span>
                     </a>
                   ))}
