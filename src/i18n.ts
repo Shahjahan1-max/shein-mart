@@ -182,6 +182,7 @@ export const STR = {
   "ext.off": { en: "This section is currently switched off.", hi: "यह सेक्शन फिलहाल बंद है।" , ar: "هذا القسم مغلق حاليًا."},
     "cat.Audio": { en: "Audio", hi: "ऑडियो" , ar: "الصوتيات"},
   "links.title": { en: "Popular Shopping Platforms", hi: "लोकप्रिय शॉपिंग प्लेटफ़ॉर्म" , ar: "منصات تسوق شهيرة"},
+  "part.title": { en: "Partner Platforms", hi: "पार्टनर प्लेटफ़ॉर्म" , ar: "منصات الشركاء"},
   "links.note": {
     en: "External links — not affiliated with Amazon or SHEIN.",
     hi: "बाहरी लिंक — Amazon या SHEIN से कोई संबंध नहीं है।", ar: "روابط خارجية — غير تابع لـ Amazon أو SHEIN."},
