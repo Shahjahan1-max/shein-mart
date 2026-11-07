@@ -698,7 +698,7 @@ function ProductCard({
           <p className={`font-extrabold leading-tight tracking-tight text-[var(--text)] ${dense ? "text-[15px]" : "text-lg"}`}>
             {fmt(product.buyerPrice)}
           </p>
-          {product.oldPrice && (
+          {product.oldPrice && product.oldPrice > product.buyerPrice && (
             <p className="mt-0.5 text-xs text-[var(--dim)] line-through">
               {fmt(product.oldPrice)}
             </p>
@@ -836,7 +836,7 @@ function ProductDetail({
             <p className="font-display text-2xl font-extrabold leading-tight tracking-tight text-[var(--text)]">
               {fmt(product.buyerPrice)}
             </p>
-            {product.oldPrice && (
+            {product.oldPrice && product.oldPrice > product.buyerPrice && (
               <p className="text-sm text-[var(--dim)] line-through">{fmt(product.oldPrice)}</p>
             )}
             <p className="inline-block w-fit rounded-md bg-[var(--surface-alt)] px-1.5 py-0.5 text-xs font-semibold text-[var(--accent)]">
