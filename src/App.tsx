@@ -1222,8 +1222,9 @@ function ShopView({
     }
   }, [heroProduct]);
   // Shop by collection: only categories that actually have products and
-  // a real photo, headline categories first, then by size — all of them,
-  // so every category is visible at once (2026-11-07).
+  // a real photo, headline categories first, then by size — capped at 6
+  // cards (the headline six), back to the pre-2026-11-07 count at the
+  // owner's request: 10 cards felt too many (2026-11-07).
   const collectionCards = useMemo(() => {
     const list = allProducts.data?.products ?? [];
     if (list.length === 0) return [];
@@ -1237,7 +1238,7 @@ function ShopView({
       if (pa !== -1 || pb !== -1) return (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
       return counts[b]! - counts[a]!;
     });
-    return cats.map((c) => ({ category: c, photo: categoryPhoto[c]! }));
+    return cats.slice(0, 6).map((c) => ({ category: c, photo: categoryPhoto[c]! }));
   }, [allProducts.data, categoryPhoto]);
   // Featured: biggest real discounts first, topped up with the rest, plus
   // the day's Fresh Arrivals (the "New Today" section was removed
@@ -1576,7 +1577,7 @@ function ShopView({
             {t("coll.title")}
           </h2>
           <p className="mt-1 text-sm text-[var(--dim)]">{t("coll.sub")}</p>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
             {collectionCards.map((c) => (
               <button
                 key={c.category}
