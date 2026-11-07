@@ -12182,6 +12182,12 @@ const NAV: NavItem[] =
                   </button>
                 ) : null}
                 {user?.role === "seller" && (
+                  <button type="button" onClick={() => goSellerTab("plans")} className={drawerRowCls}>
+                    {aCrown} <span className="flex-1">{ui.t("sd.tabPlans")}</span>
+                    <NewBadge id="drawer-plans" />
+                  </button>
+                )}
+                {user?.role === "seller" && (
                   <button type="button" onClick={() => goSellerTab("wallet")} className={drawerRowCls}>
                     {iconWallet} <span>{ui.t("menu.wallet")}</span>
                   </button>
