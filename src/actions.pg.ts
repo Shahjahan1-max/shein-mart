@@ -8,7 +8,7 @@
 // otherwise the profit stays with the main store.
 
 import { defineAction, z, type ActionsModule, type Ctx } from "./space-shim";
-import { and, asc, desc, eq, gt, gte, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gt, gte, lt, ne, sql } from "drizzle-orm";
 import * as schema from "./schema.pg";
 import { createHash, randomBytes } from "node:crypto";
 
@@ -2576,6 +2576,76 @@ async function cleanupOrphanBlobs(ctx: Ctx): Promise<void> {
   }
 }
 
+// --- Admin backup: full-store JSON export / restore (2026-11-25) ---
+// The live Render free Postgres expires 26 Nov 2026; the owner chose
+// delete-old + new free DB, but only AFTER a backup. Render Shell is
+// blocked on the Free plan, so the backup runs through the app itself:
+// admin-only export (Admin → Settings → Download backup) + admin-only
+// import (Admin → Settings → Restore, on a fresh empty DB). Passwords
+// are already hashed; the export is admin-only and never logged.
+// Uploaded file BYTES (blobs table: seller documents, chat attachments,
+// deposit screenshots) are NOT in the JSON — rows keep their blob keys
+// + metadata, so a restore keeps the references but the bytes must
+// still live in blob storage. The store's own photos live in the
+// frontend bundle, not here. Sessions (user_sessions), carts and
+// one-time auth rows are deliberately NOT backed up: everyone signs in
+// again after a restore.
+// The spec order is the FK-safe import order: settings + users first,
+// then catalog, then everything that references them.
+type BackupTableSpec = { key: string; table: any; dbName: string; dateCols: string[] };
+const BACKUP_TABLES: BackupTableSpec[] = [
+  { key: "settings", table: schema.settings, dbName: "settings", dateCols: ["lastPriceSyncAt"] },
+  { key: "users", table: schema.users, dbName: "users", dateCols: ["createdAt"] },
+  { key: "products", table: schema.products, dbName: "products", dateCols: ["createdAt"] },
+  { key: "externalProducts", table: schema.externalProducts, dbName: "external_products", dateCols: ["createdAt"] },
+  { key: "storeReviews", table: schema.storeReviews, dbName: "store_reviews", dateCols: ["createdAt"] },
+  { key: "storeVisits", table: schema.storeVisits, dbName: "store_visits", dateCols: ["createdAt"] },
+  { key: "deletedAccounts", table: schema.deletedAccounts, dbName: "deleted_accounts", dateCols: ["deletedAt"] },
+  { key: "sellerProducts", table: schema.sellerProducts, dbName: "seller_products", dateCols: ["createdAt"] },
+  { key: "planPurchases", table: schema.planPurchases, dbName: "plan_purchases", dateCols: ["createdAt", "decidedAt", "expiresAt"] },
+  { key: "orders", table: schema.orders, dbName: "orders", dateCols: ["paymentVerifiedAt", "codConfirmedAt", "createdAt"] },
+  { key: "orderItems", table: schema.orderItems, dbName: "order_items", dateCols: [] },
+  { key: "orderSellerItems", table: schema.orderSellerItems, dbName: "order_seller_items", dateCols: [] },
+  { key: "orderSellerSnapshots", table: schema.orderSellerSnapshots, dbName: "order_seller_snapshots", dateCols: [] },
+  { key: "walletTransactions", table: schema.walletTransactions, dbName: "wallet_transactions", dateCols: ["paidAt", "createdAt"] },
+  { key: "sellerWalletEvents", table: schema.sellerWalletEvents, dbName: "seller_wallet_events", dateCols: ["createdAt"] },
+  { key: "sellerNotifications", table: schema.sellerNotifications, dbName: "seller_notifications", dateCols: ["createdAt"] },
+  { key: "sellerNotices", table: schema.sellerNotices, dbName: "seller_notices", dateCols: ["createdAt"] },
+  { key: "chatMessages", table: schema.chatMessages, dbName: "chat_messages", dateCols: ["createdAt"] },
+  { key: "tickets", table: schema.tickets, dbName: "tickets", dateCols: ["createdAt"] },
+  { key: "productReviews", table: schema.productReviews, dbName: "product_reviews", dateCols: ["createdAt"] },
+];
+const BACKUP_BY_KEY: Record<string, BackupTableSpec> = Object.fromEntries(BACKUP_TABLES.map((s) => [s.key, s]));
+
+// Export: Date instances become ISO strings so the JSON round-trips.
+function backupSerializeRow(row: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(row)) out[k] = v instanceof Date ? v.toISOString() : v;
+  return out;
+}
+
+// Import: validate one raw row against its table — ids are preserved
+// exactly (FKs depend on them), timestamp strings become Dates again,
+// unknown columns (a newer backup) are skipped, not trusted.
+function backupCoerceRow(spec: BackupTableSpec, raw: any): Record<string, any> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error(`Bad row in backup table ${spec.key}.`);
+  if (raw.id === undefined || raw.id === null) throw new Error(`A row in backup table ${spec.key} is missing its id.`);
+  const cols = getTableColumns(spec.table);
+  const row: Record<string, any> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (!(k in cols)) continue;
+    if (spec.dateCols.includes(k)) {
+      if (v === null) row[k] = null;
+      else if (typeof v === "string") {
+        const d = new Date(v);
+        if (isNaN(d.getTime())) throw new Error(`Bad date in backup table ${spec.key}, column ${k}.`);
+        row[k] = d;
+      } else throw new Error(`Bad date in backup table ${spec.key}, column ${k}.`);
+    } else row[k] = v;
+  }
+  return row;
+}
+
 export const Actions = {
   seedCatalog: defineAction({
     auth: { arg: "adminId", role: "admin" },
@@ -4804,9 +4874,14 @@ export const Actions = {
       const existing = await db.select().from(schema.productReviews).where(and(eq(schema.productReviews.orderId, args.orderId), eq(schema.productReviews.productId, args.productId))).limit(1);
       if (existing[0]) return fail("You have already reviewed this product for this order.");
       const comment = (args.comment ?? "").trim();
+      // Buyer-name snapshot (2026-11-25): stored at submit time so the
+      // review keeps its displayed name even if the buyer account is
+      // later deleted. Falls back to the order's recorded customer name.
+      const buyerRow = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, args.buyerId)).limit(1);
+      const buyerName = (buyerRow[0]?.name ?? order[0].customerName ?? "").trim();
       // Moderation (2026-10-31): a submitted review is PENDING and
       // hidden — it becomes public only when the admin approves it.
-      const inserted = await db.insert(schema.productReviews).values({ productId: args.productId, buyerId: args.buyerId, orderId: args.orderId, rating: args.rating, comment, visible: 0, status: "pending" }).returning({ id: schema.productReviews.id });
+      const inserted = await db.insert(schema.productReviews).values({ productId: args.productId, buyerId: args.buyerId, buyerName, orderId: args.orderId, rating: args.rating, comment, visible: 0, status: "pending" }).returning({ id: schema.productReviews.id });
       ctx.invalidateQueries();
       return { ok: true, error: null, id: inserted[0]?.id ?? null };
     },
@@ -4825,8 +4900,15 @@ export const Actions = {
       const rows = await db.select().from(schema.productReviews).where(and(eq(schema.productReviews.productId, args.productId), eq(schema.productReviews.visible, 1), eq(schema.productReviews.status, "approved"))).orderBy(desc(schema.productReviews.id));
       const reviews = [];
       for (const r of rows) {
-        const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
-        const first = (u[0]?.name ?? "").trim().split(/\s+/)[0] ?? "";
+        // Buyer name comes from the buyer_name snapshot first, so a
+        // review keeps its original name after the account is deleted;
+        // the users join is only the fallback for pre-snapshot rows
+        // whose backfill could not fill it.
+        let first = (r.buyerName ?? "").trim().split(/\s+/)[0] ?? "";
+        if (!first) {
+          const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
+          first = (u[0]?.name ?? "").trim().split(/\s+/)[0] ?? "";
+        }
         reviews.push({ id: r.id, rating: r.rating, comment: r.comment, buyerName: first || "Buyer", createdAt: r.createdAt.toISOString() });
       }
       const count = rows.length;
@@ -4854,8 +4936,14 @@ export const Actions = {
       const reviews = [];
       for (const r of rows) {
         const p = await db.select({ name: schema.products.name }).from(schema.products).where(eq(schema.products.id, r.productId)).limit(1);
-        const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
-        const first = (u[0]?.name ?? "").trim().split(/\s+/)[0] ?? "";
+        // Buyer name from the buyer_name snapshot first (keeps the
+        // original name after account deletion); users join is only the
+        // fallback for pre-snapshot rows the backfill could not fill.
+        let first = (r.buyerName ?? "").trim().split(/\s+/)[0] ?? "";
+        if (!first) {
+          const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
+          first = (u[0]?.name ?? "").trim().split(/\s+/)[0] ?? "";
+        }
         reviews.push({ id: r.id, productId: r.productId, productName: p[0]?.name ?? "Product", buyerName: first || "Buyer", rating: r.rating, comment: r.comment, createdAt: r.createdAt.toISOString() });
       }
       return { reviews };
@@ -4885,8 +4973,15 @@ export const Actions = {
       const out = [];
       for (const r of rows) {
         const p = await db.select({ name: schema.products.name }).from(schema.products).where(eq(schema.products.id, r.productId)).limit(1);
-        const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
-        out.push({ id: r.id, productId: r.productId, productName: p[0]?.name ?? "Product", buyerName: u[0]?.name ?? "", orderId: r.orderId, rating: r.rating, comment: r.comment, visible: r.visible, status: r.status, createdAt: r.createdAt.toISOString() });
+        // Full buyer name from the buyer_name snapshot first (keeps the
+        // original name after account deletion); users join is only the
+        // fallback for pre-snapshot rows the backfill could not fill.
+        let full = (r.buyerName ?? "").trim();
+        if (!full) {
+          const u = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, r.buyerId)).limit(1);
+          full = u[0]?.name ?? "";
+        }
+        out.push({ id: r.id, productId: r.productId, productName: p[0]?.name ?? "Product", buyerName: full, orderId: r.orderId, rating: r.rating, comment: r.comment, visible: r.visible, status: r.status, createdAt: r.createdAt.toISOString() });
       }
       return { reviews: out };
     },
@@ -6980,6 +7075,17 @@ export const Actions = {
         // order view resolves the shop from the snapshot and flags the
         // order sellerDeleted.
         await db.update(schema.orders).set({ sellerId: null }).where(eq(schema.orders.sellerId, u.id));
+        // A seller may also have reviewed products as a buyer: their
+        // reviews are preserved the same way as a buyer's (2026-11-25)
+        // — reassigned to the deleted-placeholder user, name kept in
+        // the buyer_name snapshot — otherwise the FK on
+        // productReviews.buyerId would fail the delete.
+        let ph = await db.select().from(schema.users).where(eq(schema.users.email, "deleted-placeholder@system.local")).limit(1);
+        if (!ph[0]) { const ins = await db.insert(schema.users).values({ name: "Deleted Account", email: "deleted-placeholder@system.local", password: await hashPassword("deleted-no-login-" + Math.random().toString(36).slice(2) + Date.now().toString(36)), role: "buyer" }).returning(); ph = ins; }
+        // A seller may also have placed orders as a buyer: those move
+        // to the placeholder too, or orders.buyerId blocks the delete.
+        await db.update(schema.orders).set({ buyerId: ph[0]!.id }).where(eq(schema.orders.buyerId, u.id));
+        await db.update(schema.productReviews).set({ buyerId: ph[0]!.id }).where(eq(schema.productReviews.buyerId, u.id));
         await db.delete(schema.users).where(eq(schema.users.id, u.id));
         for (const k of ownBlobKeys) await ctx.blobs.delete(k);
       } else {
@@ -6990,10 +7096,13 @@ export const Actions = {
         await db.update(schema.orders).set({ buyerId: ph[0]!.id }).where(eq(schema.orders.buyerId, u.id));
         await db.delete(schema.cartItems).where(eq(schema.cartItems.buyerId, u.id));
         await db.delete(schema.chatMessages).where(eq(schema.chatMessages.userId, u.id));
-        // A buyer who reviewed products blocks the delete the same way
-        // (productReviews.buyerId references users.id); account deletion
-        // removes their reviews with the account.
-        await db.delete(schema.productReviews).where(eq(schema.productReviews.buyerId, u.id));
+        // Reviews are NEVER deleted with the account (2026-11-25):
+        // the review rows stay exactly as they are — same stars, text,
+        // status and visibility — and keep their displayed buyer name
+        // from the buyer_name snapshot. Only the FK link moves to the
+        // deleted-placeholder user, exactly like the buyer's orders
+        // above, so productReviews.buyerId never blocks the delete.
+        await db.update(schema.productReviews).set({ buyerId: ph[0]!.id }).where(eq(schema.productReviews.buyerId, u.id));
         await db.update(schema.tickets).set({ userId: null }).where(eq(schema.tickets.userId, u.id));
         await db.delete(schema.users).where(eq(schema.users.id, u.id));
         for (const k of ownBlobKeys) await ctx.blobs.delete(k);
@@ -8199,6 +8308,130 @@ export const Actions = {
       await db.update(schema.settings).set({ externalProductsEnabled: args.enabled ? 1 : 0 }).where(eq(schema.settings.id, 1));
       ctx.invalidateQueries();
       return { ok: true, error: null, enabled: args.enabled };
+    },
+  }),
+  // Admin backup export (2026-11-25): the whole store as one JSON
+  // payload — every business table, ids preserved, timestamps as ISO
+  // strings. Read-only. Admin-only (dispatcher enforces the admin
+  // role before the handler runs; the role is re-checked here too).
+  // The frontend downloads the returned object as a .json file.
+  adminExportBackup: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({ adminId: z.number() }),
+    response: z.object({
+      ok: z.boolean(),
+      error: z.string().nullable(),
+      exportedAt: z.string().nullable(),
+      version: z.number(),
+      counts: z.record(z.string(), z.number()),
+      tables: z.record(z.string(), z.array(z.record(z.string(), z.any()))),
+    }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the admin can download a backup.", exportedAt: null, version: 1, counts: {}, tables: {} };
+      const tables: Record<string, any[]> = {};
+      const counts: Record<string, number> = {};
+      for (const spec of BACKUP_TABLES) {
+        const rows = await db.select().from(spec.table).orderBy(asc(spec.table.id));
+        tables[spec.key] = rows.map(backupSerializeRow);
+        counts[spec.key] = rows.length;
+      }
+      return { ok: true, error: null, exportedAt: new Date().toISOString(), version: 1, counts, tables };
+    },
+  }),
+
+  // Admin backup import (2026-11-25): restores an adminExportBackup
+  // file on a FRESH, empty database. Refuses when any business table
+  // already has rows (guards against a double import). Runs inside one
+  // transaction, so a bad file rolls everything back and the database
+  // stays fresh for another try. Accounts are REPLACED, not merged:
+  // sessions + carts are dropped, all existing users are deleted, then
+  // the backup's users are inserted with their original ids — the
+  // bootstrap admin used to authorize this call does not linger as an
+  // extra account. After a restore everyone signs in again with the
+  // restored accounts (the caller's own session is gone too).
+  adminImportBackup: defineAction({
+    auth: { arg: "adminId", role: "admin" },
+    request: z.object({
+      adminId: z.number(),
+      data: z.object({
+        version: z.number().optional(),
+        exportedAt: z.string().optional(),
+        tables: z.record(z.string(), z.array(z.record(z.string(), z.unknown()))),
+      }),
+    }),
+    response: z.object({
+      ok: z.boolean(),
+      error: z.string().nullable(),
+      imported: z.record(z.string(), z.number()),
+    }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const me = await db.select().from(schema.users).where(eq(schema.users.id, args.adminId)).limit(1);
+      if (!me[0] || me[0].role !== "admin") return { ok: false, error: "Only the admin can restore a backup.", imported: {} };
+      const data = args.data as any;
+      if (!data || typeof data !== "object" || !data.tables || typeof data.tables !== "object" || Array.isArray(data.tables)) {
+        return { ok: false, error: "That file is not a valid backup — no data found.", imported: {} };
+      }
+      for (const k of Object.keys(data.tables)) {
+        if (!BACKUP_BY_KEY[k]) return { ok: false, error: `Unknown table in backup: ${k}.`, imported: {} };
+      }
+      if (data.tables.users === undefined) return { ok: false, error: "That backup is incomplete — the users table is missing.", imported: {} };
+      // Validate + coerce every row BEFORE touching the database, so a
+      // bad file fails before any row is written.
+      const prepared: Array<{ spec: BackupTableSpec; rows: Record<string, any>[] }> = [];
+      try {
+        for (const spec of BACKUP_TABLES) {
+          const rawRows = data.tables[spec.key];
+          if (rawRows === undefined) { prepared.push({ spec, rows: [] }); continue; }
+          if (!Array.isArray(rawRows)) throw new Error(`Backup table ${spec.key} is not a list.`);
+          prepared.push({ spec, rows: rawRows.map((r: any) => backupCoerceRow(spec, r)) });
+        }
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : "That backup file could not be read.", imported: {} };
+      }
+      // Freshness guard (inside the transaction, so two concurrent
+      // restores cannot both pass): refuse when any business table
+      // already has rows. Users/settings are replaced, not guarded.
+      const imported: Record<string, number> = {};
+      try {
+        await db.transaction(async (tx: any) => {
+          for (const spec of BACKUP_TABLES) {
+            if (spec.key === "users" || spec.key === "settings") continue;
+            const existing = await tx.select({ id: spec.table.id }).from(spec.table).limit(1);
+            if (existing.length > 0) throw new Error(`Restore refused: the database is not empty (${spec.key} already has data). Restore works only on a fresh, empty database.`);
+          }
+          // Replace accounts first: drop sessions + carts (they
+          // reference users), then all users, so the bootstrap admin
+          // does not survive as an extra account.
+          await tx.delete(schema.userSessions);
+          await tx.delete(schema.cartItems);
+          await tx.delete(schema.users);
+          for (const { spec, rows } of prepared) {
+            if (rows.length === 0) { imported[spec.key] = 0; continue; }
+            if (spec.key === "settings") {
+              for (const row of rows) {
+                const { id, ...rest } = row;
+                await tx.insert(spec.table).values(row).onConflictDoUpdate({ target: spec.table.id, set: rest });
+              }
+            } else {
+              await tx.insert(spec.table).values(rows);
+            }
+            imported[spec.key] = rows.length;
+          }
+          // Reset every serial sequence so new rows continue after the
+          // restored ids instead of colliding with them.
+          for (const spec of BACKUP_TABLES) {
+            if (spec.key === "settings") continue;
+            await tx.execute(sql`SELECT setval(${sql.raw(`'${spec.dbName}_id_seq'`)} , COALESCE((SELECT MAX(id) FROM ${sql.raw(spec.dbName)}), 1), (SELECT MAX(id) FROM ${sql.raw(spec.dbName)}) IS NOT NULL)`);
+          }
+        });
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : "Restore failed.", imported: {} };
+      }
+      ctx.invalidateQueries();
+      return { ok: true, error: null, imported };
     },
   }),
 } satisfies ActionsModule;
