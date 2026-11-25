@@ -266,6 +266,12 @@ CREATE TABLE IF NOT EXISTS product_reviews (
 -- (they insert visible = 0) and rejected rows never are.
 ALTER TABLE product_reviews ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending';
 UPDATE product_reviews SET status = 'approved' WHERE visible = 1 AND status = 'pending';
+-- Buyer-name snapshot (2026-11-25): a review keeps its displayed
+-- buyer name even after the buyer account is deleted (reviews are
+-- never deleted with the account). Idempotent: only rows whose
+-- snapshot is NULL or empty are filled, from the buyer row.
+ALTER TABLE product_reviews ADD COLUMN IF NOT EXISTS buyer_name TEXT;
+UPDATE product_reviews SET buyer_name = u.name FROM users u WHERE product_reviews.buyer_id = u.id AND (product_reviews.buyer_name IS NULL OR product_reviews.buyer_name = '');
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cod_confirmed INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cod_confirmed_at TIMESTAMPTZ;
 CREATE OR REPLACE FUNCTION guard_wallet_ledger() RETURNS trigger AS $$
