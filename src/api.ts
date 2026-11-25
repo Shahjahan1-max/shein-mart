@@ -69,6 +69,7 @@ const NO_RETRY_ACTIONS = new Set([
   "updateOrderStatus", "adminReviewShippedOrder", "adminReviewOrderPayment", "cancelBuyerOrder", "reviewWalletRequest",
   "register", "registerSeller", "convertBuyerToSeller", "reviewSeller",
   "adminDeleteAccount", "adminDeleteProduct", "adminDeleteChatThread", "adminDeleteTicket", "adminDeleteExternalProduct", "adminDeletePasswordResetRequest",
+  "adminImportBackup",
   "sendChatMessage", "adminReplyChat", "createTicket", "replyTicket", "submitReview",
 ]);
 // Delays between retries: attempts land at 0s, 2s, 7s, 22s, 52s — covering

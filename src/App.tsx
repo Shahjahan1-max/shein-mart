@@ -7470,6 +7470,53 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
   const [showForm, setShowForm] = useState(false);
   const [pform, setPform] = useState({ name: "", category: "Electronics", description: "", basePrice: "", oldPrice: "", profitPercent: "20", stock: "50" });
   const [sform, setSform] = useState({ storeName: "", supportWhatsapp: "", supportEmail: "", supportTelegram: "", supportPhone: "", operatingMarkets: "", contactSectionEnabled: true, defaultProfitPercent: "20" });
+  // Backup & restore (Settings section): full-store JSON export/import.
+  // After a successful restore the admin session is gone (sessions are
+  // not in the backup), so the message tells the Admin to sign in again
+  // with the original admin account; no query invalidation here, or the
+  // reload would hide the message before it is read.
+  const [bkFile, setBkFile] = useState<File | null>(null);
+  const [bkMsg, setBkMsg] = useState<string | null>(null);
+  const [bkErr, setBkErr] = useState<string | null>(null);
+  const exportBackup = useMutation({
+    mutationFn: () => api.adminExportBackup({ adminId: user!.id }),
+    onSuccess: (r) => {
+      if (!r.ok) { setBkErr(r.error ?? t("bk.failed")); return; }
+      const blob = new Blob([JSON.stringify(r)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sheinmart-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setBkMsg(t("bk.downloaded").replace("{products}", String(r.counts?.products ?? 0)).replace("{users}", String(r.counts?.users ?? 0)).replace("{orders}", String(r.counts?.orders ?? 0)));
+    },
+    onError: (e) => setBkErr(String(e)),
+  });
+  const importBackup = useMutation({
+    mutationFn: (data: any) => api.adminImportBackup({ adminId: user!.id, data }),
+    onSuccess: (r) => {
+      if (!r.ok) { setBkErr(r.error ?? t("bk.failed")); return; }
+      setBkMsg(t("bk.restored").replace("{products}", String(r.imported?.products ?? 0)).replace("{users}", String(r.imported?.users ?? 0)).replace("{orders}", String(r.imported?.orders ?? 0)));
+    },
+    onError: (e) => setBkErr(String(e)),
+  });
+  const runRestore = async () => {
+    setBkErr(null);
+    setBkMsg(null);
+    if (!bkFile) { setBkErr(t("bk.noFile")); return; }
+    let parsed: any;
+    try {
+      parsed = JSON.parse(await bkFile.text());
+    } catch {
+      setBkErr(t("bk.badFile"));
+      return;
+    }
+    if (!parsed || typeof parsed !== "object" || !parsed.tables) { setBkErr(t("bk.badFile")); return; }
+    importBackup.mutate(parsed);
+  };
   // Language & Prices (Settings section): per-language / per-currency ON/OFF
   const [lpForm, setLpForm] = useState({ langHindiEnabled: true, langArabicEnabled: true, currencyInrEnabled: true, currencyUsdEnabled: true, currencyUsdtEnabled: true });
   const [lpServerErr, setLpServerErr] = useState<string | null>(null);
@@ -10109,6 +10156,26 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               {pmServerErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {pmServerErr}</p>}
               {pmOk && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {pmOk}</p>}
               <div className="mt-3"><button type="button" disabled={savePaymentMethods.isPending} onClick={() => { setPmServerErr(null); setPmOk(null); savePaymentMethods.mutate(); }} className={primaryBtn}>{t("pm.save")}</button></div>
+            </div>
+            {/* Settings -> Backup & restore: full-store JSON export
+             (download) + import on a fresh, empty database. Restore
+             refuses on a non-empty database, so a double import cannot
+             duplicate anything. After a restore, sign in again with the
+             original admin account — sessions are not in the backup. */}
+            <div className="mt-6 rounded-2xl border-2 border-[var(--gold)]/60 bg-[var(--surface)] p-4">
+              <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-[var(--text)]">💾 {t("bk.title")}</h3>
+              <p className="mt-1 text-sm text-[var(--dim)]">{t("bk.sub")}</p>
+              <p className="mt-1 text-sm font-semibold text-[var(--text)]">{t("bk.note")}</p>
+              <div className="mt-3">
+                <button type="button" disabled={exportBackup.isPending} onClick={() => { setBkErr(null); setBkMsg(null); exportBackup.mutate(); }} className={primaryBtn}>{exportBackup.isPending ? t("bk.downloading") : `⬇️ ${t("bk.download")}`}</button>
+              </div>
+              <div className="mt-4 flex flex-col gap-2">
+                <label className="text-sm font-bold text-[var(--text)]" htmlFor="bk-file">{t("bk.chooseFile")}</label>
+                <input id="bk-file" type="file" accept=".json,application/json" onChange={(e) => { setBkFile(e.target.files?.[0] ?? null); setBkErr(null); setBkMsg(null); }} className={inputCls} aria-label={t("bk.chooseFile")} />
+                <div><button type="button" disabled={importBackup.isPending} onClick={() => { void runRestore(); }} className={primaryBtn}>{importBackup.isPending ? t("bk.restoring") : `⬆️ ${t("bk.restore")}`}</button></div>
+              </div>
+              {bkMsg && <p role="status" className="mt-3 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-sm font-semibold text-[var(--success-text)]">✓ {bkMsg}</p>}
+              {bkErr && <p role="alert" className="mt-3 text-sm font-semibold text-rose-600">⚠ {bkErr}</p>}
             </div>
             {/* Settings -> Admin Accounts: plain list (name + Gmail + date
              only, never any password), change own Gmail, change own
