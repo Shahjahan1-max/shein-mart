@@ -3960,6 +3960,61 @@ export const Actions = {
     },
   }),
 
+  // First-admin bootstrap: the sign-in screen's "Create Admin Account"
+  // form calls this. Public, but refuses once any admin exists, so it
+  // can only ever create the very first admin. The restore flow replaces
+  // this account with the backup's admin afterwards.
+  createAdmin: defineAction({
+    auth: "public",
+    request: z.object({
+      name: z.string().min(2).max(80),
+      email: z.string().max(120),
+      password: z.string().min(8).max(100),
+    }),
+    response: z.object({
+      ok: z.boolean(),
+      error: z.string().nullable(),
+      user: userOut.nullable(),
+      token: z.string().nullable(),
+    }),
+    async handler(ctx, args) {
+      const db = ctx.db<typeof schema>();
+      const admins = await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.role, "admin"))
+        .limit(1);
+      if (admins.length > 0) {
+        return { ok: false, error: "An admin account already exists — please sign in.", user: null, token: null };
+      }
+      const name = (args.name ?? "").trim();
+      if (name.length < 2) {
+        return { ok: false, error: "Name is missing — please enter at least 2 letters.", user: null, token: null };
+      }
+      const email = (args.email ?? "").trim().toLowerCase();
+      if (!email || !isValidEmail(email)) {
+        return { ok: false, error: "That Gmail/email looks wrong — please enter a valid email address.", user: null, token: null };
+      }
+      if (!args.password || args.password.length < 8) {
+        return { ok: false, error: "Password is too short — please use at least 8 characters.", user: null, token: null };
+      }
+      const dupe = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
+      if (dupe[0]) {
+        return { ok: false, error: "This Gmail is already used by another account. Please use a different Gmail.", user: null, token: null };
+      }
+      const inserted = await db
+        .insert(schema.users)
+        .values({ name, email, password: await hashPassword(args.password), role: "admin" })
+        .returning();
+      if (!inserted[0]) {
+        return { ok: false, error: "Admin creation failed — please try again.", user: null, token: null };
+      }
+      const token = await issueSessionToken(db, inserted[0].id);
+      ctx.invalidateQueries();
+      return { ok: true, error: null, user: toUserOut(inserted[0]), token };
+    },
+  }),
+
   addToMyStore: defineAction({
     auth: { arg: "sellerId" },
     request: z.object({ sellerId: z.number(), productId: z.number() }),
