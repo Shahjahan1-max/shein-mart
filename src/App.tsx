@@ -6307,6 +6307,10 @@ function SellerView({
         const shipmentOrders = d.orders.filter((o) => o.status === "Shipped");
         const completedOrders = d.orders.filter((o) => o.status === "Delivered");
         const sectionOrders = orderSection === "pending" ? pendingOrders : orderSection === "shipment" ? shipmentOrders : completedOrders;
+        // History shows ONLY orders in no working section above (i.e.
+        // Cancelled orders) — an order never appears twice on this page.
+        const sectionIds = new Set([...pendingOrders, ...shipmentOrders, ...completedOrders].map((x) => x.id));
+        const historyOrders = d.orderHistory.filter((o) => !sectionIds.has(o.id));
         const finByOrder = new Map((walletQ.data?.financeOrders ?? []).map((f) => [f.orderId, f]));
         const walletBalance = walletQ.data?.availableBalance ?? 0;
         const walletPending = walletQ.data?.pendingOrderHolds ?? 0;
@@ -6335,7 +6339,7 @@ function SellerView({
               {orderSection === "pending" && pendingOrders.length > 0 && <p className="mt-1 text-sm font-semibold text-[var(--alert)]">{pendingOrders.length} {t("notif.pendingAlert")} — {t("sd.pendingShipment")}</p>}
             </div>
 
-            {/* Section tabs: Pending / Shipment / Completed, each with its own count */}
+            {/* Section tabs: Pending / Shipment / Completed — counts live inside the section, not on the tabs */}
             <div className="mt-3 flex gap-1.5" role="tablist" aria-label={t("sd.myOrders")}>
               {sectionTabs.map((st) => {
                 const active = orderSection === st.id;
@@ -6347,12 +6351,11 @@ function SellerView({
                     type="button"
                     role="tab"
                     aria-selected={active}
-                    aria-label={`${st.label}: ${st.count}${newInTab > 0 ? `, ${newInTab} new` : ""}`}
+                    aria-label={`${st.label}${newInTab > 0 ? `, ${newInTab} new` : ""}`}
                     onClick={() => { setOrderSection(st.id); setDeliverFor(null); setDeliverErr(null); }}
                     className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-center text-xs font-bold leading-tight min-[420px]:text-[13px] sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm ${active ? (alertTab ? "bg-[var(--alert)] text-[var(--alert-ink)]" : "bg-[var(--accent)] text-[var(--accent-ink)]") : alertTab ? "border-2 border-[var(--alert)] bg-[var(--alert-bg)] text-[var(--alert)]" : "border border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"}`}
                   >
                     <span aria-hidden>{st.icon}</span> {st.label}
-                    <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${active ? (alertTab ? "bg-alert-ink-25 text-[var(--alert-ink)]" : "bg-accent-ink-25 text-[var(--accent-ink)]") : alertTab ? "bg-[var(--alert)] text-[var(--alert-ink)]" : "bg-[var(--surface-alt)] text-[var(--dim)]"}`}>{st.count}</span>
                     {newInTab > 0 && <span className="rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-extrabold text-[var(--gold-ink)] shadow">NEW {newInTab}</span>}
                   </button>
                 );
@@ -6479,22 +6482,22 @@ function SellerView({
               </div>
             )}
 
-            {/* Order History — a permanent, chronological record of EVERY
-                order this seller's store has received (newest first),
-                Cancelled included. Unlike the three working sections
-                above, nothing ever leaves this list: a completed order
-                stays here as history. Seller-side only — the Wallet
+            {/* Order History — ONLY the orders in no working section
+                above, i.e. Cancelled orders (newest first). An order
+                lives in exactly one place: Pending, Shipment or
+                Completed above, or here if it was cancelled — never in
+                two places at once. Seller-side only — the Wallet
                 shows money, never order history. */}
             <section aria-label={t("sord.historyTitle")} className="mt-8 border-t-2 border-[var(--border)] pt-5">
               <h3 className="font-display text-lg font-bold text-[var(--text)]">
-                📜 {t("sord.historyTitle")} ({d.orderHistory.length})
+                📜 {t("sord.historyTitle")} ({historyOrders.length})
               </h3>
               <p className="mt-1 text-sm text-[var(--dim)]">{t("sord.historySub")}</p>
-              {d.orderHistory.length === 0 ? (
+              {historyOrders.length === 0 ? (
                 <p className="mt-3 rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-4 py-5 text-center text-sm text-[var(--dim)]">{t("sord.historyEmpty")}</p>
               ) : (
                 <div className="mt-3 flex flex-col gap-3">
-                  {d.orderHistory.map((o) => {
+                  {historyOrders.map((o) => {
                     const mine = o.items.filter((it) => inStore.has(it.productId));
                     const myAmount = mine.reduce((s, it) => s + it.buyerPrice * it.qty, 0);
                     const myProfit = mine.reduce((s, it) => s + it.profitAmount * it.qty, 0);
