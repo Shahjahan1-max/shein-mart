@@ -1562,9 +1562,6 @@ function ShopView({
 
       <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 shadow-sm">
         <p className="text-[13px] font-semibold text-[var(--text)]">{t("daily.explore")}</p>
-        <span className="ml-auto rounded-full bg-[var(--accent)] px-2.5 py-1 font-display text-[11px] font-bold text-[var(--accent-ink)]">
-          {t("daily.badge")}
-        </span>
       </div>
 
       {category === "All" && !search.trim() && collectionCards.length > 0 && (
@@ -1801,11 +1798,11 @@ function ShopView({
               <h3 className="text-sm font-bold uppercase tracking-wide text-[var(--dim)]">{t("filt.price")}</h3>
               <div className="mt-2 grid grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="text-xs font-semibold text-[var(--dim)]">{t("filt.min")} (₹)</span>
+                  <span className="text-xs font-semibold text-[var(--dim)]">{t("filt.min")} (₹ INR)</span>
                   <input type="number" inputMode="numeric" min={0} value={priceMin} onChange={(e) => onPriceMinChange(e.target.value)} placeholder="0" className={`${inputCls} mt-1 w-full`} aria-label={t("filt.min")} />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-semibold text-[var(--dim)]">{t("filt.max")} (₹)</span>
+                  <span className="text-xs font-semibold text-[var(--dim)]">{t("filt.max")} (₹ INR)</span>
                   <input type="number" inputMode="numeric" min={0} value={priceMax} onChange={(e) => onPriceMaxChange(e.target.value)} placeholder="—" className={`${inputCls} mt-1 w-full`} aria-label={t("filt.max")} />
                 </label>
               </div>
@@ -2389,7 +2386,7 @@ function CheckoutView({
               onClick={() => setPayWhen("delivery")}
               className={`rounded-xl border p-3 text-left ${payWhen === "delivery" ? "border-[var(--accent)] bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]" : "border-[var(--border)] bg-[var(--surface)]"}`}
             >
-              <span className="block font-display text-sm font-bold text-[var(--text)]">💵 {t("co.payOnDelivery")} — {t("co.cod")}</span>
+              <span className="block font-display text-sm font-bold text-[var(--text)]">💵 {t("co.cod")}</span>
               <span className="mt-0.5 block text-xs leading-snug text-[var(--dim)]">{t("co.payOnDeliveryD")}</span>
             </button>
             <button
@@ -8935,16 +8932,16 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
     { id: "sellers", label: t("adm.sec.sellers"), badge: apps.length + ((resetRequests.data?.requests ?? []).filter((r) => r.status === "pending" && r.accountRole === "seller").length), alert: pendingSellerCount },
     { id: "users", label: t("adm.sec.users"), badge: ov.users.length + ((resetRequests.data?.requests ?? []).filter((r) => r.status === "pending" && r.accountRole === "buyer").length) },
     { id: "products", label: t("adm.sec.products"), badge: products.data?.products.length ?? ov.totalProducts },
-    { id: "sellerProducts", label: t("adm.sec.sellerProducts"), badge: spRows.length, isNew: true },
-    { id: "external", label: t("adm.sec.external"), badge: extAdminList.data?.products.length ?? 0, isNew: true },
-    { id: "profit", label: t("adm.sec.profit"), isNew: true },
-    { id: "orders", label: t("adm.sec.orders"), badge: ov.orders.length, isNew: true, alert: actCounts.orders },
+    { id: "sellerProducts", label: t("adm.sec.sellerProducts"), badge: spRows.length },
+    { id: "external", label: t("adm.sec.external"), badge: extAdminList.data?.products.length ?? 0 },
+    { id: "profit", label: t("adm.sec.profit") },
+    { id: "orders", label: t("adm.sec.orders"), badge: ov.orders.length, alert: actCounts.orders },
     { id: "wallet", label: t("adm.sec.wallet"), badge: (walletRequests.data?.requests ?? []).filter((r) => r.status === "pending").length, alert: actCounts.wallet },
     { id: "support", label: t("adm.sec.support"), badge: ov.pendingSupport + (chatThreads.data?.threads.filter((x) => x.awaitingReply).length ?? 0) + ((resetRequests.data?.requests ?? []).filter((r) => r.status === "pending").length), alert: actCounts.chats + actCounts.tickets + actCounts.resets },
-    { id: "reviews", label: t("adm.sec.reviews"), isNew: true },
-    { id: "plans", label: t("adm.sec.plans"), isNew: true },
-    { id: "theme", label: t("adm.sec.theme"), isNew: true },
-    { id: "settings", label: t("adm.sec.settings"), isNew: true },
+    { id: "reviews", label: t("adm.sec.reviews") },
+    { id: "plans", label: t("adm.sec.plans") },
+    { id: "theme", label: t("adm.sec.theme") },
+    { id: "settings", label: t("adm.sec.settings") },
   ];
   function startEdit(pr: Product) { setEditing(pr); setPform({ name: pr.name, category: pr.category, description: pr.description, basePrice: String(pr.basePrice), oldPrice: pr.oldPrice ? String(pr.oldPrice) : "", profitPercent: String(pr.profitPercent), stock: String(pr.stock) }); setShowForm(true); }
   function startNew() { setEditing(null); setPform({ name: "", category: "Electronics", description: "", basePrice: "", oldPrice: "", profitPercent: String(settings?.defaultProfitPercent ?? 20), stock: "50" }); setShowForm(true); }
@@ -9088,40 +9085,7 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               </div>
               {visitAddMsg && <p role="status" className={`mt-2 text-sm font-semibold ${visitAddMsg.ok ? "text-[var(--success-text-soft)]" : "text-rose-600"}`}>{visitAddMsg.text}</p>}
             </div>
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
-              <section aria-label={t("adm.latestActivity")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 lg:col-span-2">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="flex items-center gap-2 font-display text-lg font-extrabold text-[var(--text)]">🔔 {t("adm.latestActivity")}</h3>
-                  <button type="button" onClick={() => { setSection("overview"); window.setTimeout(() => document.getElementById("admin-activity")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150); }} className="shrink-0 text-sm font-bold text-[var(--gold)]">{t("adm.viewAll")} →</button>
-                </div>
-                <p className="mt-1 text-sm text-[var(--dim)]">{t("adm.latestActivitySub")}</p>
-                {activity.isPending ? (
-                  <p className="mt-3 text-sm text-[var(--dim)]">{t("common.loading")}</p>
-                ) : (activity.data?.events ?? []).length === 0 ? (
-                  <p className="mt-3 text-sm text-[var(--dim)]">{t("act.none")}</p>
-                ) : (
-                  <div className="mt-3 flex flex-col gap-2">
-                    {(activity.data?.events ?? []).slice(0, 5).map((ev) => {
-                      const icon = ev.kind === "order" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>) : ev.kind === "wallet" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="6" width="18" height="14" rx="2" /><path d="M3 10h18" /><path d="M16 15h.01" /></svg>) : ev.kind === "chat" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M4 5h16v11H9l-5 4V5Z" /></svg>) : ev.kind === "ticket" ? (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M13 6v12" strokeDasharray="2 2" /></svg>) : (<svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><circle cx="7.5" cy="15.5" r="4" /><path d="M10.5 12.5 20 3" /><path d="M16 7l2.5 2.5M18.5 4.5l1.5 1.5" /></svg>);
-                      const title = ev.kind === "order" ? t("adm.actOrder") : ev.kind === "wallet" ? t("adm.actWallet") : ev.kind === "chat" ? t("adm.actChat") : ev.kind === "ticket" ? t("adm.actTicket") : t("adm.actReset");
-                      const statusLabel = ev.status === "awaiting" ? t("adm.awaiting") : ev.status;
-                      const pillCls = ["Delivered", "approved", "paid"].includes(ev.status) ? "bg-[var(--success-bg-strong)] text-[var(--success-text-800)]" : ev.status === "Shipped" ? "bg-[var(--info-bg)] text-[var(--info-text)]" : ["rejected", "Cancelled"].includes(ev.status) ? "bg-[var(--danger-bg-strong)] text-[var(--danger-text-800)]" : "bg-[var(--warning-bg-strong)] text-[var(--warning-text)]";
-                      return (
-                        <div key={`${ev.kind}:${ev.refId}`} className={`flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2.5 ${ev.isNew ? "border-[var(--gold)] bg-[var(--amber-bg)]" : "border-[var(--border)]"}`}>
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent-strong)]">{icon}</span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-bold text-[var(--text)]">{title}{ev.isNew && (<span className="ml-2"><NewBadge /></span>)}</span>
-                            <span className="block truncate text-xs text-[var(--dim)]">{ev.customerName} · {ev.detail}</span>
-                          </span>
-                          <span className="text-xs text-[var(--dim)]">{new Date(ev.createdAt).toLocaleString()}</span>
-                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${pillCls}`}>{statusLabel}</span>
-                          <button type="button" aria-label={`Open activity for ${ev.customerName}`} onClick={() => openActivity(ev)} className="shrink-0 rounded-lg bg-[#20262C] px-3 py-1.5 text-xs font-bold text-white">{t("act.open")}</button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
+            <div className="mt-6">
               <section aria-label={t("adm.quickActions")} className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
                 <h3 className="flex items-center gap-2 font-display text-lg font-extrabold text-[var(--text)]"><svg aria-hidden viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" /></svg> {t("adm.quickActions")}</h3>
                 <div className="mt-3 flex flex-col gap-3">
@@ -9204,7 +9168,6 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
               <h3 className="flex flex-wrap items-center gap-2 font-display text-lg font-bold text-[var(--text)]">
                 🔔 {t("act.title")}
                 {actCounts.total > 0 && <span className="rounded-full bg-[var(--alert)] px-2 py-0.5 text-xs font-bold text-[var(--alert-ink)]">{actCounts.total} {t("act.newCount")}</span>}
-                <NewBadge />
               </h3>
               <p className="mt-1 text-sm text-[var(--dim)]">{t("act.sub")}</p>
               {activity.isPending ? (
@@ -9257,12 +9220,11 @@ function AdminView({ user, settings, onUserUpdated, onBackToStore, previewTheme,
                 { label: t("fin.available") + " (all sellers)", value: fmt(ov.totalWalletBalance), go: "wallet" as AdminSection },
                 { label: t("fin.pending") + " (all sellers)", value: fmt(ov.totalPendingAmount), go: "wallet" as AdminSection },
                 { label: t("fin.used") + " (all sellers)", value: fmt(ov.totalUsedAmount), go: "wallet" as AdminSection },
-                { label: t("adm.walletRequests"), value: String(ov.pendingWalletRequests), go: "wallet" as AdminSection },
                 { label: t("adm.tickets") + " (open)", value: String(ov.pendingSupport), go: "support" as AdminSection },
               ].map((s) => (<button key={s.label} type="button" aria-label={`${s.label}: ${s.value}`} onClick={() => setSection(s.go)} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-center"><p className="font-display text-lg font-extrabold text-[var(--text)]">{s.value}</p><p className="mt-0.5 text-xs text-[var(--dim)]">{s.label} →</p></button>))}
             </div>
             <h4 className="mt-6 font-display font-bold text-[var(--text)]">{t("adm.recentActivity")}</h4>
-            {(ov.recentNotifications ?? []).length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("adm.noOrders")}</p> : <div className="mt-2 flex flex-col gap-2">{(ov.recentNotifications ?? []).map((n) => (<div key={n.id} className="flex flex-wrap gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"><span aria-hidden>🔔</span><strong>{n.sellerName}</strong><span className="text-[var(--dim)]">Order #{n.orderId} · {n.productName} · {fmt(n.amount)}</span><span className="ml-auto text-xs text-[var(--dim)]">{new Date(n.createdAt).toLocaleString()}</span></div>))}</div>}
+            {(ov.recentNotifications ?? []).length === 0 ? <p className="mt-2 text-sm text-[var(--dim)]">{t("act.none")}</p> : <div className="mt-2 flex flex-col gap-2">{(ov.recentNotifications ?? []).map((n) => (<div key={n.id} className="flex flex-wrap gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm"><span aria-hidden>🔔</span><strong>{n.sellerName}</strong><span className="text-[var(--dim)]">Order #{n.orderId} · {n.productName} · {fmt(n.amount)}</span><span className="ml-auto text-xs text-[var(--dim)]">{new Date(n.createdAt).toLocaleString()}</span></div>))}</div>}
           </div>)}
 
           {section === "sellers" && (<div>
@@ -10263,7 +10225,7 @@ const FAQS: Record<Lang, Array<{ q: string; a: string }>> = {
     },
     {
       q: "How many days does delivery take?",
-      a: "Delivery time depends on your location. You can follow your order in My Orders — it moves from Pending to Shipment and then to Delivered. If anything is needed from you, Customer Service will message you in Live Chat.",
+      a: "Pakistan: 2–3 days (Rs 200 flat delivery, free over Rs 5,000). US, UK and Gulf: 5–8 days (Rs 1,500 flat). You can follow your order in My Orders — it moves from Pending to Shipment and then to Delivered. If anything is needed from you, Customer Service will message you in Live Chat.",
     },
     {
       q: "How do I become a seller, and how do I earn profit?",
@@ -10289,7 +10251,7 @@ const FAQS: Record<Lang, Array<{ q: string; a: string }>> = {
     },
     {
       q: "डिलीवरी में कितने दिन लगते हैं?",
-      a: "डिलीवरी का समय आपकी जगह पर निर्भर करता है। आप अपना ऑर्डर मेरे ऑर्डर में देख सकते हैं — यह Pending से Shipment और फिर Delivered होता है। आपसे कुछ चाहिए होगा तो ग्राहक सेवा लाइव चैट में संदेश भेजेगी।",
+      a: "पाकिस्तान: 2–3 दिन (Rs 200 फ्लैट डिलीवरी, Rs 5,000 से ऊपर मुफ़्त)। अमेरिका, ब्रिटेन और खाड़ी: 5–8 दिन (Rs 1,500 फ्लैट)। आप अपना ऑर्डर मेरे ऑर्डर में देख सकते हैं — यह Pending से Shipment और फिर Delivered होता है। आपसे कुछ चाहिए होगा तो ग्राहक सेवा लाइव चैट में संदेश भेजेगी।",
     },
     {
       q: "विक्रेता कैसे बनूँ और मुनाफ़ा कैसे मिलेगा?",
@@ -10315,7 +10277,7 @@ const FAQS: Record<Lang, Array<{ q: string; a: string }>> = {
     },
     {
       q: "كم يومًا يستغرق التوصيل؟",
-      a: "يعتمد وقت التوصيل على موقعك. يمكنك متابعة طلبك في طلباتي — ينتقل من قيد الانتظار إلى الشحن ثم إلى تم التوصيل. إذا احتجنا منك شيئًا، ستراسلك خدمة العملاء في الدردشة المباشرة.",
+      a: "باكستان: 2–3 أيام (200 روبية للتوصيل، ومجانًا للطلبات فوق 5,000 روبية). الولايات المتحدة وبريطانيا والخليج: 5–8 أيام (1,500 روبية). يمكنك متابعة طلبك في طلباتي — ينتقل من قيد الانتظار إلى الشحن ثم إلى تم التوصيل. إذا احتجنا منك شيئًا، ستراسلك خدمة العملاء في الدردشة المباشرة.",
     },
     {
       q: "كيف أصبح بائعًا، وكيف أربح الربح؟",
@@ -10862,24 +10824,20 @@ function SupportView({
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-          <h3 className="font-display font-bold text-[var(--text)]">{t("sup.whatsappT")}</h3>
-          {settings?.supportWhatsapp ? (
-            <>
-              <p className="mt-1 text-sm text-[var(--dim)]">{settings.supportWhatsapp}</p>
-              <a
-                href={`https://wa.me/${whatsappIntl}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-block rounded-lg bg-[#25d366] px-4 py-2.5 font-display text-sm font-bold text-white"
-              >
-                {t("sup.whatsappBtn")}
-              </a>
-            </>
-          ) : (
-            <p className="mt-1 text-sm text-[var(--dim)]">{t("sup.whatsappSoon")}</p>
-          )}
-        </div>
+        {settings?.supportWhatsapp && (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <h3 className="font-display font-bold text-[var(--text)]">{t("sup.whatsappT")}</h3>
+            <p className="mt-1 text-sm text-[var(--dim)]">{settings.supportWhatsapp}</p>
+            <a
+              href={`https://wa.me/${whatsappIntl}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block rounded-lg bg-[#25d366] px-4 py-2.5 font-display text-sm font-bold text-white"
+            >
+              {t("sup.whatsappBtn")}
+            </a>
+          </div>
+        )}
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <h3 className="font-display font-bold text-[var(--text)]">{t("sup.emailT")}</h3>
           {settings?.supportEmail ? (
@@ -10893,24 +10851,20 @@ function SupportView({
           )}
           <p className="mt-2 text-xs text-[var(--dim)]">{t("sup.timings")}</p>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-          <h3 className="font-display font-bold text-[var(--text)]">{t("sup.telegramT")}</h3>
-          {telegramLink ? (
-            <>
-              <p className="mt-1 text-sm text-[var(--dim)]">{telegramDisplay}</p>
-              <a
-                href={telegramLink}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-block rounded-lg bg-[#229ED9] px-4 py-2.5 font-display text-sm font-bold text-white"
-              >
-                {t("sup.telegramBtn")}
-              </a>
-            </>
-          ) : (
-            <p className="mt-1 text-sm text-[var(--dim)]">{t("sup.telegramSoon")}</p>
-          )}
-        </div>
+        {telegramLink && (
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <h3 className="font-display font-bold text-[var(--text)]">{t("sup.telegramT")}</h3>
+            <p className="mt-1 text-sm text-[var(--dim)]">{telegramDisplay}</p>
+            <a
+              href={telegramLink}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block rounded-lg bg-[#229ED9] px-4 py-2.5 font-display text-sm font-bold text-white"
+            >
+              {t("sup.telegramBtn")}
+            </a>
+          </div>
+        )}
       </div>
 
       <h3 className="mt-7 font-display text-lg font-bold text-[var(--text)]">{t("sup.faqT")}</h3>
@@ -11119,6 +11073,12 @@ const INFO_PAGES: Record<InfoPageId, { title: string; sections: { heading: strin
         heading: "Cash on Delivery",
         body: [
           "You pay when the order arrives. If there is a problem with a delivered order, contact Customer Service through Live Chat with your order number.",
+        ],
+      },
+      {
+        heading: "Damaged or wrong product",
+        body: [
+          "If a product arrives damaged or wrong, contact Customer Service within 7 days of delivery through Live Chat. The team will guide you through exchange or refund.",
         ],
       },
       {
@@ -11654,7 +11614,7 @@ const NAV: NavItem[] =
     user?.role === "seller"
       ? [
           { key: "shop", view: "shop", label: ui.t("nav.shop"), icon: iconShop },
-          { key: "products", sellerTab: "products", label: ui.t("nav.products"), icon: iconProducts, isNew: true },
+          { key: "products", sellerTab: "products", label: ui.t("nav.products"), icon: iconProducts },
           { key: "wallet", sellerTab: "wallet", label: ui.t("nav.wallet"), icon: iconWallet },
           { key: "seller", sellerTab: "home", label: ui.t("nav.seller"), icon: iconStore },
         ]
