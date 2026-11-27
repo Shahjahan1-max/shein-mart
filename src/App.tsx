@@ -6336,7 +6336,6 @@ function SellerView({
                   </span>
                 )}
               </h3>
-              {orderSection === "pending" && pendingOrders.length > 0 && <p className="mt-1 text-sm font-semibold text-[var(--alert)]">{pendingOrders.length} {t("notif.pendingAlert")} — {t("sd.pendingShipment")}</p>}
             </div>
 
             {/* Section tabs: Pending / Shipment / Completed — counts live inside the section, not on the tabs */}
@@ -6387,10 +6386,9 @@ function SellerView({
                       onClick={isNew ? () => markOrderViewed.mutate(o.id) : undefined}
                       className={isNew ? "cursor-pointer rounded-xl ring-2 ring-[var(--gold)] ring-offset-1 shadow-[0_0_0_4px_rgba(217,119,6,0.18)]" : isPendingShip ? "rounded-xl ring-2 ring-[var(--alert)] ring-offset-1 shadow-[0_0_0_4px_rgba(220,38,38,0.12)]" : ""}
                     >
-                      {isPendingShip && (
+                      {isNew && (
                         <p className="flex items-center gap-2 rounded-t-xl bg-[var(--alert)] px-3 py-1.5 text-xs font-bold text-[var(--alert-ink)]">
-                          <span className="h-2 w-2 animate-ping rounded-full bg-white" aria-hidden /> 📦 {t("sd.pendingShipment")} — {t("notif.pendingAlert")}
-                          {isNew && <span className="ml-auto rounded-full bg-[var(--gold)] px-2 py-0.5 text-[10px] font-extrabold text-[var(--gold-ink)] shadow">✦ {t("sord.newOrderBadge")}</span>}
+                          <span className="h-2 w-2 animate-ping rounded-full bg-white" aria-hidden /> ✦ {t("sord.newOrderBadge")}
                         </p>
                       )}
                       {isShipment && (
