@@ -2729,25 +2729,10 @@ function OrderItemReviews({ order, buyerId }: { order: Order; buyerId: number })
 function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor, buyerView, cancelBuyerId }: { order: Order; hideItems?: boolean; proofViewerId?: number; reviewBuyerId?: number; codActor?: { role: "seller" | "admin"; id: number }; buyerView?: boolean; cancelBuyerId?: number }) {
   const { fmt, t } = useUi();
   const queryClient = useQueryClient();
-  const [codBusy, setCodBusy] = useState(false);
-  const [codErr, setCodErr] = useState<string | null>(null);
   const [cancelArmed, setCancelArmed] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelErr, setCancelErr] = useState<string | null>(null);
   const [cancelDone, setCancelDone] = useState(false);
-  // WhatsApp number for the COD confirmation chat: Pakistan 03XX numbers
-  // get +92, Indian 10-digit numbers get +91, a leading + is kept as-is.
-  const waDigits = (order.phone || "").replace(/\D/g, "");
-  const waPhone = order.phone.trim().startsWith("+")
-    ? waDigits
-    : waDigits.length === 11 && waDigits.startsWith("0")
-      ? `92${waDigits.slice(1)}`
-      : waDigits.length === 10
-        ? `91${waDigits}`
-        : waDigits;
-  const waLink = waPhone
-    ? `https://wa.me/${waPhone}?text=${encodeURIComponent(`Hello, this is about your sheinmart order #${order.id} (Cash on Delivery). Please confirm that you will accept this order when it arrives.`)}`
-    : "";
   const byCustomer = order.placedBy === "admin";
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -2834,12 +2819,12 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor, b
           {buyerView ? (
             <>{order.paymentMethod}</>
           ) : byCustomer ? (
-            <>{t("order.byCustomer")} · {order.paymentMethod}</>
+            <>{t("order.byCustomer")}</>
           ) : (
             <>
               {order.customerName} · {order.city}
               {order.state ? `, ${order.state}` : ""}
-              {order.pinCode ? ` — ${order.pinCode}` : ""} · {order.paymentMethod}
+              {order.pinCode ? ` — ${order.pinCode}` : ""}
             </>
           )}
         </span>
@@ -2894,57 +2879,6 @@ function OrderCard({ order, hideItems, proofViewerId, reviewBuyerId, codActor, b
           {order.paymentRejectReason && <> {t("paygate.reason")}: {order.paymentRejectReason}</>}
         </p>
       )}
-      {/* Buyer wording is deliberately professional and second-person:
-          the old confirmed line read like an internal note ("the
-          customer confirmed this order on WhatsApp"). Sellers and
-          Admin keep the operational wording — they act on it. The
-          WhatsApp confirmation step itself is unchanged; only the
-          buyer's text changed. */}
-      {order.paymentMethod === "Cash on Delivery" && order.codConfirmed ? (
-        <p className="mt-2 rounded-lg bg-[var(--success-bg)] px-3 py-2 text-xs font-semibold text-[var(--success-text)]">✓ {buyerView ? t("cod.confirmedBuyer") : t("cod.confirmed")}</p>
-      ) : order.paymentMethod === "Cash on Delivery" && order.status !== "Delivered" && order.status !== "Cancelled" ? (
-        <div className="mt-2 rounded-lg bg-[var(--amber-bg)] px-3 py-2">
-          <p className="text-xs font-semibold text-[var(--text)]">⏳ {buyerView ? t("cod.awaitingBuyer") : t("cod.awaiting")}</p>
-          {codActor && (
-            <div className="mt-1.5 flex flex-wrap gap-2">
-              {waLink && (
-                <a href={waLink} target="_blank" rel="noreferrer" className={ghostBtn + " px-3 py-1.5 text-xs"}>💬 {t("cod.whatsapp")}</a>
-              )}
-              <button
-                type="button"
-                disabled={codBusy}
-                onClick={async () => {
-                  setCodBusy(true);
-                  setCodErr(null);
-                  try {
-                    const res: any = await api.markCodConfirmed({ actorRole: codActor.role, actorId: codActor.id, orderId: order.id });
-                    if (!res?.ok) {
-                      setCodErr(res?.error ?? "Could not mark COD confirmed.");
-                      setCodBusy(false);
-                      return;
-                    }
-                    queryClient.invalidateQueries({ queryKey: ["buyer-orders"] });
-                    queryClient.invalidateQueries({ queryKey: ["seller-dashboard"] });
-                    queryClient.invalidateQueries({ queryKey: ["admin-seller-orders"] });
-                    queryClient.invalidateQueries({ queryKey: ["admin-overview"] });
-                  } catch (e: any) {
-                    setCodErr(String(e?.message ?? e));
-                  }
-                  setCodBusy(false);
-                }}
-                className={goldBtn + " px-3 py-1.5 text-xs"}
-              >
-                ✓ {t("cod.markConfirmed")}
-              </button>
-            </div>
-          )}
-          {codErr && (
-            <p role="alert" className="mt-1 text-xs font-semibold text-rose-600">
-              {codErr}
-            </p>
-          )}
-        </div>
-      ) : null}
       {buyerView && cancelBuyerId !== undefined && order.status === "Pending" && order.paymentStatus !== "verified" && (
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {cancelDone ? (
@@ -6467,8 +6401,7 @@ function SellerView({
                           {!confirming ? (
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="text-sm text-[var(--dim)]">
-                                {t("sord.walletBalance")}: <strong className="text-[var(--text)]">{walletQ.isPending ? "…" : fmt(walletBalance)}</strong>
-                                {" · "}{t("sord.yourProfit")}: <strong className="text-[var(--accent)]">{fmt(profit)}</strong>
+                                {t("sord.yourProfit")}: <strong className="text-[var(--accent)]">{fmt(profit)}</strong>
                               </p>
                               <button
                                 type="button"
