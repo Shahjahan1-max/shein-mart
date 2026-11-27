@@ -6485,7 +6485,7 @@ function SellerView({
                 shows money, never order history. */}
             <section aria-label={t("sord.historyTitle")} className="mt-8 border-t-2 border-[var(--border)] pt-5">
               <h3 className="font-display text-lg font-bold text-[var(--text)]">
-                📜 {t("sord.historyTitle")} ({historyOrders.length})
+                📜 {t("sord.historyTitle")}
               </h3>
               <p className="mt-1 text-sm text-[var(--dim)]">{t("sord.historySub")}</p>
               {historyOrders.length === 0 ? (
